@@ -8,6 +8,8 @@
 // @match        https://smile.amazon.com/s*
 // @grant        none
 // @run-at       document-idle
+// @updateURL    https://github.com/tibbalsgribbin/actually-useful/raw/refs/heads/main/actually-useful.user.js
+// @downloadURL  https://github.com/tibbalsgribbin/actually-useful/raw/refs/heads/main/actually-useful.user.js
 // ==/UserScript==
 
 (function () {
