@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Actually Useful v4.3
+// @name         Actually Useful v4.8
 // @namespace    http://tampermonkey.net/
-// @version      4.3
+// @version      4.8
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @match        https://www.amazon.com/s*
@@ -23,19 +23,40 @@
   const ITEM_UNITS = ['count', 'ct', 'bag', 'bags', 'piece', 'pieces',
                       'pcs', 'pc', 'each', 'unit', 'units', 'pad', 'pads',
                       'sheet', 'sheets', 'wipe', 'wipes', 'tablet', 'tablets',
-                      'oz', 'ounce', 'ounces', 'fl oz', 'fl. oz', 'fl. oz.',
+                      'oz', 'fl oz', 'fluid ounce', 'fluid ounces',
                       'lb', 'lbs', 'pound', 'pounds',
                       'g', 'gram', 'grams', 'kg', 'kilogram', 'kilograms',
                       'ml', 'milliliter', 'milliliters', 'l', 'liter', 'liters'];
 
   // ── Format price-per-unit ─────────────────────────────────────────────────
+  // Always use dollar format to avoid confusing cent display (2.00¢ looks like $2.00)
+  // Under $0.10: show 3 decimal places ($0.023), otherwise 2 ($0.29, $1.29)
   function formatPPU(ppu) {
-    return ppu < 0.10 ? (ppu * 100).toFixed(2) + '\u00a2' : '$' + ppu.toFixed(2);
+    if (ppu < 0.10) return '$' + ppu.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0');
+    return '$' + ppu.toFixed(2);
+  }
+
+  // ── Normalize unit labels for consistent display ─────────────────────────
+  function normalizeUnit(unit) {
+    if (!unit) return unit;
+    var u = unit.toLowerCase().trim();
+    if (u === 'fluid ounce' || u === 'fluid ounces' || u === 'fl. oz' || u === 'fl. oz.') return 'fl oz';
+    if (u === 'ounce' || u === 'ounces') return 'oz';
+    if (u === 'count') return 'ct';
+    if (u === 'pound' || u === 'pounds') return 'lb';
+    if (u === 'gram' || u === 'grams') return 'g';
+    if (u === 'kilogram' || u === 'kilograms') return 'kg';
+    if (u === 'milliliter' || u === 'milliliters') return 'ml';
+    if (u === 'liter' || u === 'liters') return 'l';
+    if (u === 'piece' || u === 'pieces') return 'pc';
+    if (u === 'tablet' || u === 'tablets') return 'tab';
+    if (u === 'capsule' || u === 'capsules') return 'cap';
+    return u;
   }
 
   // ── Parse delivery dates from a result card ───────────────────────────────
   function parseDeliveryDates(el) {
-    var result = { freeDate: null, fastDate: null, wfDelivery: false };
+    var result = { freeDate: null, fastDate: null };
     var blocks = el.querySelectorAll('.udm-secondary-delivery-message, .a-color-base.a-text-normal');
     var deliveryDivs = el.querySelectorAll('[class*="delivery"]');
     var columns = el.querySelectorAll('.a-column.a-span12');
@@ -117,7 +138,7 @@
       min-width: 280px;
       max-width: 700px;
       max-height: calc(100vh - 100px);
-      overflow-y: auto;
+      overflow: hidden;
       background: #fff;
       border: 1px solid #d5d9d9;
       border-radius: 8px;
@@ -127,13 +148,15 @@
       font-size: 13px;
       color: #0f1111;
       transition: max-height 0.2s;
-      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
     }
     #${PANEL_ID}.collapsed {
       width: 220px !important;
       max-height: 41px;
-      overflow: hidden;
     }
+    #ppu-controls-wrap { flex-shrink: 0; }
+    #ppu-scroll-area { flex: 1; overflow-y: auto; overflow-x: hidden; }
     #ppu-header {
       background: #232f3e;
       color: #fff;
@@ -144,9 +167,9 @@
       justify-content: space-between;
       position: sticky;
       top: 0;
-      z-index: 11;
       user-select: none;
     }
+
     #${PANEL_ID}.collapsed #ppu-header { border-radius: 8px; }
     #ppu-header h3 { margin: 0; font-size: 14px; font-weight: 700; }
     #ppu-header-btns { display: flex; gap: 6px; align-items: center; }
@@ -164,15 +187,12 @@
     #ppu-controls {
       padding: 8px 14px;
       background: #f0f2f2;
-      z-index: 10;
       border-bottom: 1px solid #d5d9d9;
       display: flex;
       gap: 8px;
       align-items: center;
       flex-wrap: wrap;
-      position: sticky;
-      top: 41px;
-    }
+      }
     #ppu-controls label { font-size: 12px; color: #565959; }
     #ppu-sort {
       font-size: 12px; padding: 3px 6px;
@@ -192,13 +212,10 @@
       padding: 6px 14px;
       background: #f7f7f7;
       border-bottom: 1px solid #e8e8e8;
-      z-index: 10;
       display: flex;
       gap: 6px;
       align-items: center;
-      position: sticky;
-      top: 82px;
-    }
+      }
     #ppu-filter-row label { font-size: 12px; color: #565959; white-space: nowrap; }
     #ppu-keyword {
       flex: 1; min-width: 0;
@@ -218,13 +235,10 @@
       padding: 6px 14px;
       background: #f7f7f7;
       border-bottom: 1px solid #d5d9d9;
-      z-index: 10;
       display: flex;
       gap: 6px;
       align-items: center;
-      position: sticky;
-      top: 118px;
-    }
+      }
     #ppu-unit-row label { font-size: 12px; color: #565959; white-space: nowrap; }
     #ppu-unit-override {
       flex: 1; min-width: 0;
@@ -244,14 +258,11 @@
       padding: 6px 14px;
       background: #f7f7f7;
       border-bottom: 1px solid #d5d9d9;
-      z-index: 10;
       display: flex;
       gap: 8px;
       align-items: center;
       flex-wrap: wrap;
-      position: sticky;
-      top: 154px;
-    }
+      }
     #ppu-source-row span.label { font-size: 12px; color: #565959; white-space: nowrap; }
     .ppu-source-toggle {
       font-size: 11px; padding: 2px 8px;
@@ -383,14 +394,46 @@
   }
 
   // ── Parse Amazon's unit price string ─────────────────────────────────────
+  // Handles two DOM structures:
+  // 1. Simple: ($0.05/count) all in one text node
+  // 2. Split: "(" + <a-price span> + "/fluid ounce)" across multiple nodes
+  //    (used for grocery/Fresh items) — a-offscreen span causes price to
+  //    appear twice in innerText, so we deduplicate before matching
   function parseAmazonUnitPrice(el) {
-    var text = el.innerText || '';
+    // Strategy 1: try the split DOM structure first
+    // Amazon grocery cards split the unit price across multiple spans:
+    // <span class="a-size-base a-color-base">"(" <a-price> "/fluid ounce)"</span>
+    // The key identifier is the span's textContent starting with "(" and containing "/"
+    var containers = el.querySelectorAll('.a-size-base.a-color-base, .a-size-base-plus.a-color-base');
+    for (var i = 0; i < containers.length; i++) {
+      var cont = containers[i];
+      var fullText = cont.textContent || '';
+      // Must start with ( and contain / and end with ) — unit price pattern
+      var trimmed = fullText.trim();
+      if (!trimmed.startsWith('(') || !trimmed.includes('/') || !trimmed.endsWith(')')) continue;
+      // Must contain a nested a-price.a-text-price span — that's the unit price span
+      var priceSpan = cont.querySelector('.a-price.a-text-price .a-offscreen');
+      if (!priceSpan) continue;
+      var priceStr = priceSpan.textContent.replace(/[$,]/g, '').trim();
+      var price = parseFloat(priceStr);
+      if (isNaN(price) || price <= 0) continue;
+      // Extract unit from the slash-to-close-paren portion
+      var unitMatch = trimmed.match(/\/\s*([^)]+)\)\s*$/);
+      if (unitMatch) {
+        var unit = normalizeUnit(unitMatch[1].trim());
+        return { ppu: price, unit: unit };
+      }
+    }
+
+    // Strategy 2: fallback — look for the classic ($0.05/count) pattern in innerText
+    // Deduplicate repeated prices from a-offscreen rendering
+    var text = (el.innerText || '').replace(/\$([\d.]+)\$\1/g, '$$$1');
     var dollarPat = /\(\$\s*([\d.]+)\s*\/\s*([^)\n,]+)\)/i;
     var centPat   = /\(¢\s*([\d.]+)\s*\/\s*([^)\n,]+)\)/i;
     var m = text.match(dollarPat);
-    if (m) return { ppu: parseFloat(m[1]), unit: m[2].trim().toLowerCase().replace(/\.$/,'') };
+    if (m) return { ppu: parseFloat(m[1]), unit: normalizeUnit(m[2].trim()) };
     m = text.match(centPat);
-    if (m) return { ppu: parseFloat(m[1]) / 100, unit: m[2].trim().toLowerCase().replace(/\.$/,'') };
+    if (m) return { ppu: parseFloat(m[1]) / 100, unit: normalizeUnit(m[2].trim()) };
     return null;
   }
 
@@ -409,7 +452,31 @@
     return null;
   }
 
-  // ── Guess unit label ──────────────────────────────────────────────────────
+  // ── Guess what the COUNT in the title refers to ─────────────────────────
+  // This is specifically for when we're calculating price/count from the title.
+  // It detects what unit is being counted (rolls, bags, sheets, etc.)
+  // rather than what the product IS.
+  function guessCountUnit(text) {
+    var lower = text.toLowerCase();
+    // Explicit count patterns — what is being counted?
+    if (/\d[\d,]*\s*-?\s*rolls?/i.test(text)) return 'roll';
+    if (/\d[\d,]*\s*-?\s*bags?/i.test(text)) return 'bag';
+    if (/\d[\d,]*\s*-?\s*sheets?/i.test(text)) return 'sheet';
+    if (/\d[\d,]*\s*-?\s*wipes?/i.test(text)) return 'wipe';
+    if (/\d[\d,]*\s*-?\s*pads?/i.test(text)) return 'pad';
+    if (/\d[\d,]*\s*-?\s*tablets?/i.test(text)) return 'tablet';
+    if (/\d[\d,]*\s*-?\s*pills?/i.test(text)) return 'pill';
+    if (/\d[\d,]*\s*-?\s*capsules?/i.test(text)) return 'capsule';
+    if (/\d[\d,]*\s*-?\s*pcs\.?/i.test(text)) return 'pc';
+    if (/\d[\d,]*\s*-?\s*pieces?/i.test(text)) return 'piece';
+    if (/\d[\d,]*\s*-?\s*pack/i.test(text)) return 'pack';
+    if (/pack\s+of\s+\d/i.test(text)) return 'pack';
+    if (/\d[\d,]*\s*-?\s*count/i.test(text)) return 'ct';
+    if (/box\s+of\s+\d/i.test(text)) return 'box';
+    return null;
+  }
+
+  // ── Guess product-level unit from title (for display when no count unit found) ──
   function guessUnitFromTitle(text) {
     var lower = text.toLowerCase();
     if (/\bbags?\b/.test(lower)) return 'bag';
@@ -420,7 +487,7 @@
     if (/\bpills?\b/.test(lower)) return 'pill';
     if (/\bcapsules?\b/.test(lower)) return 'capsule';
     if (/\bpcs\b|pieces?\b/.test(lower)) return 'pc';
-    return null;  // FIX: return null instead of 'unit' so we know there's no good label
+    return null;
   }
 
   // ── Parse price ───────────────────────────────────────────────────────────
@@ -460,7 +527,7 @@
     if (ap && ITEM_UNITS.includes(ap.unit))
       return Object.assign(base, { ppu: ap.ppu, unit: ap.unit, source: 'amazon' });
     if (ap && CONTAINER_UNITS.includes(ap.unit) && count && price) {
-      var unit = guessUnitFromTitle(title);
+      var unit = guessCountUnit(title) || guessUnitFromTitle(title);
       return Object.assign(base, { ppu: price/count, unit: unit, source: 'calc',
                note: 'Amazon said '+formatPPU(ap.ppu)+'/'+ap.unit });
     }
@@ -470,7 +537,7 @@
     if (ap)
       return Object.assign(base, { ppu: ap.ppu, unit: ap.unit, source: 'amazon' });
     if (count && price) {
-      var unit2 = guessUnitFromTitle(title);
+      var unit2 = guessCountUnit(title) || guessUnitFromTitle(title);
       return Object.assign(base, { ppu: price/count, unit: unit2, source: 'calc' });
     }
     return Object.assign(base, { ppu: null, unit: null, source: 'none' });
@@ -498,6 +565,7 @@
   }
 
   // ── Fetch page ────────────────────────────────────────────────────────────
+  // Returns { rows, nextPageUrl } so we only fetch each page once
   function fetchPage(url, pageNum) {
     return fetch(url, { credentials: 'include' })
       .then(function(res) { return res.text(); })
@@ -505,7 +573,18 @@
         var parser = new DOMParser();
         var doc = parser.parseFromString(html, 'text/html');
         var cards = doc.querySelectorAll('[data-component-type="s-search-result"]');
-        return Array.from(cards).map(function(c) { return scrapeCard(c, pageNum); });
+        var seen = {};
+        var rows = Array.from(cards).reduce(function(acc, c) {
+          var row = scrapeCard(c, pageNum);
+          if (row.asin && seen[row.asin]) return acc;
+          if (row.asin) seen[row.asin] = true;
+          if (allData.some(function(r) { return r.asin && r.asin === row.asin; })) return acc;
+          acc.push(row);
+          return acc;
+        }, []);
+        var nextA = doc.querySelector('.s-pagination-next:not(.s-pagination-disabled)');
+        var nextUrl = nextA ? ('https://www.amazon.com' + nextA.getAttribute('href')) : null;
+        return { rows: rows, nextUrl: nextUrl };
       });
   }
 
@@ -529,7 +608,14 @@
     var cards = document.querySelectorAll('[data-component-type="s-search-result"]');
     if (!cards.length) { console.log('[PPU] No result cards found.'); return; }
 
-    allData     = Array.from(cards).map(function(c) { return scrapeCard(c, 1); });
+    var seenAsins = {};
+    allData = Array.from(cards).reduce(function(acc, c) {
+      var row = scrapeCard(c, 1);
+      if (row.asin && seenAsins[row.asin]) return acc;
+      if (row.asin) seenAsins[row.asin] = true;
+      acc.push(row);
+      return acc;
+    }, []);
     loadedPages = 1;
     nextPageUrl = getNextPageUrl();
     needsResort = false;
@@ -553,8 +639,9 @@
     panel.style.position = 'fixed';
     panel.innerHTML =
       '<div id="ppu-drag-handle"></div>' +
+      '<div id="ppu-controls-wrap">' +
       '<div id="ppu-header">' +
-        '<h3>\uD83D\uDCB0 Amazon Search Enhancer</h3>' +
+        '<h3>\uD83D\uDCB0 Actually Useful</h3>' +
         '<div id="ppu-header-btns">' +
           '<a id="ppu-coffee" href="https://ko-fi.com/tibbalsgribbin" target="_blank">\u2615 buy me a coffee</a>' +
           '<button id="ppu-collapse" title="Collapse/expand">\u2195</button>' +
@@ -596,11 +683,14 @@
         '</div>' : '') +
       (hasDelivery ? '<div id="ppu-delivery-note">\u26a0\ufe0f Delivery dates are estimates · Whole Foods "FREE" delivery requires a separate fee</div>' : '') +
       '<div id="ppu-sort-note"></div>' +
+      '</div>' +
+      '<div id="ppu-scroll-area">' +
       '<div id="ppu-info"></div>' +
       '<div id="ppu-list"></div>' +
       '<div id="ppu-load-more-row" style="' + (nextPageUrl ? '' : 'display:none') + '">' +
         '<button id="ppu-btn-load-more">\u2193 Load page 2 results</button>' +
         '<button id="ppu-btn-resort-bottom">Re-sort all \u21c5</button>' +
+      '</div>' +
       '</div>';
 
     document.body.appendChild(panel);
@@ -778,9 +868,7 @@
             srcFilter[r.grocery] && Math.abs(r.ppu-bestPPU)<0.00001;
           var isContainer = r.source==='amazon-container';
           var ppuStr = formatPPU(r.ppu);
-          // FIX: remove (est.) label — replaced with nothing, just show the number
           var warn = isContainer ? ' <span style="font-size:10px;color:#aaa;">\u26a0\ufe0f per-container</span>' : '';
-          // FIX: only show unit if we have a meaningful one
           var unitDisplay = displayUnit ? '/'+displayUnit : '';
           badge = '<span class="ppu-badge'+(isBest?' best':'')+(isContainer?' container':'')+'">'
             +ppuStr+unitDisplay+(isBest?' \u2605':'')+' </span>'+warn;
@@ -921,26 +1009,19 @@
         var fetchUrl = nextPageUrl;
 
         fetchPage(fetchUrl, fetchingPage)
-          .then(function(newRows) {
-            allData = allData.concat(newRows);
+          .then(function(result) {
+            allData = allData.concat(result.rows);
             loadedPages = fetchingPage;
             needsResort = true;
-            return fetch(fetchUrl, { credentials: 'include' })
-              .then(function(res) { return res.text(); })
-              .then(function(html) {
-                var parser = new DOMParser();
-                var doc = parser.parseFromString(html, 'text/html');
-                var nextA = doc.querySelector('.s-pagination-next:not(.s-pagination-disabled)');
-                nextPageUrl = nextA ? ('https://www.amazon.com' + nextA.getAttribute('href')) : null;
-                var lmRow = document.getElementById('ppu-load-more-row');
-                if (nextPageUrl && lmRow) {
-                  btn.disabled = false;
-                  btn.textContent = '\u2193 Load page '+(loadedPages+1)+' results';
-                } else if (lmRow) {
-                  lmRow.style.display = 'none';
-                }
-                render();
-              });
+            nextPageUrl = result.nextUrl;
+            var lmRow = document.getElementById('ppu-load-more-row');
+            if (nextPageUrl && lmRow) {
+              btn.disabled = false;
+              btn.textContent = '\u2193 Load page '+(loadedPages+1)+' results';
+            } else if (lmRow) {
+              lmRow.style.display = 'none';
+            }
+            render();
           })
           .catch(function(err) {
             console.log('[PPU] Load more failed:', err);
