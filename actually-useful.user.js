@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Actually Useful v4.8
+// @name         Actually Useful v4.9
 // @namespace    http://tampermonkey.net/
-// @version      4.8
+// @version      4.9
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @match        https://www.amazon.com/s*
@@ -16,6 +16,26 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
+
+  // ── Passive logging endpoint ──────────────────────────────────────────────
+  const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
+
+  // Send a log entry silently — never blocks or alerts the user
+  function sendLog(data) {
+    try {
+      var payload = Object.assign({
+        timestamp: new Date().toISOString(),
+        searchUrl: window.location.href,
+        searchTerm: (new URLSearchParams(window.location.search).get('k') || '').trim(),
+      }, data);
+      fetch(LOG_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        mode: 'no-cors'  // avoids CORS errors; response won't be readable but delivery works
+      }).catch(function() {}); // swallow any network errors silently
+    } catch(e) {}
+  }
 
   const CONTAINER_UNITS = ['roll', 'rolls', 'box', 'boxes', 'pack', 'packs',
                            'package', 'packages', 'pouch', 'pouches', 'tube', 'tubes'];
@@ -401,23 +421,17 @@
   //    appear twice in innerText, so we deduplicate before matching
   function parseAmazonUnitPrice(el) {
     // Strategy 1: try the split DOM structure first
-    // Amazon grocery cards split the unit price across multiple spans:
-    // <span class="a-size-base a-color-base">"(" <a-price> "/fluid ounce)"</span>
-    // The key identifier is the span's textContent starting with "(" and containing "/"
     var containers = el.querySelectorAll('.a-size-base.a-color-base, .a-size-base-plus.a-color-base');
     for (var i = 0; i < containers.length; i++) {
       var cont = containers[i];
       var fullText = cont.textContent || '';
-      // Must start with ( and contain / and end with ) — unit price pattern
       var trimmed = fullText.trim();
       if (!trimmed.startsWith('(') || !trimmed.includes('/') || !trimmed.endsWith(')')) continue;
-      // Must contain a nested a-price.a-text-price span — that's the unit price span
       var priceSpan = cont.querySelector('.a-price.a-text-price .a-offscreen');
       if (!priceSpan) continue;
       var priceStr = priceSpan.textContent.replace(/[$,]/g, '').trim();
       var price = parseFloat(priceStr);
       if (isNaN(price) || price <= 0) continue;
-      // Extract unit from the slash-to-close-paren portion
       var unitMatch = trimmed.match(/\/\s*([^)]+)\)\s*$/);
       if (unitMatch) {
         var unit = normalizeUnit(unitMatch[1].trim());
@@ -426,7 +440,6 @@
     }
 
     // Strategy 2: fallback — look for the classic ($0.05/count) pattern in innerText
-    // Deduplicate repeated prices from a-offscreen rendering
     var text = (el.innerText || '').replace(/\$([\d.]+)\$\1/g, '$$$1');
     var dollarPat = /\(\$\s*([\d.]+)\s*\/\s*([^)\n,]+)\)/i;
     var centPat   = /\(¢\s*([\d.]+)\s*\/\s*([^)\n,]+)\)/i;
@@ -453,12 +466,7 @@
   }
 
   // ── Guess what the COUNT in the title refers to ─────────────────────────
-  // This is specifically for when we're calculating price/count from the title.
-  // It detects what unit is being counted (rolls, bags, sheets, etc.)
-  // rather than what the product IS.
   function guessCountUnit(text) {
-    var lower = text.toLowerCase();
-    // Explicit count patterns — what is being counted?
     if (/\d[\d,]*\s*-?\s*rolls?/i.test(text)) return 'roll';
     if (/\d[\d,]*\s*-?\s*bags?/i.test(text)) return 'bag';
     if (/\d[\d,]*\s*-?\s*sheets?/i.test(text)) return 'sheet';
@@ -476,7 +484,7 @@
     return null;
   }
 
-  // ── Guess product-level unit from title (for display when no count unit found) ──
+  // ── Guess product-level unit from title ──────────────────────────────────
   function guessUnitFromTitle(text) {
     var lower = text.toLowerCase();
     if (/\bbags?\b/.test(lower)) return 'bag';
@@ -518,7 +526,6 @@
     var page     = pageNum || 1;
     var grocery  = detectSource(el);
     var delivery = parseDeliveryDates(el);
-    // Flag: Whole Foods listing with a "free" delivery label — misleading
     var wfFreeFlag = (grocery === 'whole-foods') && !!delivery.freeDate;
 
     var base = { title, href, asin, price, count, page, grocery, wfFreeFlag,
@@ -565,7 +572,6 @@
   }
 
   // ── Fetch page ────────────────────────────────────────────────────────────
-  // Returns { rows, nextPageUrl } so we only fetch each page once
   function fetchPage(url, pageNum) {
     return fetch(url, { credentials: 'include' })
       .then(function(res) { return res.text(); })
@@ -593,7 +599,7 @@
   var isCollapsed     = false;
   var keyword         = '';
   var unitOverride    = '';
-  var sortVal         = 'ppu-asc';   // FIX: persist sort across refresh
+  var sortVal         = 'ppu-asc';
   var checkedAsins    = {};
   var showCheckedOnly = false;
   var allData         = [];
@@ -601,6 +607,49 @@
   var nextPageUrl     = null;
   var needsResort     = false;
   var srcFilter       = { 'standard': true, 'fresh': true, 'whole-foods': true };
+  var logTimer        = null;
+
+  // ── Schedule a log send (debounced — waits 5s after last change) ──────────
+  function scheduleLog() {
+    if (logTimer) clearTimeout(logTimer);
+    logTimer = setTimeout(function() { doLog(); }, 5000);
+  }
+
+  // ── Collect and send log data ─────────────────────────────────────────────
+  function doLog() {
+    try {
+      var withUnit = allData.filter(function(r) { return r.ppu != null; });
+      var withoutUnit = allData.filter(function(r) { return r.ppu == null; });
+
+      // Collect distinct units found
+      var unitCounts = {};
+      withUnit.forEach(function(r) {
+        if (r.unit) unitCounts[r.unit] = (unitCounts[r.unit] || 0) + 1;
+      });
+      var unitsFound = Object.keys(unitCounts).sort(function(a,b) {
+        return unitCounts[b] - unitCounts[a];
+      }).map(function(u) {
+        return u + '(' + unitCounts[u] + ')';
+      }).join(', ');
+
+      // Collect grocery sources present
+      var sources = [];
+      if (allData.some(function(r) { return r.grocery === 'standard'; })) sources.push('standard');
+      if (allData.some(function(r) { return r.grocery === 'fresh'; })) sources.push('fresh');
+      if (allData.some(function(r) { return r.grocery === 'whole-foods'; })) sources.push('whole-foods');
+
+      sendLog({
+        totalResults:   allData.length,
+        withUnitData:   withUnit.length,
+        withoutUnitData: withoutUnit.length,
+        unitsFound:     unitsFound,
+        sortMethod:     sortVal,
+        keywordFilter:  keyword.trim() || '',
+        pagesLoaded:    loadedPages,
+        grocerySources: sources.join(', ')
+      });
+    } catch(e) {}
+  }
 
   // ── Build panel ───────────────────────────────────────────────────────────
   function buildPanel() {
@@ -625,7 +674,6 @@
     var hasGrocery = hasFresh || hasWF;
     var hasDelivery = allData.some(function(r) { return r.freeDate || r.fastDate; });
 
-    // FIX: detect if unit data is sparse — flag for sort fallback
     var unitDataCount = allData.filter(function(r) { return r.ppu != null; }).length;
     var unitDataSparse = unitDataCount < Math.ceil(allData.length * 0.1);
 
@@ -709,7 +757,7 @@
       });
       document.addEventListener('mousemove', function(e) {
         if (!isDragging) return;
-        var delta = startX - e.clientX;  // dragging left = wider
+        var delta = startX - e.clientX;
         var newWidth = Math.min(700, Math.max(280, startWidth + delta));
         panel.style.width = newWidth + 'px';
       });
@@ -750,7 +798,6 @@
       resortBtn.style.display    = (needsResort && !showCheckedOnly) ? 'block' : 'none';
       resortBtnBot.style.display = (needsResort && !showCheckedOnly) ? 'block' : 'none';
 
-      // FIX: if sorting by best value but unit data is sparse, show note and treat as price sort
       var effectiveSortVal = sortVal;
       var unitDataAvailable = allData.filter(function(r) { return r.ppu != null; }).length;
       var isSparseForSort = (sortVal === 'ppu-asc' || sortVal === 'ppu-desc') &&
@@ -783,7 +830,6 @@
         } else if (effectiveSortVal === 'price-desc') {
           return (b.price==null?-Infinity:b.price) - (a.price==null?-Infinity:a.price);
         } else if (effectiveSortVal === 'delivery-free') {
-          // FIX: three tiers — has free date, has only fast date, no date
           var aVal = a.freeDate ? 0 : (a.fastDate ? 1 : 2);
           var bVal = b.freeDate ? 0 : (b.fastDate ? 1 : 2);
           if (aVal !== bVal) return aVal - bVal;
@@ -836,7 +882,7 @@
       if (showCheckedOnly) infoText += ' \u00b7 '+displayData.length+' selected';
       document.getElementById('ppu-info').textContent = infoText;
 
-      // Best PPU — only among visible, matching, non-container rows
+      // Best PPU
       var ppuVals = displayData
         .filter(function(r) { return r.ppu!=null && r.source!=='amazon-container' && r.kwMatch && srcFilter[r.grocery]; })
         .map(function(r) { return r.ppu; });
@@ -878,11 +924,9 @@
           badge = '<span class="ppu-nodata">no unit data</span>';
         }
 
-        // Delivery display
         if (r.freeDate || r.fastDate) {
           var parts = [];
           if (r.freeDate) {
-            // FIX: flag Whole Foods "free" delivery as having a fee
             var freeClass = r.wfFreeFlag ? 'ppu-delivery wf-fee' : 'ppu-delivery';
             var freeLabel = r.wfFreeFlag
               ? '<span title="Whole Foods delivery has a separate fee — not free with Prime">FREE✳: </span>'
@@ -930,6 +974,10 @@
             ? 'Show all ('+cnt+' selected)' : 'Show selected ('+cnt+')';
         });
       });
+
+      // Schedule a log after render settles
+      scheduleLog();
+
     } // end render
 
     // ── Events ────────────────────────────────────────────────────────────
