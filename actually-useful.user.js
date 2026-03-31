@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Actually Useful v4.9
+// @name         Actually Useful v5.0
 // @namespace    http://tampermonkey.net/
-// @version      4.9
+// @version      5.0
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @match        https://www.amazon.com/s*
@@ -20,7 +20,6 @@
   // ── Passive logging endpoint ──────────────────────────────────────────────
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
-  // Send a log entry silently — never blocks or alerts the user
   function sendLog(data) {
     try {
       var payload = Object.assign({
@@ -32,8 +31,8 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        mode: 'no-cors'  // avoids CORS errors; response won't be readable but delivery works
-      }).catch(function() {}); // swallow any network errors silently
+        mode: 'no-cors'
+      }).catch(function() {});
     } catch(e) {}
   }
 
@@ -48,15 +47,53 @@
                       'g', 'gram', 'grams', 'kg', 'kilogram', 'kilograms',
                       'ml', 'milliliter', 'milliliters', 'l', 'liter', 'liters'];
 
+  // ── Unit conversion ───────────────────────────────────────────────────────
+  // Weight → oz, Liquid → fl oz, for behind-the-scenes sort normalization
+  function convertPPU(ppu, fromUnit, toUnit) {
+    if (!ppu || !fromUnit || !toUnit) return null;
+    var from = fromUnit.toLowerCase().trim();
+    var to = toUnit.toLowerCase().trim();
+    if (from === to) return ppu;
+    var toOz = { 'oz':1, 'g':1/28.3495, 'gram':1/28.3495, 'grams':1/28.3495,
+                 'kg':35.274, 'kilogram':35.274, 'kilograms':35.274,
+                 'lb':16, 'lbs':16, 'pound':16, 'pounds':16 };
+    var toFlOz = { 'fl oz':1, 'fluid ounce':1, 'fluid ounces':1,
+                   'ml':1/29.5735, 'milliliter':1/29.5735, 'milliliters':1/29.5735,
+                   'l':33.814, 'liter':33.814, 'liters':33.814 };
+    if (toOz[from] !== undefined && toOz[to] !== undefined)
+      return ppu / toOz[from] * toOz[to];
+    if (toFlOz[from] !== undefined && toFlOz[to] !== undefined)
+      return ppu / toFlOz[from] * toFlOz[to];
+    return null;
+  }
+
+  // Normalize to base unit (weight→oz, liquid→fl oz) for sort comparison
+  function normalizePPUForSort(ppu, unit) {
+    if (!ppu || !unit) return ppu;
+    var u = unit.toLowerCase().trim();
+    var weightUnits = ['oz','g','gram','grams','kg','kilogram','kilograms','lb','lbs','pound','pounds'];
+    var liquidUnits = ['fl oz','fluid ounce','fluid ounces','ml','milliliter','milliliters','l','liter','liters'];
+    if (weightUnits.indexOf(u) !== -1) return convertPPU(ppu, u, 'oz') || ppu;
+    if (liquidUnits.indexOf(u) !== -1) return convertPPU(ppu, u, 'fl oz') || ppu;
+    return ppu;
+  }
+
+  // Returns 'weight', 'liquid', or null
+  function unitGroup(unit) {
+    if (!unit) return null;
+    var u = unit.toLowerCase().trim();
+    if (['oz','g','gram','grams','kg','kilogram','kilograms','lb','lbs','pound','pounds'].indexOf(u) !== -1) return 'weight';
+    if (['fl oz','fluid ounce','fluid ounces','ml','milliliter','milliliters','l','liter','liters'].indexOf(u) !== -1) return 'liquid';
+    return null;
+  }
+
   // ── Format price-per-unit ─────────────────────────────────────────────────
-  // Always use dollar format to avoid confusing cent display (2.00¢ looks like $2.00)
-  // Under $0.10: show 3 decimal places ($0.023), otherwise 2 ($0.29, $1.29)
   function formatPPU(ppu) {
     if (ppu < 0.10) return '$' + ppu.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0');
     return '$' + ppu.toFixed(2);
   }
 
-  // ── Normalize unit labels for consistent display ─────────────────────────
+  // ── Normalize unit labels ─────────────────────────────────────────────────
   function normalizeUnit(unit) {
     if (!unit) return unit;
     var u = unit.toLowerCase().trim();
@@ -74,9 +111,9 @@
     return u;
   }
 
-  // ── Parse delivery dates from a result card ───────────────────────────────
+  // ── Parse delivery dates and cutoff times ─────────────────────────────────
   function parseDeliveryDates(el) {
-    var result = { freeDate: null, fastDate: null };
+    var result = { freeDate: null, fastDate: null, freeCutoff: null, fastCutoff: null };
     var blocks = el.querySelectorAll('.udm-secondary-delivery-message, .a-color-base.a-text-normal');
     var deliveryDivs = el.querySelectorAll('[class*="delivery"]');
     var columns = el.querySelectorAll('.a-column.a-span12');
@@ -94,10 +131,17 @@
       var parsed = parseDateString(dateStr);
       if (!parsed) return;
 
-      if (lower.includes('free') || lower.includes('free delivery')) {
-        if (!result.freeDate) result.freeDate = parsed;
+      // Extract cutoff time if present
+      var cutoff = null;
+      var byMatch = text.match(/by\s+(\d{1,2}(?::\d{2})?\s*(?:AM|PM))/i);
+      var withinMatch = text.match(/within\s+(\d+\s*hr[s]?)/i);
+      if (byMatch) cutoff = 'by ' + byMatch[1];
+      else if (withinMatch) cutoff = withinMatch[1];
+
+      if (lower.includes('free') && !lower.includes('fastest')) {
+        if (!result.freeDate) { result.freeDate = parsed; result.freeCutoff = cutoff; }
       } else if (lower.includes('fastest') || lower.includes('or fastest')) {
-        if (!result.fastDate) result.fastDate = parsed;
+        if (!result.fastDate) { result.fastDate = parsed; result.fastCutoff = cutoff; }
       }
     });
 
@@ -151,45 +195,22 @@
   // ── CSS ───────────────────────────────────────────────────────────────────
   const CSS = `
     #${PANEL_ID} {
-      position: fixed;
-      top: 80px;
-      right: 16px;
-      width: 390px;
-      min-width: 280px;
-      max-width: 700px;
-      max-height: calc(100vh - 100px);
-      overflow: hidden;
-      background: #fff;
-      border: 1px solid #d5d9d9;
-      border-radius: 8px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.18);
-      z-index: 99999;
-      font-family: Arial, sans-serif;
-      font-size: 13px;
-      color: #0f1111;
-      transition: max-height 0.2s;
-      display: flex;
-      flex-direction: column;
+      position: fixed; top: 80px; right: 16px;
+      width: 390px; min-width: 280px; max-width: 700px;
+      max-height: calc(100vh - 100px); overflow: hidden;
+      background: #fff; border: 1px solid #d5d9d9; border-radius: 8px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.18); z-index: 99999;
+      font-family: Arial, sans-serif; font-size: 13px; color: #0f1111;
+      transition: max-height 0.2s; display: flex; flex-direction: column;
     }
-    #${PANEL_ID}.collapsed {
-      width: 220px !important;
-      max-height: 41px;
-    }
+    #${PANEL_ID}.collapsed { width: 220px !important; max-height: 41px; }
     #ppu-controls-wrap { flex-shrink: 0; }
     #ppu-scroll-area { flex: 1; overflow-y: auto; overflow-x: hidden; }
     #ppu-header {
-      background: #232f3e;
-      color: #fff;
-      padding: 10px 14px;
-      border-radius: 8px 8px 0 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      user-select: none;
+      background: #232f3e; color: #fff; padding: 10px 14px;
+      border-radius: 8px 8px 0 0; display: flex; align-items: center;
+      justify-content: space-between; position: sticky; top: 0; user-select: none;
     }
-
     #${PANEL_ID}.collapsed #ppu-header { border-radius: 8px; }
     #ppu-header h3 { margin: 0; font-size: 14px; font-weight: 700; }
     #ppu-header-btns { display: flex; gap: 6px; align-items: center; }
@@ -200,46 +221,33 @@
     #ppu-coffee {
       font-size: 12px; text-decoration: none; color: #ffd700;
       padding: 2px 6px; border: 1px solid rgba(255,215,0,0.4);
-      border-radius: 4px; opacity: 0.9; transition: opacity 0.15s;
-      white-space: nowrap;
+      border-radius: 4px; opacity: 0.9; transition: opacity 0.15s; white-space: nowrap;
     }
     #ppu-coffee:hover { opacity: 1; }
     #ppu-controls {
-      padding: 8px 14px;
-      background: #f0f2f2;
-      border-bottom: 1px solid #d5d9d9;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-      }
+      padding: 8px 14px; background: #f0f2f2; border-bottom: 1px solid #d5d9d9;
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
     #ppu-controls label { font-size: 12px; color: #565959; }
     #ppu-sort {
       font-size: 12px; padding: 3px 6px;
-      border: 1px solid #aaa; border-radius: 4px;
-      background: #fff; cursor: pointer;
+      border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer;
     }
     #ppu-btn-hide, #ppu-btn-refresh, #ppu-btn-resort,
     #ppu-btn-show-checked, #ppu-btn-clear-checked {
       font-size: 11px; padding: 3px 8px;
-      border: 1px solid #aaa; border-radius: 4px;
-      background: #fff; cursor: pointer;
+      border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer;
     }
     #ppu-btn-resort { border-color: #007185; color: #007185; display: none; }
     #ppu-btn-show-checked { border-color: #e47911; color: #e47911; display: none; }
     #ppu-btn-clear-checked { display: none; }
     #ppu-filter-row {
-      padding: 6px 14px;
-      background: #f7f7f7;
-      border-bottom: 1px solid #e8e8e8;
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      }
+      padding: 6px 14px; background: #f7f7f7; border-bottom: 1px solid #e8e8e8;
+      display: flex; gap: 6px; align-items: center;
+    }
     #ppu-filter-row label { font-size: 12px; color: #565959; white-space: nowrap; }
     #ppu-keyword {
-      flex: 1; min-width: 0;
-      font-size: 12px; padding: 3px 6px;
+      flex: 1; min-width: 0; font-size: 12px; padding: 3px 6px;
       border: 1px solid #aaa; border-radius: 4px; background: #fff;
     }
     #ppu-keyword.active {
@@ -247,50 +255,38 @@
       box-shadow: 0 0 0 2px rgba(228,121,17,0.25);
     }
     #ppu-btn-clear-kw {
-      font-size: 13px; padding: 1px 5px;
-      border: 1px solid #aaa; border-radius: 4px;
+      font-size: 13px; padding: 1px 5px; border: 1px solid #aaa; border-radius: 4px;
       background: #fff; cursor: pointer; color: #555; display: none;
     }
     #ppu-unit-row {
-      padding: 6px 14px;
-      background: #f7f7f7;
-      border-bottom: 1px solid #d5d9d9;
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      }
+      padding: 6px 14px; background: #f7f7f7; border-bottom: 1px solid #d5d9d9;
+      display: flex; gap: 6px; align-items: center;
+    }
     #ppu-unit-row label { font-size: 12px; color: #565959; white-space: nowrap; }
     #ppu-unit-override {
-      flex: 1; min-width: 0;
-      font-size: 12px; padding: 3px 6px;
+      flex: 1; min-width: 0; font-size: 12px; padding: 3px 6px;
       border: 1px solid #aaa; border-radius: 4px; background: #fff;
     }
     #ppu-unit-override.active {
       border-color: #007185; outline: none;
       box-shadow: 0 0 0 2px rgba(0,113,133,0.2);
     }
+    #ppu-unit-override.invalid {
+      border-color: #e47911; outline: none;
+      box-shadow: 0 0 0 2px rgba(228,121,17,0.2);
+    }
     #ppu-btn-clear-unit {
-      font-size: 13px; padding: 1px 5px;
-      border: 1px solid #aaa; border-radius: 4px;
+      font-size: 13px; padding: 1px 5px; border: 1px solid #aaa; border-radius: 4px;
       background: #fff; cursor: pointer; color: #555; display: none;
     }
     #ppu-source-row {
-      padding: 6px 14px;
-      background: #f7f7f7;
-      border-bottom: 1px solid #d5d9d9;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-      }
+      padding: 6px 14px; background: #f7f7f7; border-bottom: 1px solid #d5d9d9;
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
     #ppu-source-row span.label { font-size: 12px; color: #565959; white-space: nowrap; }
     .ppu-source-toggle {
-      font-size: 11px; padding: 2px 8px;
-      border-radius: 10px; cursor: pointer;
-      border: 1px solid currentColor;
-      transition: all 0.15s;
-      user-select: none;
-      font-weight: 600;
+      font-size: 11px; padding: 2px 8px; border-radius: 10px; cursor: pointer;
+      border: 1px solid currentColor; transition: all 0.15s; user-select: none; font-weight: 600;
     }
     .ppu-source-toggle.src-standard { color: #232f3e; background: #e8eaf0; }
     .ppu-source-toggle.src-fresh     { color: #005f7a; background: #e0f4fb; }
@@ -299,51 +295,37 @@
       color: #aaa; background: #f5f5f5; border-color: #ddd;
       text-decoration: line-through; font-weight: normal;
     }
-    #ppu-info {
-      font-size: 11px; color: #888;
-      padding: 5px 14px;
-      border-bottom: 1px solid #f0f2f2;
-    }
+    #ppu-info { font-size: 11px; color: #888; padding: 5px 14px; border-bottom: 1px solid #f0f2f2; }
     #ppu-sort-note {
       font-size: 11px; color: #e47911; font-style: italic;
-      padding: 3px 14px 4px;
-      border-bottom: 1px solid #f0f2f2;
-      display: none;
+      padding: 3px 14px 4px; border-bottom: 1px solid #f0f2f2; display: none;
     }
     #ppu-list { padding: 4px 0; }
     .ppu-row {
-      padding: 6px 10px 6px 8px;
-      border-bottom: 1px solid #f5f5f5;
-      transition: opacity 0.15s;
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
+      padding: 6px 10px 6px 8px; border-bottom: 1px solid #f5f5f5;
+      transition: opacity 0.15s; display: flex; gap: 8px; align-items: flex-start;
     }
     .ppu-row:last-child { border-bottom: none; }
     .ppu-row.kw-mismatch { opacity: 0.28; }
-    .ppu-row.src-hidden   { display: none; }
+    .ppu-row.src-hidden { display: none; }
     .ppu-row.checked { background: #fffbf0; }
     .ppu-cb-wrap { padding-top: 2px; flex-shrink: 0; }
     .ppu-cb { cursor: pointer; width: 14px; height: 14px; }
     .ppu-row-content { flex: 1; min-width: 0; }
     .ppu-row a {
-      font-size: 12px; color: #007185; text-decoration: none;
-      display: block;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      margin-bottom: 3px;
+      font-size: 12px; color: #007185; text-decoration: none; display: block;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
     }
     .ppu-row a:hover { text-decoration: underline; }
     .ppu-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .ppu-price { font-weight: 700; color: #B12704; font-size: 14px; }
     .ppu-count { font-size: 11px; color: #666; }
     .ppu-badge {
-      font-size: 12px; font-weight: 600;
-      padding: 2px 6px; border-radius: 4px;
+      font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
       background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32;
     }
-    .ppu-badge.best {
-      background: #fff8e1; border-color: #ffc107; color: #e65100;
-    }
+    .ppu-badge.best { background: #fff8e1; border-color: #ffc107; color: #e65100; }
+    .ppu-converted { font-size: 10px; color: #999; font-style: italic; margin-left: 2px; }
     .ppu-delivery { font-size: 11px; color: #007600; margin-top: 2px; }
     .ppu-delivery.fast { color: #007185; }
     .ppu-delivery.wf-fee { color: #B12704; }
@@ -355,19 +337,13 @@
     .ppu-src-wf { background: #e8f5e8; color: #006400; border: 1px solid #a5d6a7; }
     .ppu-src-fr { background: #e0f4fb; color: #005f7a; border: 1px solid #81d4f7; }
     .ppu-divider {
-      padding: 5px 14px;
-      background: #e8f0fe;
-      border-top: 1px solid #c5d0e8;
-      border-bottom: 1px solid #c5d0e8;
+      padding: 5px 14px; background: #e8f0fe;
+      border-top: 1px solid #c5d0e8; border-bottom: 1px solid #c5d0e8;
       font-size: 11px; font-weight: 600; color: #3c4a6e;
     }
-    #ppu-load-more-row {
-      padding: 10px 14px; text-align: center;
-      border-top: 1px solid #f0f2f2;
-    }
+    #ppu-load-more-row { padding: 10px 14px; text-align: center; border-top: 1px solid #f0f2f2; }
     #ppu-btn-load-more {
-      font-size: 12px; padding: 5px 14px;
-      border: 1px solid #007185; border-radius: 4px;
+      font-size: 12px; padding: 5px 14px; border: 1px solid #007185; border-radius: 4px;
       background: #fff; cursor: pointer; color: #007185; width: 100%;
     }
     #ppu-btn-load-more:hover { background: #f0f9fa; }
@@ -375,17 +351,13 @@
     #ppu-btn-resort-bottom {
       font-size: 11px; padding: 3px 8px; margin-top: 6px;
       border: 1px solid #007185; border-radius: 4px;
-      background: #fff; cursor: pointer; color: #007185;
-      width: 100%; display: none;
+      background: #fff; cursor: pointer; color: #007185; width: 100%; display: none;
     }
     #ppu-drag-handle {
-      position: absolute;
-      left: 0; top: 0; bottom: 0;
-      width: 6px;
+      position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
       cursor: ew-resize;
       background: linear-gradient(to right, rgba(0,0,0,0.06), transparent);
-      border-radius: 8px 0 0 8px;
-      z-index: 100;
+      border-radius: 8px 0 0 8px; z-index: 100;
     }
     #ppu-drag-handle:hover { background: linear-gradient(to right, rgba(0,113,133,0.2), transparent); }
     #${PANEL_ID} { position: fixed; }
@@ -414,38 +386,25 @@
   }
 
   // ── Parse Amazon's unit price string ─────────────────────────────────────
-  // Handles two DOM structures:
-  // 1. Simple: ($0.05/count) all in one text node
-  // 2. Split: "(" + <a-price span> + "/fluid ounce)" across multiple nodes
-  //    (used for grocery/Fresh items) — a-offscreen span causes price to
-  //    appear twice in innerText, so we deduplicate before matching
   function parseAmazonUnitPrice(el) {
-    // Strategy 1: try the split DOM structure first
+    // Strategy 1: split DOM (grocery/Fresh)
     var containers = el.querySelectorAll('.a-size-base.a-color-base, .a-size-base-plus.a-color-base');
     for (var i = 0; i < containers.length; i++) {
       var cont = containers[i];
-      var fullText = cont.textContent || '';
-      var trimmed = fullText.trim();
+      var trimmed = (cont.textContent || '').trim();
       if (!trimmed.startsWith('(') || !trimmed.includes('/') || !trimmed.endsWith(')')) continue;
       var priceSpan = cont.querySelector('.a-price.a-text-price .a-offscreen');
       if (!priceSpan) continue;
-      var priceStr = priceSpan.textContent.replace(/[$,]/g, '').trim();
-      var price = parseFloat(priceStr);
+      var price = parseFloat(priceSpan.textContent.replace(/[$,]/g, '').trim());
       if (isNaN(price) || price <= 0) continue;
       var unitMatch = trimmed.match(/\/\s*([^)]+)\)\s*$/);
-      if (unitMatch) {
-        var unit = normalizeUnit(unitMatch[1].trim());
-        return { ppu: price, unit: unit };
-      }
+      if (unitMatch) return { ppu: price, unit: normalizeUnit(unitMatch[1].trim()) };
     }
-
-    // Strategy 2: fallback — look for the classic ($0.05/count) pattern in innerText
+    // Strategy 2: classic pattern in innerText
     var text = (el.innerText || '').replace(/\$([\d.]+)\$\1/g, '$$$1');
-    var dollarPat = /\(\$\s*([\d.]+)\s*\/\s*([^)\n,]+)\)/i;
-    var centPat   = /\(¢\s*([\d.]+)\s*\/\s*([^)\n,]+)\)/i;
-    var m = text.match(dollarPat);
+    var m = text.match(/\(\$\s*([\d.]+)\s*\/\s*([^)\n,]+)\)/i);
     if (m) return { ppu: parseFloat(m[1]), unit: normalizeUnit(m[2].trim()) };
-    m = text.match(centPat);
+    m = text.match(/\(¢\s*([\d.]+)\s*\/\s*([^)\n,]+)\)/i);
     if (m) return { ppu: parseFloat(m[1]) / 100, unit: normalizeUnit(m[2].trim()) };
     return null;
   }
@@ -465,7 +424,6 @@
     return null;
   }
 
-  // ── Guess what the COUNT in the title refers to ─────────────────────────
   function guessCountUnit(text) {
     if (/\d[\d,]*\s*-?\s*rolls?/i.test(text)) return 'roll';
     if (/\d[\d,]*\s*-?\s*bags?/i.test(text)) return 'bag';
@@ -484,7 +442,6 @@
     return null;
   }
 
-  // ── Guess product-level unit from title ──────────────────────────────────
   function guessUnitFromTitle(text) {
     var lower = text.toLowerCase();
     if (/\bbags?\b/.test(lower)) return 'bag';
@@ -514,22 +471,24 @@
   }
 
   // ── Scrape one card ───────────────────────────────────────────────────────
-  function scrapeCard(el, pageNum) {
-    var titleEl  = el.querySelector('h2 a span, h2 span');
-    var title    = titleEl ? titleEl.textContent.trim() : '(no title)';
-    var linkEl   = el.querySelector('h2 a');
-    var href     = cleanHref(linkEl ? linkEl.href : null, el);
-    var asin     = el.getAttribute('data-asin') || href;
-    var price    = parsePrice(el);
-    var ap       = parseAmazonUnitPrice(el);
-    var count    = extractCount(title);
-    var page     = pageNum || 1;
-    var grocery  = detectSource(el);
+  function scrapeCard(el, pageNum, originalIndex) {
+    var titleEl = el.querySelector('h2 a span, h2 span');
+    var title   = titleEl ? titleEl.textContent.trim() : '(no title)';
+    var linkEl  = el.querySelector('h2 a');
+    var href    = cleanHref(linkEl ? linkEl.href : null, el);
+    var asin    = el.getAttribute('data-asin') || href;
+    var price   = parsePrice(el);
+    var ap      = parseAmazonUnitPrice(el);
+    var count   = extractCount(title);
+    var page    = pageNum || 1;
+    var grocery = detectSource(el);
     var delivery = parseDeliveryDates(el);
     var wfFreeFlag = (grocery === 'whole-foods') && !!delivery.freeDate;
 
     var base = { title, href, asin, price, count, page, grocery, wfFreeFlag,
-                 freeDate: delivery.freeDate, fastDate: delivery.fastDate };
+                 originalIndex: originalIndex || 0,
+                 freeDate: delivery.freeDate, fastDate: delivery.fastDate,
+                 freeCutoff: delivery.freeCutoff, fastCutoff: delivery.fastCutoff };
 
     if (ap && ITEM_UNITS.includes(ap.unit))
       return Object.assign(base, { ppu: ap.ppu, unit: ap.unit, source: 'amazon' });
@@ -572,7 +531,7 @@
   }
 
   // ── Fetch page ────────────────────────────────────────────────────────────
-  function fetchPage(url, pageNum) {
+  function fetchPage(url, pageNum, startIndex) {
     return fetch(url, { credentials: 'include' })
       .then(function(res) { return res.text(); })
       .then(function(html) {
@@ -580,8 +539,9 @@
         var doc = parser.parseFromString(html, 'text/html');
         var cards = doc.querySelectorAll('[data-component-type="s-search-result"]');
         var seen = {};
+        var idx = startIndex || 0;
         var rows = Array.from(cards).reduce(function(acc, c) {
-          var row = scrapeCard(c, pageNum);
+          var row = scrapeCard(c, pageNum, idx++);
           if (row.asin && seen[row.asin]) return acc;
           if (row.asin) seen[row.asin] = true;
           if (allData.some(function(r) { return r.asin && r.asin === row.asin; })) return acc;
@@ -609,44 +569,28 @@
   var srcFilter       = { 'standard': true, 'fresh': true, 'whole-foods': true };
   var logTimer        = null;
 
-  // ── Schedule a log send (debounced — waits 5s after last change) ──────────
   function scheduleLog() {
     if (logTimer) clearTimeout(logTimer);
     logTimer = setTimeout(function() { doLog(); }, 5000);
   }
 
-  // ── Collect and send log data ─────────────────────────────────────────────
   function doLog() {
     try {
       var withUnit = allData.filter(function(r) { return r.ppu != null; });
       var withoutUnit = allData.filter(function(r) { return r.ppu == null; });
-
-      // Collect distinct units found
       var unitCounts = {};
-      withUnit.forEach(function(r) {
-        if (r.unit) unitCounts[r.unit] = (unitCounts[r.unit] || 0) + 1;
-      });
-      var unitsFound = Object.keys(unitCounts).sort(function(a,b) {
-        return unitCounts[b] - unitCounts[a];
-      }).map(function(u) {
-        return u + '(' + unitCounts[u] + ')';
-      }).join(', ');
-
-      // Collect grocery sources present
+      withUnit.forEach(function(r) { if (r.unit) unitCounts[r.unit] = (unitCounts[r.unit]||0)+1; });
+      var unitsFound = Object.keys(unitCounts).sort(function(a,b){return unitCounts[b]-unitCounts[a];})
+        .map(function(u){return u+'('+unitCounts[u]+')';}).join(', ');
       var sources = [];
-      if (allData.some(function(r) { return r.grocery === 'standard'; })) sources.push('standard');
-      if (allData.some(function(r) { return r.grocery === 'fresh'; })) sources.push('fresh');
-      if (allData.some(function(r) { return r.grocery === 'whole-foods'; })) sources.push('whole-foods');
-
+      if (allData.some(function(r){return r.grocery==='standard';})) sources.push('standard');
+      if (allData.some(function(r){return r.grocery==='fresh';})) sources.push('fresh');
+      if (allData.some(function(r){return r.grocery==='whole-foods';})) sources.push('whole-foods');
       sendLog({
-        totalResults:   allData.length,
-        withUnitData:   withUnit.length,
-        withoutUnitData: withoutUnit.length,
-        unitsFound:     unitsFound,
-        sortMethod:     sortVal,
-        keywordFilter:  keyword.trim() || '',
-        pagesLoaded:    loadedPages,
-        grocerySources: sources.join(', ')
+        totalResults: allData.length, withUnitData: withUnit.length,
+        withoutUnitData: withoutUnit.length, unitsFound: unitsFound,
+        sortMethod: sortVal, keywordFilter: keyword.trim()||'',
+        pagesLoaded: loadedPages, grocerySources: sources.join(', ')
       });
     } catch(e) {}
   }
@@ -658,8 +602,9 @@
     if (!cards.length) { console.log('[PPU] No result cards found.'); return; }
 
     var seenAsins = {};
+    var idx = 0;
     allData = Array.from(cards).reduce(function(acc, c) {
-      var row = scrapeCard(c, 1);
+      var row = scrapeCard(c, 1, idx++);
       if (row.asin && seenAsins[row.asin]) return acc;
       if (row.asin) seenAsins[row.asin] = true;
       acc.push(row);
@@ -669,13 +614,10 @@
     nextPageUrl = getNextPageUrl();
     needsResort = false;
 
-    var hasFresh   = allData.some(function(r) { return r.grocery === 'fresh'; });
-    var hasWF      = allData.some(function(r) { return r.grocery === 'whole-foods'; });
-    var hasGrocery = hasFresh || hasWF;
+    var hasFresh    = allData.some(function(r) { return r.grocery === 'fresh'; });
+    var hasWF       = allData.some(function(r) { return r.grocery === 'whole-foods'; });
+    var hasGrocery  = hasFresh || hasWF;
     var hasDelivery = allData.some(function(r) { return r.freeDate || r.fastDate; });
-
-    var unitDataCount = allData.filter(function(r) { return r.ppu != null; }).length;
-    var unitDataSparse = unitDataCount < Math.ceil(allData.length * 0.1);
 
     var existing = document.getElementById(PANEL_ID);
     if (existing) existing.remove();
@@ -683,8 +625,8 @@
     var panel = document.createElement('div');
     panel.id = PANEL_ID;
     if (isCollapsed) panel.classList.add('collapsed');
-
     panel.style.position = 'fixed';
+
     panel.innerHTML =
       '<div id="ppu-drag-handle"></div>' +
       '<div id="ppu-controls-wrap">' +
@@ -700,26 +642,25 @@
         '<label for="ppu-sort">Sort:</label>' +
         '<select id="ppu-sort">' +
           '<option value="ppu-asc">Best value \u2191</option>' +
-          '<option value="ppu-desc">Worst value \u2193</option>' +
           '<option value="price-asc">Price low\u2192high</option>' +
-          '<option value="price-desc">Price high\u2192low</option>' +
           '<option value="delivery-free">Soonest FREE delivery</option>' +
           '<option value="delivery-any">Soonest ANY delivery</option>' +
+          '<option value="default">Default order</option>' +
         '</select>' +
-        '<button id="ppu-btn-hide">Hide no-data</button>' +
+        '<button id="ppu-btn-hide">Hide results with no price or unit data</button>' +
         '<button id="ppu-btn-refresh">\u21ba Refresh</button>' +
         '<button id="ppu-btn-resort">Re-sort all \u21c5</button>' +
         '<button id="ppu-btn-show-checked">Show selected (0)</button>' +
         '<button id="ppu-btn-clear-checked">Clear selection</button>' +
       '</div>' +
       '<div id="ppu-filter-row">' +
-        '<label for="ppu-keyword">Must include:</label>' +
-        '<input id="ppu-keyword" type="text" placeholder="e.g. handles" value="' + keyword.replace(/"/g,'&quot;') + '">' +
+        '<label for="ppu-keyword">Keyword filter:</label>' +
+        '<input id="ppu-keyword" type="text" placeholder="e.g. handles -raisins" value="' + keyword.replace(/"/g,'&quot;') + '">' +
         '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>' +
       '</div>' +
       '<div id="ppu-unit-row">' +
-        '<label for="ppu-unit-override">Show per:</label>' +
-        '<input id="ppu-unit-override" type="text" placeholder="auto (e.g. oz, lb)" value="' + unitOverride.replace(/"/g,'&quot;') + '">' +
+        '<label for="ppu-unit-override">Display in:</label>' +
+        '<input id="ppu-unit-override" type="text" placeholder="e.g. oz, fl oz, g" value="' + unitOverride.replace(/"/g,'&quot;') + '">' +
         '<button id="ppu-btn-clear-unit" title="Clear">\u00d7</button>' +
       '</div>' +
       (hasGrocery ?
@@ -729,7 +670,7 @@
           (hasFresh ? '<span class="ppu-source-toggle src-fresh' + (!srcFilter['fresh'] ? ' off' : '') + '" data-src="fresh">Fresh</span>' : '') +
           (hasWF    ? '<span class="ppu-source-toggle src-wf' + (!srcFilter['whole-foods'] ? ' off' : '') + '" data-src="whole-foods">Whole Foods</span>' : '') +
         '</div>' : '') +
-      (hasDelivery ? '<div id="ppu-delivery-note">\u26a0\ufe0f Delivery dates are estimates · Whole Foods "FREE" delivery requires a separate fee</div>' : '') +
+      (hasDelivery ? '<div id="ppu-delivery-note">\u26a0\ufe0f Delivery dates are estimates \u00b7 Whole Foods "FREE" delivery requires a separate fee</div>' : '') +
       '<div id="ppu-sort-note"></div>' +
       '</div>' +
       '<div id="ppu-scroll-area">' +
@@ -743,33 +684,25 @@
 
     document.body.appendChild(panel);
 
-    // ── Left-edge drag to resize ──────────────────────────────────────────
+    // ── Drag to resize ────────────────────────────────────────────────────
     var dragHandle = document.getElementById('ppu-drag-handle');
     if (dragHandle) {
-      var isDragging = false;
-      var startX, startWidth;
+      var isDragging = false, startX, startWidth;
       dragHandle.addEventListener('mousedown', function(e) {
-        isDragging = true;
-        startX = e.clientX;
-        startWidth = panel.offsetWidth;
-        document.body.style.userSelect = 'none';
-        e.preventDefault();
+        isDragging = true; startX = e.clientX; startWidth = panel.offsetWidth;
+        document.body.style.userSelect = 'none'; e.preventDefault();
       });
       document.addEventListener('mousemove', function(e) {
         if (!isDragging) return;
-        var delta = startX - e.clientX;
-        var newWidth = Math.min(700, Math.max(280, startWidth + delta));
-        panel.style.width = newWidth + 'px';
+        panel.style.width = Math.min(700, Math.max(280, startWidth + (startX - e.clientX))) + 'px';
       });
       document.addEventListener('mouseup', function() {
         if (isDragging) { isDragging = false; document.body.style.userSelect = ''; }
       });
     }
 
-    // Restore sort selection
-    var sortEl = document.getElementById('ppu-sort');
-    sortEl.value = sortVal;
-
+    var sortEl       = document.getElementById('ppu-sort');
+    sortEl.value     = sortVal;
     var kwInput      = document.getElementById('ppu-keyword');
     var clearKw      = document.getElementById('ppu-btn-clear-kw');
     var unitInput    = document.getElementById('ppu-unit-override');
@@ -779,15 +712,17 @@
     var showChkBtn   = document.getElementById('ppu-btn-show-checked');
     var clearChkBtn  = document.getElementById('ppu-btn-clear-checked');
     var sortNote     = document.getElementById('ppu-sort-note');
+    var hideBtn      = document.getElementById('ppu-btn-hide');
 
     if (keyword)      { kwInput.classList.add('active');   clearKw.style.display   = 'block'; }
     if (unitOverride) { unitInput.classList.add('active'); clearUnit.style.display = 'block'; }
+    if (hideNoData)   { hideBtn.textContent = 'Show all results'; }
 
-    // ── Render ──────────────────────────────────────────────────────────────
+    // ── Render ────────────────────────────────────────────────────────────
     function render() {
-      sortVal = document.getElementById('ppu-sort').value;
-      var kw        = kwInput.value;
-      var unitLabel = unitInput.value.trim() || null;
+      sortVal = sortEl.value;
+      var kw         = kwInput.value;
+      var targetUnit = normalizeUnit(unitInput.value.trim()) || null;
       var checkedCount = Object.keys(checkedAsins).length;
 
       showChkBtn.style.display  = checkedCount > 0 ? 'block' : 'none';
@@ -798,16 +733,26 @@
       resortBtn.style.display    = (needsResort && !showCheckedOnly) ? 'block' : 'none';
       resortBtnBot.style.display = (needsResort && !showCheckedOnly) ? 'block' : 'none';
 
-      var effectiveSortVal = sortVal;
+      // Sparse data fallback
       var unitDataAvailable = allData.filter(function(r) { return r.ppu != null; }).length;
-      var isSparseForSort = (sortVal === 'ppu-asc' || sortVal === 'ppu-desc') &&
-                            unitDataAvailable < Math.ceil(allData.length * 0.1);
+      var effectiveSortVal  = sortVal;
+      var isSparseForSort   = sortVal === 'ppu-asc' && unitDataAvailable < Math.ceil(allData.length * 0.1);
       if (isSparseForSort) {
-        effectiveSortVal = sortVal === 'ppu-asc' ? 'price-asc' : 'price-desc';
+        effectiveSortVal = 'price-asc';
         sortNote.style.display = 'block';
         sortNote.textContent = 'Too few unit prices to sort by value \u2014 showing by price instead';
       } else {
         sortNote.style.display = 'none';
+      }
+
+      // Validate target unit
+      if (targetUnit) {
+        var knownConvertible = ['oz','fl oz','g','kg','lb','lbs','ml','l'];
+        var canConvert = knownConvertible.indexOf(targetUnit) !== -1;
+        unitInput.classList.toggle('active', canConvert);
+        unitInput.classList.toggle('invalid', !canConvert);
+      } else {
+        unitInput.classList.remove('active','invalid');
       }
 
       var displayData = showCheckedOnly
@@ -818,30 +763,26 @@
 
       function sortFn(a, b) {
         if (effectiveSortVal === 'ppu-asc') {
-          if (a.ppu==null && b.ppu==null) return 0;
-          if (a.ppu==null) return 1; if (b.ppu==null) return -1;
-          return a.ppu - b.ppu;
-        } else if (effectiveSortVal === 'ppu-desc') {
-          if (a.ppu==null && b.ppu==null) return 0;
-          if (a.ppu==null) return 1; if (b.ppu==null) return -1;
-          return b.ppu - a.ppu;
+          var aPPU = a.ppu != null ? normalizePPUForSort(a.ppu, a.unit) : null;
+          var bPPU = b.ppu != null ? normalizePPUForSort(b.ppu, b.unit) : null;
+          if (aPPU==null && bPPU==null) return 0;
+          if (aPPU==null) return 1; if (bPPU==null) return -1;
+          // Don't compare across unit groups (weight vs liquid vs count)
+          var aGrp = unitGroup(a.unit), bGrp = unitGroup(b.unit);
+          if (aGrp !== bGrp) return a.ppu - b.ppu;
+          return aPPU - bPPU;
         } else if (effectiveSortVal === 'price-asc') {
           return (a.price==null?Infinity:a.price) - (b.price==null?Infinity:b.price);
-        } else if (effectiveSortVal === 'price-desc') {
-          return (b.price==null?-Infinity:b.price) - (a.price==null?-Infinity:a.price);
         } else if (effectiveSortVal === 'delivery-free') {
-          var aVal = a.freeDate ? 0 : (a.fastDate ? 1 : 2);
-          var bVal = b.freeDate ? 0 : (b.fastDate ? 1 : 2);
+          var aVal = a.freeDate?0:(a.fastDate?1:2), bVal = b.freeDate?0:(b.fastDate?1:2);
           if (aVal !== bVal) return aVal - bVal;
-          var da = a.freeDate || a.fastDate || FAR_FUTURE;
-          var db = b.freeDate || b.fastDate || FAR_FUTURE;
-          return da - db;
+          return (a.freeDate||a.fastDate||FAR_FUTURE) - (b.freeDate||b.fastDate||FAR_FUTURE);
         } else if (effectiveSortVal === 'delivery-any') {
-          var da2 = a.freeDate && a.fastDate ? new Date(Math.min(a.freeDate, a.fastDate))
-                  : a.freeDate || a.fastDate || FAR_FUTURE;
-          var db2 = b.freeDate && b.fastDate ? new Date(Math.min(b.freeDate, b.fastDate))
-                  : b.freeDate || b.fastDate || FAR_FUTURE;
-          return da2 - db2;
+          var da = a.freeDate&&a.fastDate ? new Date(Math.min(a.freeDate,a.fastDate)) : a.freeDate||a.fastDate||FAR_FUTURE;
+          var db = b.freeDate&&b.fastDate ? new Date(Math.min(b.freeDate,b.fastDate)) : b.freeDate||b.fastDate||FAR_FUTURE;
+          return da - db;
+        } else if (effectiveSortVal === 'default') {
+          return a.originalIndex - b.originalIndex;
         }
         return 0;
       }
@@ -856,40 +797,39 @@
         pageNums.forEach(function(pg) { pages[pg].sort(sortFn); displayData = displayData.concat(pages[pg]); });
       }
 
-      if (hideNoData) displayData = displayData.filter(function(r) { return r.ppu!=null; });
+      if (hideNoData) displayData = displayData.filter(function(r) { return r.ppu!=null && r.price!=null; });
 
       var hasKw = kw.trim().length > 0;
       displayData = displayData.map(function(r) {
         return Object.assign({}, r, { kwMatch: !hasKw || titleMatchesKeywords(r.title, kw) });
       });
       if (hasKw && !showCheckedOnly) {
-        var matched    = displayData.filter(function(r) { return r.kwMatch; });
-        var mismatched = displayData.filter(function(r) { return !r.kwMatch; });
-        displayData = matched.concat(mismatched);
+        displayData = displayData.filter(function(r){return r.kwMatch;})
+          .concat(displayData.filter(function(r){return !r.kwMatch;}));
       }
 
       // Info bar
-      var withData   = allData.filter(function(r) { return r.ppu!=null; }).length;
-      var warnings   = allData.filter(function(r) { return r.source==='amazon-container'; }).length;
-      var hiddenSrc  = allData.filter(function(r) { return !srcFilter[r.grocery]; }).length;
-      var matchCount = hasKw ? displayData.filter(function(r) { return r.kwMatch; }).length : null;
-      var infoText   = withData+'/'+allData.length+' have unit data';
+      var withData  = allData.filter(function(r){return r.ppu!=null;}).length;
+      var warnings  = allData.filter(function(r){return r.source==='amazon-container';}).length;
+      var hiddenSrc = allData.filter(function(r){return !srcFilter[r.grocery];}).length;
+      var matchCount = hasKw ? displayData.filter(function(r){return r.kwMatch;}).length : null;
+      var infoText  = withData+'/'+allData.length+' have unit data';
       if (loadedPages > 1) infoText += ' \u00b7 '+loadedPages+' pages';
-      if (warnings > 0)    infoText += ' \u00b7 \u26a0\ufe0f '+warnings+' per-container';
-      if (hasKw)           infoText += ' \u00b7 \uD83D\uDD0D '+matchCount+' match filter';
-      if (hiddenSrc > 0)   infoText += ' \u00b7 '+hiddenSrc+' source-hidden';
-      if (unitLabel)       infoText += ' \u00b7 per: '+unitLabel;
+      if (warnings > 0)   infoText += ' \u00b7 \u26a0\ufe0f '+warnings+' per-container';
+      if (hasKw)          infoText += ' \u00b7 \uD83D\uDD0D '+matchCount+' match filter';
+      if (hiddenSrc > 0)  infoText += ' \u00b7 '+hiddenSrc+' source-hidden';
+      if (targetUnit)     infoText += ' \u00b7 displaying in '+targetUnit;
       if (showCheckedOnly) infoText += ' \u00b7 '+displayData.length+' selected';
       document.getElementById('ppu-info').textContent = infoText;
 
-      // Best PPU
+      // Best PPU — normalized for fair comparison
       var ppuVals = displayData
-        .filter(function(r) { return r.ppu!=null && r.source!=='amazon-container' && r.kwMatch && srcFilter[r.grocery]; })
-        .map(function(r) { return r.ppu; });
-      var bestPPU = ppuVals.length ? Math.min.apply(null, ppuVals) : null;
+        .filter(function(r){return r.ppu!=null&&r.source!=='amazon-container'&&r.kwMatch&&srcFilter[r.grocery];})
+        .map(function(r){return normalizePPUForSort(r.ppu,r.unit);})
+        .filter(function(v){return v!=null;});
+      var bestNormPPU = ppuVals.length ? Math.min.apply(null,ppuVals) : null;
 
-      var html = '';
-      var currentPage = 0;
+      var html = '', currentPage = 0;
 
       displayData.forEach(function(r) {
         if (needsResort && !showCheckedOnly && r.page !== currentPage) {
@@ -897,43 +837,58 @@
           currentPage = r.page;
         }
 
-        var srcHidden   = !srcFilter[r.grocery];
-        var priceStr    = r.price!=null ? '$'+r.price.toFixed(2) : '\u2014';
-        var countStr    = r.count ? r.count+' ct' : '';
-        var displayUnit = unitLabel || r.unit;
+        var srcHidden = !srcFilter[r.grocery];
+        var priceStr  = r.price!=null ? '$'+r.price.toFixed(2) : '\u2014';
+        var countStr  = r.count ? r.count+' ct' : '';
         var badge = '', noteStr = '', deliveryStr = '', srcTag = '';
         var isChecked = !!checkedAsins[r.asin];
 
-        if (r.grocery === 'whole-foods')
-          srcTag = '<span class="ppu-src-tag ppu-src-wf">Whole Foods</span><br>';
-        else if (r.grocery === 'fresh')
-          srcTag = '<span class="ppu-src-tag ppu-src-fr">Fresh</span><br>';
+        if (r.grocery==='whole-foods') srcTag = '<span class="ppu-src-tag ppu-src-wf">Whole Foods</span><br>';
+        else if (r.grocery==='fresh')  srcTag = '<span class="ppu-src-tag ppu-src-fr">Fresh</span><br>';
 
-        if (r.ppu!=null) {
-          var isBest = bestPPU!=null && r.kwMatch && r.source!=='amazon-container' &&
-            srcFilter[r.grocery] && Math.abs(r.ppu-bestPPU)<0.00001;
+        if (r.ppu != null) {
+          var normPPU = normalizePPUForSort(r.ppu, r.unit);
+          var isBest = bestNormPPU!=null && r.kwMatch && r.source!=='amazon-container' &&
+            srcFilter[r.grocery] && normPPU!=null && Math.abs(normPPU-bestNormPPU)<0.000001;
           var isContainer = r.source==='amazon-container';
-          var ppuStr = formatPPU(r.ppu);
           var warn = isContainer ? ' <span style="font-size:10px;color:#aaa;">\u26a0\ufe0f per-container</span>' : '';
+
+          // Display conversion if user specified a target unit
+          var displayPPU = r.ppu, displayUnit = r.unit, convertedNote = '';
+          if (targetUnit && r.unit) {
+            var converted = convertPPU(r.ppu, r.unit, targetUnit);
+            if (converted != null && targetUnit !== r.unit) {
+              displayPPU = converted; displayUnit = targetUnit;
+              convertedNote = '<span class="ppu-converted">(was '+formatPPU(r.ppu)+'/'+r.unit+')</span>';
+            }
+          }
+
           var unitDisplay = displayUnit ? '/'+displayUnit : '';
           badge = '<span class="ppu-badge'+(isBest?' best':'')+(isContainer?' container':'')+'">'
-            +ppuStr+unitDisplay+(isBest?' \u2605':'')+' </span>'+warn;
+            +formatPPU(displayPPU)+unitDisplay+(isBest?' \u2605':'')+' </span>'+warn+convertedNote;
           if (r.note && r.source==='calc')
             noteStr = '<div style="font-size:10px;color:#aaa;margin-top:2px;">was: '+r.note+'</div>';
         } else {
           badge = '<span class="ppu-nodata">no unit data</span>';
         }
 
+        // Delivery with cutoff times
         if (r.freeDate || r.fastDate) {
           var parts = [];
           if (r.freeDate) {
             var freeClass = r.wfFreeFlag ? 'ppu-delivery wf-fee' : 'ppu-delivery';
             var freeLabel = r.wfFreeFlag
-              ? '<span title="Whole Foods delivery has a separate fee — not free with Prime">FREE✳: </span>'
+              ? '<span title="Whole Foods delivery has a separate fee \u2014 not free with Prime">FREE\u2733: </span>'
               : 'FREE: ';
-            parts.push('<span class="'+freeClass+'">'+freeLabel+formatDate(r.freeDate)+'</span>');
+            var freeTxt = formatDate(r.freeDate);
+            if (r.freeCutoff) freeTxt += ' <span style="font-size:10px;color:#888;">('+r.freeCutoff+')</span>';
+            parts.push('<span class="'+freeClass+'">'+freeLabel+freeTxt+'</span>');
           }
-          if (r.fastDate) parts.push('<span class="ppu-delivery fast">Fastest: '+formatDate(r.fastDate)+'</span>');
+          if (r.fastDate) {
+            var fastTxt = formatDate(r.fastDate);
+            if (r.fastCutoff) fastTxt += ' <span style="font-size:10px;color:#888;">('+r.fastCutoff+')</span>';
+            parts.push('<span class="ppu-delivery fast">Fastest: '+fastTxt+'</span>');
+          }
           deliveryStr = '<div class="ppu-meta" style="margin-top:2px;">'+parts.join(' &nbsp; ')+'</div>';
         }
 
@@ -951,7 +906,7 @@
               srcTag +
               '<div class="ppu-meta">' +
                 '<span class="ppu-price">'+priceStr+'</span>' +
-                (countStr ? '<span class="ppu-count">'+countStr+'</span>' : '') +
+                (countStr?'<span class="ppu-count">'+countStr+'</span>':'') +
                 badge +
               '</div>' +
               deliveryStr + noteStr +
@@ -963,28 +918,23 @@
 
       document.querySelectorAll('.ppu-cb').forEach(function(cb) {
         cb.addEventListener('change', function() {
-          var row  = this.closest('.ppu-row');
+          var row = this.closest('.ppu-row');
           var asin = row.getAttribute('data-asin');
-          if (this.checked) { checkedAsins[asin] = true; row.classList.add('checked'); }
+          if (this.checked) { checkedAsins[asin]=true; row.classList.add('checked'); }
           else { delete checkedAsins[asin]; row.classList.remove('checked'); }
           var cnt = Object.keys(checkedAsins).length;
-          showChkBtn.style.display  = cnt > 0 ? 'block' : 'none';
-          clearChkBtn.style.display = cnt > 0 ? 'block' : 'none';
-          showChkBtn.textContent = showCheckedOnly
-            ? 'Show all ('+cnt+' selected)' : 'Show selected ('+cnt+')';
+          showChkBtn.style.display  = cnt>0?'block':'none';
+          clearChkBtn.style.display = cnt>0?'block':'none';
+          showChkBtn.textContent = showCheckedOnly?'Show all ('+cnt+' selected)':'Show selected ('+cnt+')';
         });
       });
 
-      // Schedule a log after render settles
       scheduleLog();
-
     } // end render
 
     // ── Events ────────────────────────────────────────────────────────────
-    document.getElementById('ppu-sort').addEventListener('change', function() {
-      sortVal = this.value;
-      if (needsResort) needsResort = false;
-      render();
+    sortEl.addEventListener('change', function() {
+      sortVal = this.value; if (needsResort) needsResort = false; render();
     });
 
     function doResort() { needsResort = false; render(); }
@@ -992,7 +942,7 @@
     resortBtnBot.addEventListener('click', doResort);
 
     showChkBtn.addEventListener('click', function() { showCheckedOnly = !showCheckedOnly; render(); });
-    clearChkBtn.addEventListener('click', function() { checkedAsins = {}; showCheckedOnly = false; render(); });
+    clearChkBtn.addEventListener('click', function() { checkedAsins={}; showCheckedOnly=false; render(); });
 
     kwInput.addEventListener('input', function() {
       keyword = this.value;
@@ -1007,12 +957,12 @@
 
     unitInput.addEventListener('input', function() {
       unitOverride = this.value.trim();
-      this.classList.toggle('active', unitOverride.length > 0);
       clearUnit.style.display = unitOverride.length > 0 ? 'block' : 'none';
       render();
     });
     clearUnit.addEventListener('click', function() {
-      unitInput.value=''; unitOverride=''; unitInput.classList.remove('active');
+      unitInput.value=''; unitOverride='';
+      unitInput.classList.remove('active','invalid');
       clearUnit.style.display='none'; unitInput.focus(); render();
     });
 
@@ -1032,35 +982,30 @@
     document.getElementById('ppu-close').addEventListener('click', function(e) {
       e.stopPropagation(); panel.remove();
     });
-    document.getElementById('ppu-btn-hide').addEventListener('click', function() {
+    hideBtn.addEventListener('click', function() {
       hideNoData = !hideNoData;
-      this.textContent = hideNoData ? 'Show all' : 'Hide no-data';
+      this.textContent = hideNoData ? 'Show all results' : 'Hide results with no price or unit data';
       render();
     });
     document.getElementById('ppu-btn-refresh').addEventListener('click', function() {
-      var btn = this;
-      btn.textContent = 'Refreshing…';
-      btn.disabled = true;
-      checkedAsins = {}; showCheckedOnly = false;
+      this.textContent = 'Refreshing\u2026'; this.disabled = true;
+      checkedAsins={}; showCheckedOnly=false;
       setTimeout(function() { buildPanel(); }, 100);
     });
 
-    // Load more
     var loadMoreBtn = document.getElementById('ppu-btn-load-more');
     if (loadMoreBtn) {
       loadMoreBtn.addEventListener('click', function() {
         if (!nextPageUrl) return;
         var btn = this;
-        btn.disabled = true;
-        btn.textContent = 'Loading\u2026';
+        btn.disabled = true; btn.textContent = 'Loading\u2026';
         var fetchingPage = loadedPages + 1;
-        var fetchUrl = nextPageUrl;
+        var startIdx = allData.length;
 
-        fetchPage(fetchUrl, fetchingPage)
+        fetchPage(nextPageUrl, fetchingPage, startIdx)
           .then(function(result) {
             allData = allData.concat(result.rows);
-            loadedPages = fetchingPage;
-            needsResort = true;
+            loadedPages = fetchingPage; needsResort = true;
             nextPageUrl = result.nextUrl;
             var lmRow = document.getElementById('ppu-load-more-row');
             if (nextPageUrl && lmRow) {
@@ -1073,8 +1018,7 @@
           })
           .catch(function(err) {
             console.log('[PPU] Load more failed:', err);
-            btn.textContent = 'Load failed \u2014 try Refresh';
-            btn.disabled = false;
+            btn.textContent = 'Load failed \u2014 try Refresh'; btn.disabled = false;
           });
       });
     }
