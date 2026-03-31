@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Actually Useful v5.4
+// @name         Actually Useful v5.6
 // @namespace    http://tampermonkey.net/
-// @version      5.4
+// @version      5.6
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @match        https://www.amazon.com/s*
@@ -16,7 +16,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.4';
+  const SCRIPT_VERSION = '5.6';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   function sendLog(data) {
@@ -474,7 +474,10 @@
   function scrapeCard(el, pageNum, originalIndex) {
     var h2El      = el.querySelector('h2[aria-label]') || el.querySelector('h2');
     var brandEl   = el.querySelector('h2.a-size-mini span, h2[class*="a-size-mini"] span');
-    var brandName = brandEl ? brandEl.textContent.trim() : '';
+    var brandRaw  = brandEl ? brandEl.textContent.trim() : '';
+    var isSponsored = brandRaw.toLowerCase().includes('sponsor');
+    // Don't use "Sponsored" label as a brand name, but keep real brand names
+    var brandName = (brandRaw && !isSponsored) ? brandRaw : '';
     var titleEl   = el.querySelector('h2 a span, h2 span');
     var rawTitle  = (h2El && h2El.getAttribute('aria-label'))
                     ? h2El.getAttribute('aria-label').trim()
@@ -495,6 +498,7 @@
     var wfFreeFlag = (grocery === 'whole-foods') && !!delivery.freeDate;
 
     var base = { title, href, asin, price, count, page, grocery, wfFreeFlag,
+                 isSponsored: isSponsored,
                  originalIndex: originalIndex || 0,
                  freeDate: delivery.freeDate, fastDate: delivery.fastDate,
                  freeCutoff: delivery.freeCutoff, fastCutoff: delivery.fastCutoff };
@@ -854,6 +858,7 @@
 
         if (r.grocery==='whole-foods') srcTag = '<span class="ppu-src-tag ppu-src-wf">Whole Foods</span><br>';
         else if (r.grocery==='fresh')  srcTag = '<span class="ppu-src-tag ppu-src-fr">Fresh</span><br>';
+        if (r.isSponsored) srcTag += '<span class="ppu-src-tag" style="background:#f0f0f0;color:#888;border:1px solid #ddd;">Ad</span><br>';
 
         if (r.ppu != null) {
           var normPPU = normalizePPUForSort(r.ppu, r.unit);
