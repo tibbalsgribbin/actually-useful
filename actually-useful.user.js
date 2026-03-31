@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Actually Useful v5.2
+// @name         Actually Useful v5.4
 // @namespace    http://tampermonkey.net/
-// @version      5.2
+// @version      5.4
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @match        https://www.amazon.com/s*
@@ -16,7 +16,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.2';
+  const SCRIPT_VERSION = '5.4';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   function sendLog(data) {
@@ -472,11 +472,17 @@
 
   // ── Scrape one card ───────────────────────────────────────────────────────
   function scrapeCard(el, pageNum, originalIndex) {
-    var h2El    = el.querySelector('h2');
-    var titleEl = el.querySelector('h2 a span, h2 span');
-    var title   = (h2El && h2El.getAttribute('aria-label'))
-                  ? h2El.getAttribute('aria-label').trim()
-                  : (titleEl ? titleEl.textContent.trim() : '(no title)');
+    var h2El      = el.querySelector('h2[aria-label]') || el.querySelector('h2');
+    var brandEl   = el.querySelector('h2.a-size-mini span, h2[class*="a-size-mini"] span');
+    var brandName = brandEl ? brandEl.textContent.trim() : '';
+    var titleEl   = el.querySelector('h2 a span, h2 span');
+    var rawTitle  = (h2El && h2El.getAttribute('aria-label'))
+                    ? h2El.getAttribute('aria-label').trim()
+                    : (titleEl ? titleEl.textContent.trim() : '(no title)');
+    // Prepend brand name if present and not already in title
+    var title = (brandName && !rawTitle.toLowerCase().startsWith(brandName.toLowerCase()))
+                ? brandName + ' ' + rawTitle
+                : rawTitle;
     var linkEl  = el.querySelector('h2 a');
     var href    = cleanHref(linkEl ? linkEl.href : null, el);
     var asin    = el.getAttribute('data-asin') || href;
