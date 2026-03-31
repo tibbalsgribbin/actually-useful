@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Actually Useful v5.0
+// @name         Actually Useful v5.1
 // @namespace    http://tampermonkey.net/
-// @version      5.0
+// @version      5.1
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @match        https://www.amazon.com/s*
@@ -16,14 +16,14 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-
-  // ── Passive logging endpoint ──────────────────────────────────────────────
+  const SCRIPT_VERSION = '5.1';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   function sendLog(data) {
     try {
       var payload = Object.assign({
         timestamp: new Date().toISOString(),
+        scriptVersion: SCRIPT_VERSION,
         searchUrl: window.location.href,
         searchTerm: (new URLSearchParams(window.location.search).get('k') || '').trim(),
       }, data);
