@@ -1,13 +1,14 @@
 // ==UserScript==
-// @name         Actually Useful v5.6
+// @name         Actually Useful v5.7
 // @namespace    http://tampermonkey.net/
-// @version      5.6
+// @version      5.7
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @match        https://www.amazon.com/s*
 // @match        https://smile.amazon.com/s*
 // @grant        none
 // @run-at       document-idle
+// @antifeature  tracking  Anonymous usage data (search term, result counts, sort method) is logged to help improve the script. No personal information is collected.
 // @updateURL    https://github.com/tibbalsgribbin/actually-useful/raw/refs/heads/main/actually-useful.user.js
 // @downloadURL  https://github.com/tibbalsgribbin/actually-useful/raw/refs/heads/main/actually-useful.user.js
 // ==/UserScript==
@@ -16,7 +17,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.6';
+  const SCRIPT_VERSION = '5.7';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   function sendLog(data) {
