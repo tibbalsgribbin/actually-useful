@@ -1,9 +1,10 @@
 // ==UserScript==
-// @name         Actually Useful v5.7
+// @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.7
+// @version      5.8
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
+// @license      All Rights Reserved
 // @match        https://www.amazon.com/s*
 // @match        https://smile.amazon.com/s*
 // @grant        none
@@ -17,7 +18,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.7';
+  const SCRIPT_VERSION = '5.8';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   function sendLog(data) {
@@ -49,7 +50,6 @@
                       'ml', 'milliliter', 'milliliters', 'l', 'liter', 'liters'];
 
   // ── Unit conversion ───────────────────────────────────────────────────────
-  // Weight → oz, Liquid → fl oz, for behind-the-scenes sort normalization
   function convertPPU(ppu, fromUnit, toUnit) {
     if (!ppu || !fromUnit || !toUnit) return null;
     var from = fromUnit.toLowerCase().trim();
@@ -68,7 +68,6 @@
     return null;
   }
 
-  // Normalize to base unit (weight→oz, liquid→fl oz) for sort comparison
   function normalizePPUForSort(ppu, unit) {
     if (!ppu || !unit) return ppu;
     var u = unit.toLowerCase().trim();
@@ -79,7 +78,6 @@
     return ppu;
   }
 
-  // Returns 'weight', 'liquid', or null
   function unitGroup(unit) {
     if (!unit) return null;
     var u = unit.toLowerCase().trim();
@@ -88,13 +86,11 @@
     return null;
   }
 
-  // ── Format price-per-unit ─────────────────────────────────────────────────
   function formatPPU(ppu) {
     if (ppu < 0.10) return '$' + ppu.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0');
     return '$' + ppu.toFixed(2);
   }
 
-  // ── Normalize unit labels ─────────────────────────────────────────────────
   function normalizeUnit(unit) {
     if (!unit) return unit;
     var u = unit.toLowerCase().trim();
@@ -110,6 +106,13 @@
     if (u === 'tablet' || u === 'tablets') return 'tab';
     if (u === 'capsule' || u === 'capsules') return 'cap';
     return u;
+  }
+
+  // ── Normalize dimension strings for keyword matching ──────────────────────
+  // Converts 11" x 17", 11"x17", 11 x 17 → 11x17 for consistent matching
+  function normalizeDimensions(str) {
+    return str
+      .replace(/(\d+(?:\.\d+)?)\s*["\u2019\u201d]?\s*[xX\u00d7]\s*(\d+(?:\.\d+)?)\s*["\u2019\u201d]?/g, '$1x$2');
   }
 
   // ── Parse delivery dates and cutoff times ─────────────────────────────────
@@ -132,7 +135,6 @@
       var parsed = parseDateString(dateStr);
       if (!parsed) return;
 
-      // Extract cutoff time if present
       var cutoff = null;
       var byMatch = text.match(/by\s+(\d{1,2}(?::\d{2})?\s*(?:AM|PM))/i);
       var withinMatch = text.match(/within\s+(\d+\s*hr[s]?)/i);
@@ -149,7 +151,6 @@
     return result;
   }
 
-  // ── Parse date string ─────────────────────────────────────────────────────
   function parseDateString(str) {
     if (!str) return null;
     var s = str.trim();
@@ -173,7 +174,6 @@
     return null;
   }
 
-  // ── Format date for display ───────────────────────────────────────────────
   function formatDate(d) {
     if (!d) return '';
     var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -186,7 +186,6 @@
     return days[d.getDay()] + ' ' + mons[d.getMonth()] + ' ' + d.getDate();
   }
 
-  // ── Detect grocery source ─────────────────────────────────────────────────
   function detectSource(el) {
     if (el.querySelector('img[alt="Whole Foods Market"]')) return 'whole-foods';
     if (el.querySelector('img[alt="Amazon Fresh"]'))      return 'fresh';
@@ -235,13 +234,15 @@
       border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer;
     }
     #ppu-btn-hide, #ppu-btn-refresh, #ppu-btn-resort,
-    #ppu-btn-show-checked, #ppu-btn-clear-checked {
+    #ppu-btn-show-checked, #ppu-btn-clear-checked, #ppu-btn-hide-sponsored {
       font-size: 11px; padding: 3px 8px;
       border: 1px solid #aaa; border-radius: 4px; background: #fff; cursor: pointer;
     }
     #ppu-btn-resort { border-color: #007185; color: #007185; display: none; }
     #ppu-btn-show-checked { border-color: #e47911; color: #e47911; display: none; }
     #ppu-btn-clear-checked { display: none; }
+    #ppu-btn-hide-sponsored { display: none; }
+    #ppu-btn-hide-sponsored.active { background: #eee; border-color: #888; }
     #ppu-filter-row {
       padding: 6px 14px; background: #f7f7f7; border-bottom: 1px solid #e8e8e8;
       display: flex; gap: 6px; align-items: center;
@@ -309,6 +310,7 @@
     .ppu-row:last-child { border-bottom: none; }
     .ppu-row.kw-mismatch { opacity: 0.28; }
     .ppu-row.src-hidden { display: none; }
+    .ppu-row.sponsored-hidden { display: none; }
     .ppu-row.checked { background: #fffbf0; }
     .ppu-cb-wrap { padding-top: 2px; flex-shrink: 0; }
     .ppu-cb { cursor: pointer; width: 14px; height: 14px; }
@@ -375,7 +377,6 @@
     document.head.appendChild(s);
   }
 
-  // ── Clean product link ────────────────────────────────────────────────────
   function cleanHref(rawHref, card) {
     var asin = card && card.getAttribute('data-asin');
     if (asin) return 'https://www.amazon.com/dp/' + asin;
@@ -384,6 +385,18 @@
       if (m) return 'https://www.amazon.com/dp/' + m[1];
     }
     return rawHref || '#';
+  }
+
+  // ── Parse coupon price ────────────────────────────────────────────────────
+  // Detects "You pay $X.XX with coupon" — the only coupon format safe to use automatically
+  function parseCouponPrice(el) {
+    var text = el.textContent || '';
+    var m = text.match(/you\s+pay\s+\$\s*([\d,]+\.?\d*)\s+with\s+coupon/i);
+    if (m) {
+      var val = parseFloat(m[1].replace(/,/g, ''));
+      if (!isNaN(val) && val > 0) return val;
+    }
+    return null;
   }
 
   // ── Parse Amazon's unit price string ─────────────────────────────────────
@@ -410,7 +423,6 @@
     return null;
   }
 
-  // ── Extract count from title ──────────────────────────────────────────────
   function extractCount(text) {
     var pats = [
       /(\d[\d,]*)\s*-?\s*count/i, /(\d[\d,]*)\s*-?\s*bags?/i,
@@ -456,7 +468,6 @@
     return null;
   }
 
-  // ── Parse price ───────────────────────────────────────────────────────────
   function parsePrice(el) {
     var whole = el.querySelector('.a-price-whole');
     var frac  = el.querySelector('.a-price-fraction');
@@ -477,20 +488,23 @@
     var brandEl   = el.querySelector('h2.a-size-mini span, h2[class*="a-size-mini"] span');
     var brandRaw  = brandEl ? brandEl.textContent.trim() : '';
     var isSponsored = brandRaw.toLowerCase().includes('sponsor');
-    // Don't use "Sponsored" label as a brand name, but keep real brand names
     var brandName = (brandRaw && !isSponsored) ? brandRaw : '';
     var titleEl   = el.querySelector('h2 a span, h2 span');
     var rawTitle  = (h2El && h2El.getAttribute('aria-label'))
                     ? h2El.getAttribute('aria-label').trim()
                     : (titleEl ? titleEl.textContent.trim() : '(no title)');
-    // Prepend brand name if present and not already in title
     var title = (brandName && !rawTitle.toLowerCase().startsWith(brandName.toLowerCase()))
                 ? brandName + ' ' + rawTitle
                 : rawTitle;
     var linkEl  = el.querySelector('h2 a');
     var href    = cleanHref(linkEl ? linkEl.href : null, el);
     var asin    = el.getAttribute('data-asin') || href;
-    var price   = parsePrice(el);
+
+    // Use coupon price if present, otherwise standard price
+    var couponPrice = parseCouponPrice(el);
+    var price       = couponPrice !== null ? couponPrice : parsePrice(el);
+    var hasCoupon   = couponPrice !== null;
+
     var ap      = parseAmazonUnitPrice(el);
     var count   = extractCount(title);
     var page    = pageNum || 1;
@@ -499,7 +513,7 @@
     var wfFreeFlag = (grocery === 'whole-foods') && !!delivery.freeDate;
 
     var base = { title, href, asin, price, count, page, grocery, wfFreeFlag,
-                 isSponsored: isSponsored,
+                 isSponsored: isSponsored, hasCoupon: hasCoupon,
                  originalIndex: originalIndex || 0,
                  freeDate: delivery.freeDate, fastDate: delivery.fastDate,
                  freeCutoff: delivery.freeCutoff, fastCutoff: delivery.fastCutoff };
@@ -523,19 +537,21 @@
     return Object.assign(base, { ppu: null, unit: null, source: 'none' });
   }
 
-  // ── Keyword filter ────────────────────────────────────────────────────────
+  // ── Keyword filter with dimension normalization ───────────────────────────
   function titleMatchesKeywords(title, kwRaw) {
-    var lower = title.toLowerCase();
+    var normalizedTitle = normalizeDimensions(title.toLowerCase());
     var terms = kwRaw.trim().toLowerCase().split(/\s+/).filter(Boolean);
     for (var i=0; i<terms.length; i++) {
-      var term = terms[i];
-      if (term.startsWith('-')) { if (term.length>1 && lower.includes(term.slice(1))) return false; }
-      else { if (!lower.includes(term)) return false; }
+      var term = normalizeDimensions(terms[i]);
+      if (term.startsWith('-')) {
+        if (term.length > 1 && normalizedTitle.includes(term.slice(1))) return false;
+      } else {
+        if (!normalizedTitle.includes(term)) return false;
+      }
     }
     return true;
   }
 
-  // ── Next page URL ─────────────────────────────────────────────────────────
   function getNextPageUrl() {
     var nextBtn = document.querySelector('.s-pagination-next:not(.s-pagination-disabled)');
     if (!nextBtn) return null;
@@ -544,7 +560,6 @@
     return href.startsWith('http') ? href : 'https://www.amazon.com' + href;
   }
 
-  // ── Fetch page ────────────────────────────────────────────────────────────
   function fetchPage(url, pageNum, startIndex) {
     return fetch(url, { credentials: 'include' })
       .then(function(res) { return res.text(); })
@@ -570,6 +585,7 @@
 
   // ── State ─────────────────────────────────────────────────────────────────
   var hideNoData      = false;
+  var hideSponsored   = false;
   var isCollapsed     = false;
   var keyword         = '';
   var unitOverride    = '';
@@ -628,10 +644,11 @@
     nextPageUrl = getNextPageUrl();
     needsResort = false;
 
-    var hasFresh    = allData.some(function(r) { return r.grocery === 'fresh'; });
-    var hasWF       = allData.some(function(r) { return r.grocery === 'whole-foods'; });
-    var hasGrocery  = hasFresh || hasWF;
-    var hasDelivery = allData.some(function(r) { return r.freeDate || r.fastDate; });
+    var hasFresh     = allData.some(function(r) { return r.grocery === 'fresh'; });
+    var hasWF        = allData.some(function(r) { return r.grocery === 'whole-foods'; });
+    var hasGrocery   = hasFresh || hasWF;
+    var hasDelivery  = allData.some(function(r) { return r.freeDate || r.fastDate; });
+    var hasSponsored = allData.some(function(r) { return r.isSponsored; });
 
     var existing = document.getElementById(PANEL_ID);
     if (existing) existing.remove();
@@ -645,7 +662,7 @@
       '<div id="ppu-drag-handle"></div>' +
       '<div id="ppu-controls-wrap">' +
       '<div id="ppu-header">' +
-        '<h3>\uD83D\uDCB0 Actually Useful</h3>' +
+        '<h3>Actually Useful</h3>' +
         '<div id="ppu-header-btns">' +
           '<a id="ppu-coffee" href="https://ko-fi.com/tibbalsgribbin" target="_blank">\u2615 buy me a coffee</a>' +
           '<button id="ppu-collapse" title="Collapse/expand">\u2195</button>' +
@@ -661,9 +678,10 @@
           '<option value="delivery-any">Soonest ANY delivery</option>' +
           '<option value="default">Default order</option>' +
         '</select>' +
-        '<button id="ppu-btn-hide">Hide results with no price or unit data</button>' +
+        '<button id="ppu-btn-hide">Hide no-data results</button>' +
         '<button id="ppu-btn-refresh">\u21ba Refresh</button>' +
         '<button id="ppu-btn-resort">Re-sort all \u21c5</button>' +
+        '<button id="ppu-btn-hide-sponsored">Hide ads</button>' +
         '<button id="ppu-btn-show-checked">Show selected (0)</button>' +
         '<button id="ppu-btn-clear-checked">Clear selection</button>' +
       '</div>' +
@@ -715,22 +733,32 @@
       });
     }
 
-    var sortEl       = document.getElementById('ppu-sort');
-    sortEl.value     = sortVal;
-    var kwInput      = document.getElementById('ppu-keyword');
-    var clearKw      = document.getElementById('ppu-btn-clear-kw');
-    var unitInput    = document.getElementById('ppu-unit-override');
-    var clearUnit    = document.getElementById('ppu-btn-clear-unit');
-    var resortBtn    = document.getElementById('ppu-btn-resort');
-    var resortBtnBot = document.getElementById('ppu-btn-resort-bottom');
-    var showChkBtn   = document.getElementById('ppu-btn-show-checked');
-    var clearChkBtn  = document.getElementById('ppu-btn-clear-checked');
-    var sortNote     = document.getElementById('ppu-sort-note');
-    var hideBtn      = document.getElementById('ppu-btn-hide');
+    var sortEl           = document.getElementById('ppu-sort');
+    sortEl.value         = sortVal;
+    var kwInput          = document.getElementById('ppu-keyword');
+    var clearKw          = document.getElementById('ppu-btn-clear-kw');
+    var unitInput        = document.getElementById('ppu-unit-override');
+    var clearUnit        = document.getElementById('ppu-btn-clear-unit');
+    var resortBtn        = document.getElementById('ppu-btn-resort');
+    var resortBtnBot     = document.getElementById('ppu-btn-resort-bottom');
+    var showChkBtn       = document.getElementById('ppu-btn-show-checked');
+    var clearChkBtn      = document.getElementById('ppu-btn-clear-checked');
+    var sortNote         = document.getElementById('ppu-sort-note');
+    var hideBtn          = document.getElementById('ppu-btn-hide');
+    var hideSponsoredBtn = document.getElementById('ppu-btn-hide-sponsored');
 
     if (keyword)      { kwInput.classList.add('active');   clearKw.style.display   = 'block'; }
     if (unitOverride) { unitInput.classList.add('active'); clearUnit.style.display = 'block'; }
     if (hideNoData)   { hideBtn.textContent = 'Show all results'; }
+
+    // Show hide-ads button only when sponsored listings are present
+    if (hasSponsored) {
+      hideSponsoredBtn.style.display = 'block';
+      if (hideSponsored) {
+        hideSponsoredBtn.classList.add('active');
+        hideSponsoredBtn.textContent = 'Show ads';
+      }
+    }
 
     // ── Render ────────────────────────────────────────────────────────────
     function render() {
@@ -781,7 +809,6 @@
           var bPPU = b.ppu != null ? normalizePPUForSort(b.ppu, b.unit) : null;
           if (aPPU==null && bPPU==null) return 0;
           if (aPPU==null) return 1; if (bPPU==null) return -1;
-          // Don't compare across unit groups (weight vs liquid vs count)
           var aGrp = unitGroup(a.unit), bGrp = unitGroup(b.unit);
           if (aGrp !== bGrp) return a.ppu - b.ppu;
           return aPPU - bPPU;
@@ -823,22 +850,27 @@
       }
 
       // Info bar
-      var withData  = allData.filter(function(r){return r.ppu!=null;}).length;
-      var warnings  = allData.filter(function(r){return r.source==='amazon-container';}).length;
-      var hiddenSrc = allData.filter(function(r){return !srcFilter[r.grocery];}).length;
-      var matchCount = hasKw ? displayData.filter(function(r){return r.kwMatch;}).length : null;
-      var infoText  = withData+'/'+allData.length+' have unit data';
-      if (loadedPages > 1) infoText += ' \u00b7 '+loadedPages+' pages';
-      if (warnings > 0)   infoText += ' \u00b7 \u26a0\ufe0f '+warnings+' per-container';
-      if (hasKw)          infoText += ' \u00b7 \uD83D\uDD0D '+matchCount+' match filter';
-      if (hiddenSrc > 0)  infoText += ' \u00b7 '+hiddenSrc+' source-hidden';
-      if (targetUnit)     infoText += ' \u00b7 displaying in '+targetUnit;
-      if (showCheckedOnly) infoText += ' \u00b7 '+displayData.length+' selected';
+      var withData       = allData.filter(function(r){return r.ppu!=null;}).length;
+      var warnings       = allData.filter(function(r){return r.source==='amazon-container';}).length;
+      var hiddenSrc      = allData.filter(function(r){return !srcFilter[r.grocery];}).length;
+      var sponsoredCount = allData.filter(function(r){return r.isSponsored;}).length;
+      var matchCount     = hasKw ? displayData.filter(function(r){return r.kwMatch;}).length : null;
+      var infoText       = withData+'/'+allData.length+' have unit data';
+      if (loadedPages > 1)  infoText += ' \u00b7 '+loadedPages+' pages';
+      if (warnings > 0)     infoText += ' \u00b7 \u26a0\ufe0f '+warnings+' per-container';
+      if (hasKw)            infoText += ' \u00b7 \uD83D\uDD0D '+matchCount+' match filter';
+      if (hiddenSrc > 0)    infoText += ' \u00b7 '+hiddenSrc+' source-hidden';
+      if (targetUnit)       infoText += ' \u00b7 displaying in '+targetUnit;
+      if (showCheckedOnly)  infoText += ' \u00b7 '+displayData.length+' selected';
+      if (hideSponsored && sponsoredCount > 0) infoText += ' \u00b7 '+sponsoredCount+' ads hidden';
       document.getElementById('ppu-info').textContent = infoText;
 
-      // Best PPU — normalized for fair comparison
+      // Best PPU — exclude hidden sponsored from consideration
       var ppuVals = displayData
-        .filter(function(r){return r.ppu!=null&&r.source!=='amazon-container'&&r.kwMatch&&srcFilter[r.grocery];})
+        .filter(function(r){
+          return r.ppu!=null && r.source!=='amazon-container' && r.kwMatch &&
+                 srcFilter[r.grocery] && !(hideSponsored && r.isSponsored);
+        })
         .map(function(r){return normalizePPUForSort(r.ppu,r.unit);})
         .filter(function(v){return v!=null;});
       var bestNormPPU = ppuVals.length ? Math.min.apply(null,ppuVals) : null;
@@ -851,11 +883,12 @@
           currentPage = r.page;
         }
 
-        var srcHidden = !srcFilter[r.grocery];
-        var priceStr  = r.price!=null ? '$'+r.price.toFixed(2) : '\u2014';
-        var countStr  = r.count ? r.count+' ct' : '';
+        var srcHidden  = !srcFilter[r.grocery];
+        var sponHidden = hideSponsored && r.isSponsored;
+        var priceStr   = r.price!=null ? '$'+r.price.toFixed(2) : '\u2014';
+        var countStr   = r.count ? r.count+' ct' : '';
         var badge = '', noteStr = '', deliveryStr = '', srcTag = '';
-        var isChecked = !!checkedAsins[r.asin];
+        var isChecked  = !!checkedAsins[r.asin];
 
         if (r.grocery==='whole-foods') srcTag = '<span class="ppu-src-tag ppu-src-wf">Whole Foods</span><br>';
         else if (r.grocery==='fresh')  srcTag = '<span class="ppu-src-tag ppu-src-fr">Fresh</span><br>';
@@ -864,11 +897,11 @@
         if (r.ppu != null) {
           var normPPU = normalizePPUForSort(r.ppu, r.unit);
           var isBest = bestNormPPU!=null && r.kwMatch && r.source!=='amazon-container' &&
-            srcFilter[r.grocery] && normPPU!=null && Math.abs(normPPU-bestNormPPU)<0.000001;
+            srcFilter[r.grocery] && !sponHidden &&
+            normPPU!=null && Math.abs(normPPU-bestNormPPU)<0.000001;
           var isContainer = r.source==='amazon-container';
           var warn = isContainer ? ' <span style="font-size:10px;color:#aaa;">\u26a0\ufe0f per-container</span>' : '';
 
-          // Display conversion if user specified a target unit
           var displayPPU = r.ppu, displayUnit = r.unit, convertedNote = '';
           if (targetUnit && r.unit) {
             var converted = convertPPU(r.ppu, r.unit, targetUnit);
@@ -887,7 +920,12 @@
           badge = '<span class="ppu-nodata">no unit data</span>';
         }
 
-        // Delivery with cutoff times
+        // Coupon indicator
+        if (r.hasCoupon) {
+          noteStr += '<div style="font-size:10px;color:#007600;margin-top:2px;">\uD83C\uDFF7\uFE0F Coupon price applied</div>';
+        }
+
+        // Delivery
         if (r.freeDate || r.fastDate) {
           var parts = [];
           if (r.freeDate) {
@@ -909,12 +947,13 @@
 
         var dimClass  = (!r.kwMatch && hasKw) ? ' kw-mismatch' : '';
         var srcClass  = srcHidden ? ' src-hidden' : '';
+        var sponClass = sponHidden ? ' sponsored-hidden' : '';
         var chkClass  = isChecked ? ' checked' : '';
         var safeTitle = r.title.replace(/"/g,'&quot;');
         var safeAsin  = r.asin.replace(/"/g,'&quot;');
 
         html +=
-          '<div class="ppu-row'+dimClass+srcClass+chkClass+'" data-asin="'+safeAsin+'">' +
+          '<div class="ppu-row'+dimClass+srcClass+sponClass+chkClass+'" data-asin="'+safeAsin+'">' +
             '<div class="ppu-cb-wrap"><input type="checkbox" class="ppu-cb"'+(isChecked?' checked':'')+' title="Add to shortlist"></div>' +
             '<div class="ppu-row-content">' +
               '<a href="'+r.href+'" target="_blank" title="'+safeTitle+'">'+r.title+'</a>' +
@@ -990,6 +1029,13 @@
       });
     });
 
+    hideSponsoredBtn.addEventListener('click', function() {
+      hideSponsored = !hideSponsored;
+      this.classList.toggle('active', hideSponsored);
+      this.textContent = hideSponsored ? 'Show ads' : 'Hide ads';
+      render();
+    });
+
     document.getElementById('ppu-collapse').addEventListener('click', function(e) {
       e.stopPropagation(); isCollapsed = !isCollapsed;
       panel.classList.toggle('collapsed', isCollapsed);
@@ -999,7 +1045,7 @@
     });
     hideBtn.addEventListener('click', function() {
       hideNoData = !hideNoData;
-      this.textContent = hideNoData ? 'Show all results' : 'Hide results with no price or unit data';
+      this.textContent = hideNoData ? 'Show all results' : 'Hide no-data results';
       render();
     });
     document.getElementById('ppu-btn-refresh').addEventListener('click', function() {
