@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.8
+// @version      5.9
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @license      All Rights Reserved
@@ -18,7 +18,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.8';
+  const SCRIPT_VERSION = '5.9';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   function sendLog(data) {
@@ -109,10 +109,12 @@
   }
 
   // ── Normalize dimension strings for keyword matching ──────────────────────
-  // Converts 11" x 17", 11"x17", 11 x 17 → 11x17 for consistent matching
+  // Strips all quote/inch marks then collapses spaces around x so that
+  // 8.5x11, 8.5"x11", 8.5" x 11", 8.5 x 11 all normalize to 8.5x11
   function normalizeDimensions(str) {
-    return str
-      .replace(/(\d+(?:\.\d+)?)\s*["\u2019\u201d]?\s*[xX\u00d7]\s*(\d+(?:\.\d+)?)\s*["\u2019\u201d]?/g, '$1x$2');
+    var s = str.replace(/["\u2018\u2019\u201c\u201d\u2033\u2032]/g, '');
+    s = s.replace(/(\d+(?:\.\d+)?)\s*[xX\u00d7]\s*(\d+(?:\.\d+)?)/g, '$1x$2');
+    return s;
   }
 
   // ── Parse delivery dates and cutoff times ─────────────────────────────────
@@ -203,7 +205,7 @@
       font-family: Arial, sans-serif; font-size: 13px; color: #0f1111;
       transition: max-height 0.2s; display: flex; flex-direction: column;
     }
-    #${PANEL_ID}.collapsed { width: 220px !important; max-height: 41px; }
+    #${PANEL_ID}.collapsed { width: 260px !important; max-height: 41px; }
     #ppu-controls-wrap { flex-shrink: 0; }
     #ppu-scroll-area { flex: 1; overflow-y: auto; overflow-x: hidden; }
     #ppu-header {
@@ -455,9 +457,14 @@
     return null;
   }
 
+  // Only called when Amazon gives no unit price and extractCount found something.
+  // Returns the unit label for what was counted.
+  // sheet/wipe/pad are only returned when no pack/roll/bag language is in the title,
+  // because those words usually describe contents rather than the purchasable unit.
   function guessUnitFromTitle(text) {
     var lower = text.toLowerCase();
-    if (/\bbags?\b/.test(lower)) return 'bag';
+    // If title mentions packs/rolls/bags explicitly, those override sheet-like words
+    if (/\bpack\b|\bpacks\b|\broll\b|\brolls\b|\bbag\b|\bbags\b/.test(lower)) return null;
     if (/\bwipes?\b/.test(lower)) return 'wipe';
     if (/\bsheets?\b/.test(lower)) return 'sheet';
     if (/\bpads?\b/.test(lower)) return 'pad';
@@ -488,11 +495,23 @@
     var brandEl   = el.querySelector('h2.a-size-mini span, h2[class*="a-size-mini"] span');
     var brandRaw  = brandEl ? brandEl.textContent.trim() : '';
     var isSponsored = brandRaw.toLowerCase().includes('sponsor');
+    // Fallback: check for sponsored badge elements used in some card layouts
+    if (!isSponsored) {
+      var sponEl = el.querySelector('.s-label-popover-default, [data-component-type="s-status-badge-component"]');
+      if (sponEl && /sponsor/i.test(sponEl.textContent)) isSponsored = true;
+    }
+    // Fallback 2: check aria-label on the ad badge
+    if (!isSponsored) {
+      var adBadge = el.querySelector('.puis-sponsored-label-text, .s-sponsored-label-text');
+      if (adBadge) isSponsored = true;
+    }
     var brandName = (brandRaw && !isSponsored) ? brandRaw : '';
     var titleEl   = el.querySelector('h2 a span, h2 span');
     var rawTitle  = (h2El && h2El.getAttribute('aria-label'))
                     ? h2El.getAttribute('aria-label').trim()
                     : (titleEl ? titleEl.textContent.trim() : '(no title)');
+    // Strip "Sponsored Ad - " prefix that sometimes leaks into title text
+    rawTitle = rawTitle.replace(/^sponsored\s+ad\s*[-–]\s*/i, '').trim();
     var title = (brandName && !rawTitle.toLowerCase().startsWith(brandName.toLowerCase()))
                 ? brandName + ' ' + rawTitle
                 : rawTitle;
