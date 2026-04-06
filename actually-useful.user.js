@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.9
+// @version      5.10
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @license      All Rights Reserved
@@ -18,7 +18,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.9';
+  const SCRIPT_VERSION = '5.10';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   function sendLog(data) {
@@ -390,13 +390,25 @@
   }
 
   // ── Parse coupon price ────────────────────────────────────────────────────
-  // Detects "You pay $X.XX with coupon" — the only coupon format safe to use automatically
+  // Detects coupon-discounted prices from card text.
+  // Strategy 1: "You pay $X with coupon" — explicit final price
+  // Strategy 2: "Coupon price$X" — DOM text collapsing removes space between label and price
+  // Both return the post-coupon price directly; no arithmetic needed.
+  // Patterns requiring subtraction (e.g. "$X off", "X% off") are intentionally excluded
+  // because they require knowing the base price and introduce error risk.
   function parseCouponPrice(el) {
     var text = el.textContent || '';
+    // Strategy 1: "You pay $X with coupon"
     var m = text.match(/you\s+pay\s+\$\s*([\d,]+\.?\d*)\s+with\s+coupon/i);
     if (m) {
       var val = parseFloat(m[1].replace(/,/g, ''));
       if (!isNaN(val) && val > 0) return val;
+    }
+    // Strategy 2: "Coupon price$X" or "Coupon price $X" (space optional — DOM text collapsing)
+    m = text.match(/coupon\s*price\s*\$\s*([\d,]+\.?\d*)/i);
+    if (m) {
+      var val2 = parseFloat(m[1].replace(/,/g, ''));
+      if (!isNaN(val2) && val2 > 0) return val2;
     }
     return null;
   }
@@ -559,9 +571,12 @@
   // ── Keyword filter with dimension normalization ───────────────────────────
   function titleMatchesKeywords(title, kwRaw) {
     var normalizedTitle = normalizeDimensions(title.toLowerCase());
-    var terms = kwRaw.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    // Normalize the full keyword string before splitting so that "8.5 x 11"
+    // collapses to "8.5x11" as a single token rather than three separate terms
+    var normalizedKw = normalizeDimensions(kwRaw.trim().toLowerCase());
+    var terms = normalizedKw.split(/\s+/).filter(Boolean);
     for (var i=0; i<terms.length; i++) {
-      var term = normalizeDimensions(terms[i]);
+      var term = terms[i];
       if (term.startsWith('-')) {
         if (term.length > 1 && normalizedTitle.includes(term.slice(1))) return false;
       } else {
@@ -653,6 +668,8 @@
     var seenAsins = {};
     var idx = 0;
     allData = Array.from(cards).reduce(function(acc, c) {
+      // Skip hidden phantom cards Amazon injects into the DOM
+      if (c.offsetParent === null) return acc;
       var row = scrapeCard(c, 1, idx++);
       if (row.asin && seenAsins[row.asin]) return acc;
       if (row.asin) seenAsins[row.asin] = true;
@@ -762,7 +779,6 @@
     var resortBtnBot     = document.getElementById('ppu-btn-resort-bottom');
     var showChkBtn       = document.getElementById('ppu-btn-show-checked');
     var clearChkBtn      = document.getElementById('ppu-btn-clear-checked');
-    var sortNote         = document.getElementById('ppu-sort-note');
     var hideBtn          = document.getElementById('ppu-btn-hide');
     var hideSponsoredBtn = document.getElementById('ppu-btn-hide-sponsored');
 
@@ -800,10 +816,6 @@
       var isSparseForSort   = sortVal === 'ppu-asc' && unitDataAvailable < Math.ceil(allData.length * 0.1);
       if (isSparseForSort) {
         effectiveSortVal = 'price-asc';
-        sortNote.style.display = 'block';
-        sortNote.textContent = 'Too few unit prices to sort by value \u2014 showing by price instead';
-      } else {
-        sortNote.style.display = 'none';
       }
 
       // Validate target unit
@@ -884,6 +896,26 @@
       if (hideSponsored && sponsoredCount > 0) infoText += ' \u00b7 '+sponsoredCount+' ads hidden';
       document.getElementById('ppu-info').textContent = infoText;
 
+      // Unit mixing disclaimer — warn when incompatible unit types are present
+      var unitGroups = {};
+      allData.forEach(function(r) {
+        if (r.ppu != null && r.unit) {
+          var g = unitGroup(r.unit);
+          if (g) unitGroups[g] = true;
+        }
+      });
+      var mixedUnits = Object.keys(unitGroups).length > 1;
+      var sortNoteEl = document.getElementById('ppu-sort-note');
+      if (!isSparseForSort && mixedUnits && sortVal === 'ppu-asc') {
+        sortNoteEl.style.display = 'block';
+        sortNoteEl.textContent = '\u26a0\ufe0f Mixed units detected (e.g. oz and fl oz) \u2014 best value \u2605 only compares within the same unit type';
+      } else if (isSparseForSort) {
+        sortNoteEl.style.display = 'block';
+        sortNoteEl.textContent = 'Too few unit prices to sort by value \u2014 showing by price instead';
+      } else {
+        sortNoteEl.style.display = 'none';
+      }
+
       // Best PPU — exclude hidden sponsored from consideration
       var ppuVals = displayData
         .filter(function(r){
@@ -931,7 +963,8 @@
           }
 
           var unitDisplay = displayUnit ? '/'+displayUnit : '';
-          badge = '<span class="ppu-badge'+(isBest?' best':'')+(isContainer?' container':'')+'">'
+          var bestTitle = isBest ? ' title="Best value among results with unit data"' : '';
+          badge = '<span class="ppu-badge'+(isBest?' best':'')+(isContainer?' container':'')+'"'+bestTitle+'>'
             +formatPPU(displayPPU)+unitDisplay+(isBest?' \u2605':'')+' </span>'+warn+convertedNote;
           if (r.note && r.source==='calc')
             noteStr = '<div style="font-size:10px;color:#aaa;margin-top:2px;">was: '+r.note+'</div>';
