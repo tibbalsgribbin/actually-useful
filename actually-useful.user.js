@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.11
+// @version      5.12
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @license      All Rights Reserved
@@ -18,7 +18,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.11';
+  const SCRIPT_VERSION = '5.12';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   const NUDGE_DISMISSED_KEY  = 'ppu_nudge_dismissed';
@@ -35,6 +35,7 @@
   const LIQUID_UNITS  = ['fl oz','fluid ounce','fluid ounces','ml','milliliter','milliliters','l','liter','liters'];
   const WEIGHT_UNITS  = ['oz','g','gram','grams','kg','kilogram','kilograms','lb','lbs','pound','pounds'];
   const CONTAINER_UNITS = ['roll','rolls','box','boxes','pack','packs','package','packages','pouch','pouches','tube','tubes'];
+  const LENGTH_UNITS    = ['ft','feet','foot','meter','meters','m','cm','centimeter','centimeters','inch','inches','in','yard','yards'];
   const ITEM_UNITS = [
     'count','ct','bag','bags','piece','pieces','pcs','pc','each','unit','units',
     'pad','pads','sheet','sheets','wipe','wipes','tablet','tablets',
@@ -115,6 +116,7 @@
     if (u==='piece'||u==='pieces') return 'pc';
     if (u==='tablet'||u==='tablets') return 'tab';
     if (u==='capsule'||u==='capsules') return 'cap';
+    if (u==='feet'||u==='foot') return 'ft';
     return u;
   }
 
@@ -274,31 +276,6 @@
     return 'standard';
   }
 
-  // ── Ships from Amazon ─────────────────────────────────────────────────────
-  // Targets specific fulfillment/seller DOM elements rather than raw textContent.
-  function detectShipsFromAmazon(el) {
-    var selectors = [
-      '[data-cy="shipped-by-text"]',
-      '[data-cy="seller-name"]',
-      '.puis-merchant-info-top',
-      '.a-section.a-spacing-none.puis-padding-right-small'
-    ];
-    for (var i=0; i<selectors.length; i++) {
-      var nodes = el.querySelectorAll(selectors[i]);
-      for (var j=0; j<nodes.length; j++) {
-        var t = (nodes[j].textContent||'').toLowerCase();
-        if (t.includes('ships from amazon')||t.includes('fulfilled by amazon')||t.includes('sold by amazon')) return true;
-      }
-    }
-    // Broader fallback: any span near the price block mentioning Amazon as seller
-    var spans = el.querySelectorAll('.a-color-secondary span, .a-size-small span');
-    for (var k=0; k<spans.length; k++) {
-      var st = (spans[k].textContent||'').toLowerCase();
-      if ((st.includes('ships from')||st.includes('sold by')) && st.includes('amazon')) return true;
-    }
-    return false;
-  }
-
   // ── Review count ──────────────────────────────────────────────────────────
   function parseReviewCount(el) {
     var countEl = el.querySelector('[aria-label*="ratings"],[aria-label*="reviews"]');
@@ -343,6 +320,7 @@
     nudge.id='ppu-nudge';
     nudge.innerHTML=
       '<div id="ppu-nudge-inner">'+
+        '<button id="ppu-nudge-close" title="Dismiss for now">\u00d7</button>'+
         '<div id="ppu-nudge-msg">\u2615 Actually Useful is free \u2014 but it takes real time to build and maintain. If it\'s saving you money, a small tip means a lot.</div>'+
         '<div id="ppu-nudge-btns">'+
           '<a id="ppu-nudge-yes" href="https://ko-fi.com/tibbalsgribbin" target="_blank">Contribute \u2665</a>'+
@@ -351,9 +329,10 @@
         '</div>'+
       '</div>';
     document.body.appendChild(nudge);
+    document.getElementById('ppu-nudge-close').addEventListener('click',function(){nudge.remove();});
     document.getElementById('ppu-nudge-yes').addEventListener('click',function(){nudge.remove();});
     document.getElementById('ppu-nudge-did').addEventListener('click',function(){dismissNudgePermanently();nudge.remove();});
-    document.getElementById('ppu-nudge-no').addEventListener('click', function(){dismissNudgePermanently();nudge.remove();});
+    document.getElementById('ppu-nudge-no').addEventListener('click',function(){dismissNudgePermanently();nudge.remove();});
   }
 
   // ── CSS ───────────────────────────────────────────────────────────────────
@@ -434,8 +413,6 @@
     #ppu-filter-extra-row label { font-size:12px;color:#565959;white-space:nowrap; }
     #ppu-min-reviews { width:60px;font-size:12px;padding:3px 6px;border:1px solid #aaa;border-radius:4px;background:#fff; }
     #ppu-min-reviews.active { border-color:#007185;outline:none;box-shadow:0 0 0 2px rgba(0,113,133,0.2); }
-    #ppu-cb-amazon-only    { cursor:pointer; }
-    #ppu-amazon-only-label { font-size:12px;color:#565959;cursor:pointer;user-select:none; }
     #ppu-source-row {
       padding:6px 14px;background:#f7f7f7;border-bottom:1px solid #d5d9d9;
       display:flex;gap:8px;align-items:center;flex-wrap:wrap;
@@ -449,9 +426,9 @@
     .ppu-source-toggle.src-fresh    { color:#005f7a;background:#e0f4fb; }
     .ppu-source-toggle.src-wf       { color:#006400;background:#e8f5e8; }
     .ppu-source-toggle.off { color:#aaa;background:#f5f5f5;border-color:#ddd;text-decoration:line-through;font-weight:normal; }
-    #ppu-info { font-size:11px;color:#888;padding:5px 14px;border-bottom:1px solid #f0f2f2; }
+    #ppu-info { font-size:0.82rem;color:#888;padding:5px 14px;border-bottom:1px solid #f0f2f2; }
     #ppu-sort-note {
-      font-size:11px;color:#e47911;font-style:italic;
+      font-size:0.82rem;color:#e47911;font-style:italic;
       padding:3px 14px 4px;border-bottom:1px solid #f0f2f2;display:none;
     }
     #ppu-list { padding:4px 0; }
@@ -464,7 +441,6 @@
     .ppu-row.src-hidden         { display:none; }
     .ppu-row.sponsored-hidden   { display:none; }
     .ppu-row.reviews-hidden     { display:none; }
-    .ppu-row.amazon-only-hidden { display:none; }
     .ppu-row.checked            { background:#fffbf0; }
     .ppu-cb-wrap     { padding-top:2px;flex-shrink:0; }
     .ppu-cb          { cursor:pointer;width:14px;height:14px; }
@@ -476,20 +452,20 @@
     .ppu-row a:hover { text-decoration:underline; }
     .ppu-meta  { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
     .ppu-price { font-weight:700;color:#B12704;font-size:14px; }
-    .ppu-count { font-size:11px;color:#666; }
+    .ppu-count { font-size:0.82rem;color:#666; }
     .ppu-badge { font-size:12px;font-weight:600;padding:2px 6px;border-radius:4px;background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32; }
     .ppu-badge.best { background:#fff8e1;border-color:#ffc107;color:#e65100; }
-    .ppu-converted  { font-size:10px;color:#999;font-style:italic;margin-left:2px; }
-    .ppu-delivery   { font-size:11px;color:#007600;margin-top:2px; }
+    .ppu-converted  { font-size:0.78rem;color:#999;font-style:italic;margin-left:2px; }
+    .ppu-delivery   { font-size:0.82rem;color:#007600;margin-top:2px; }
     .ppu-delivery.fast   { color:#007185; }
     .ppu-delivery.wf-fee { color:#B12704; }
-    .ppu-nodata { font-size:11px;color:#bbb;font-style:italic; }
-    .ppu-src-tag { font-size:10px;padding:1px 4px;border-radius:3px;font-weight:600;margin-bottom:2px;display:inline-block; }
+    .ppu-nodata { font-size:0.82rem;color:#bbb;font-style:italic; }
+    .ppu-src-tag { font-size:0.78rem;padding:1px 4px;border-radius:3px;font-weight:600;margin-bottom:2px;display:inline-block; }
     .ppu-src-wf  { background:#e8f5e8;color:#006400;border:1px solid #a5d6a7; }
     .ppu-src-fr  { background:#e0f4fb;color:#005f7a;border:1px solid #81d4f7; }
     .ppu-divider {
       padding:5px 14px;background:#e8f0fe;border-top:1px solid #c5d0e8;
-      border-bottom:1px solid #c5d0e8;font-size:11px;font-weight:600;color:#3c4a6e;
+      border-bottom:1px solid #c5d0e8;font-size:0.82rem;font-weight:600;color:#3c4a6e;
     }
     mark.ppu-kw-highlight { background:#ffc400;color:#000;border-radius:2px;padding:0 1px; }
     #ppu-load-more-row { padding:10px 14px;text-align:center;border-top:1px solid #f0f2f2; }
@@ -510,19 +486,24 @@
     }
     #ppu-drag-handle:hover { background:linear-gradient(to right,rgba(0,113,133,0.2),transparent); }
     #${PANEL_ID} { position:fixed; }
-    #ppu-delivery-note { font-size:10px;color:#aaa;font-style:italic;padding:3px 14px 4px;border-bottom:1px solid #f0f2f2; }
+    #ppu-delivery-note { font-size:0.82rem;color:#aaa;font-style:italic;padding:3px 14px 4px;border-bottom:1px solid #f0f2f2; }
     #ppu-nudge {
       position:fixed;bottom:24px;right:16px;z-index:100000;width:340px;
       background:#232f3e;color:#fff;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);
-      font-family:Arial,sans-serif;font-size:13px;animation:ppu-nudge-in 0.3s ease;
+      font-family:Arial,sans-serif;font-size:1rem;animation:ppu-nudge-in 0.3s ease;
     }
     @keyframes ppu-nudge-in { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
-    #ppu-nudge-inner { padding:14px 16px; }
-    #ppu-nudge-msg   { margin-bottom:12px;line-height:1.5;color:#e8e8e8; }
+    #ppu-nudge-inner { padding:14px 16px;position:relative; }
+    #ppu-nudge-close {
+      position:absolute;top:8px;right:10px;background:none;border:none;
+      color:#aaa;font-size:1.1rem;cursor:pointer;line-height:1;padding:2px 4px;
+    }
+    #ppu-nudge-close:hover { color:#fff; }
+    #ppu-nudge-msg   { margin-bottom:12px;margin-right:20px;line-height:1.5;color:#e0e0e0;font-size:0.95rem; }
     #ppu-nudge-btns  { display:flex;gap:8px;flex-wrap:wrap; }
-    #ppu-nudge-yes { font-size:12px;padding:5px 12px;border-radius:4px;cursor:pointer;background:#e47911;color:#fff;border:none;text-decoration:none;font-weight:600; }
+    #ppu-nudge-yes { font-size:0.85rem;padding:5px 12px;border-radius:4px;cursor:pointer;background:#e47911;color:#fff;border:none;text-decoration:none;font-weight:600; }
     #ppu-nudge-yes:hover { background:#c96d0a; }
-    #ppu-nudge-did,#ppu-nudge-no { font-size:12px;padding:5px 10px;border-radius:4px;cursor:pointer;background:transparent;color:#aaa;border:1px solid #555; }
+    #ppu-nudge-did,#ppu-nudge-no { font-size:0.85rem;padding:5px 10px;border-radius:4px;cursor:pointer;background:transparent;color:#ccc;border:1px solid #666; }
     #ppu-nudge-did:hover,#ppu-nudge-no:hover { color:#fff;border-color:#888; }
   `;
 
@@ -647,12 +628,16 @@
     var delivery=parseDeliveryDates(el);
     var wfFreeFlag=(grocery==='whole-foods')&&!!delivery.freeDate;
     var reviewCount=parseReviewCount(el);
-    var shipsFromAmazon=detectShipsFromAmazon(el);
     var base={title,href,asin,price,count,page,grocery,wfFreeFlag,isSponsored,hasCoupon,
-              reviewCount,shipsFromAmazon,originalIndex:originalIndex||0,
+              reviewCount,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff};
     if(ap&&ITEM_UNITS.includes(ap.unit)) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'});
+    if(ap&&LENGTH_UNITS.includes(ap.unit)&&count&&price){
+      var unit=guessCountUnit(title)||guessUnitFromTitle(title);
+      return Object.assign(base,{ppu:price/count,unit,source:'calc',note:'Amazon said '+formatPPU(ap.ppu)+'/'+ap.unit});
+    }
+    if(ap&&LENGTH_UNITS.includes(ap.unit)) return Object.assign(base,{ppu:null,unit:null,source:'none'});
     if(ap&&CONTAINER_UNITS.includes(ap.unit)&&count&&price){
       var unit=guessCountUnit(title)||guessUnitFromTitle(title);
       return Object.assign(base,{ppu:price/count,unit,source:'calc',note:'Amazon said '+formatPPU(ap.ppu)+'/'+ap.unit});
@@ -715,7 +700,6 @@
   var srcFilter        = {'standard':true,'fresh':true,'whole-foods':true};
   var logTimer         = null;
   var minReviews       = 0;
-  var amazonOnly       = false;
   var isLiquidDominant = false;
   var unitPills        = [];
 
@@ -730,16 +714,28 @@
       var unitCounts={};
       withUnit.forEach(function(r){if(r.unit)unitCounts[r.unit]=(unitCounts[r.unit]||0)+1;});
       var unitsFound=Object.keys(unitCounts).sort(function(a,b){return unitCounts[b]-unitCounts[a];}).map(function(u){return u+'('+unitCounts[u]+')';}).join(', ');
+      var countStandard=allData.filter(function(r){return r.grocery==='standard';}).length;
+      var countFresh=allData.filter(function(r){return r.grocery==='fresh';}).length;
+      var countWF=allData.filter(function(r){return r.grocery==='whole-foods';}).length;
       var sources=[];
-      if(allData.some(function(r){return r.grocery==='standard';}))    sources.push('standard');
-      if(allData.some(function(r){return r.grocery==='fresh';}))       sources.push('fresh');
-      if(allData.some(function(r){return r.grocery==='whole-foods';})) sources.push('whole-foods');
+      if(countStandard>0) sources.push('standard');
+      if(countFresh>0)    sources.push('fresh');
+      if(countWF>0)       sources.push('whole-foods');
+      var couponCount=allData.filter(function(r){return r.hasCoupon;}).length;
+      var sponsoredCount=allData.filter(function(r){return r.isSponsored;}).length;
+      var shortlistCount=Object.keys(checkedAsins).length;
+      var ua='';try{ua=navigator.userAgent||'';}catch(e){}
       sendLog({
         totalResults:allData.length,withUnitData:withUnit.length,
         withoutUnitData:allData.length-withUnit.length,unitsFound,
-        sortMethod:sortVal,keywordFilter:keyword.trim()||'',
+        sortMethod:sortVal,keywordFilterActive:keyword.trim().length>0,
+        keywordFilter:keyword.trim()||'',
         pagesLoaded:loadedPages,grocerySources:sources.join(', '),
-        liquidDominant:isLiquidDominant,selectedUnit:selectedUnit||'as-listed'
+        countStandard,countFresh,countWholeFoods:countWF,
+        liquidDominant:isLiquidDominant,selectedUnit:selectedUnit||'as-listed',
+        couponCount,sponsoredCount,hideSponsoredActive:hideSponsored,
+        shortlistCount,minReviewsFilter:minReviews||0,
+        userAgent:ua
       });
     } catch(e){}
   }
@@ -826,8 +822,6 @@
         '<div id="ppu-filter-extra-row">'+
           '<label for="ppu-min-reviews">Min reviews:</label>'+
           '<input id="ppu-min-reviews" type="number" min="0" step="50" placeholder="0" value="'+(minReviews||'')+'">'+
-          '<input type="checkbox" id="ppu-cb-amazon-only"'+(amazonOnly?' checked':'')+'>'+
-          '<label for="ppu-cb-amazon-only" id="ppu-amazon-only-label">Ships from Amazon</label>'+
         '</div>'+
         (hasFresh||hasWF?
           '<div id="ppu-source-row">'+
@@ -868,7 +862,6 @@
     var clearChkBtn=document.getElementById('ppu-btn-clear-checked');
     var hideSponsoredBtn=document.getElementById('ppu-btn-hide-sponsored');
     var minReviewsInput=document.getElementById('ppu-min-reviews');
-    var amazonOnlyCb=document.getElementById('ppu-cb-amazon-only');
 
     if(keyword){kwInput.classList.add('active');clearKw.style.display='block';}
     if(minReviews>0) minReviewsInput.classList.add('active');
@@ -939,7 +932,6 @@
       var hiddenSrc=allData.filter(function(r){return !srcFilter[r.grocery];}).length;
       var sponCount=allData.filter(function(r){return r.isSponsored;}).length;
       var revHiddenCt=minReviews>0?allData.filter(function(r){return r.reviewCount!=null&&r.reviewCount<minReviews;}).length:0;
-      var amzHiddenCt=amazonOnly?allData.filter(function(r){return !r.shipsFromAmazon;}).length:0;
       var matchCt=hasKw?displayData.filter(function(r){return r.kwMatch;}).length:null;
       var info=withData+'/'+allData.length+' have unit data';
       if(loadedPages>1)            info+=' \u00b7 '+loadedPages+' pages';
@@ -951,7 +943,6 @@
       if(showCheckedOnly)          info+=' \u00b7 '+displayData.length+' selected';
       if(hideSponsored&&sponCount>0) info+=' \u00b7 '+sponCount+' ads hidden';
       if(revHiddenCt>0)            info+=' \u00b7 '+revHiddenCt+' below min reviews';
-      if(amzHiddenCt>0)            info+=' \u00b7 '+amzHiddenCt+' non-Amazon sellers hidden';
       document.getElementById('ppu-info').textContent=info;
 
       var sortNoteEl=document.getElementById('ppu-sort-note');
@@ -972,7 +963,7 @@
         return r.ppu!=null&&r.source!=='amazon-container'&&r.kwMatch&&srcFilter[r.grocery]&&
                !(hideSponsored&&r.isSponsored)&&
                !(minReviews>0&&r.reviewCount!=null&&r.reviewCount<minReviews)&&
-               !(amazonOnly&&!r.shipsFromAmazon)&&getCompPPU(r)!=null;
+               getCompPPU(r)!=null;
       }).map(function(r){return getCompPPU(r);});
       var bestPPU=ppuVals.length?Math.min.apply(null,ppuVals):null;
 
@@ -985,7 +976,6 @@
         var srcHid=(r.grocery&&!srcFilter[r.grocery]);
         var sponHid=hideSponsored&&r.isSponsored;
         var revHid=minReviews>0&&r.reviewCount!=null&&r.reviewCount<minReviews;
-        var amzHid=amazonOnly&&!r.shipsFromAmazon;
         var priceStr=r.price!=null?'$'+r.price.toFixed(2):'\u2014';
         var countStr=r.count?r.count+' ct':'';
         var badge='',noteStr='',deliveryStr='',srcTag='';
@@ -998,7 +988,7 @@
         if(r.ppu!=null){
           var compPPU=getCompPPU(r);
           var isBest=bestPPU!=null&&r.kwMatch&&r.source!=='amazon-container'&&
-            srcFilter[r.grocery]&&!sponHid&&!revHid&&!amzHid&&
+            srcFilter[r.grocery]&&!sponHid&&!revHid&&
             compPPU!=null&&Math.abs(compPPU-bestPPU)<0.000001;
           var isCont=r.source==='amazon-container';
           var warn=isCont?' <span style="font-size:10px;color:#aaa;">\u26a0\ufe0f per-container</span>':'';
@@ -1043,13 +1033,12 @@
         var srcC=srcHid?' src-hidden':'';
         var sponC=sponHid?' sponsored-hidden':'';
         var revC=revHid?' reviews-hidden':'';
-        var amzC=amzHid?' amazon-only-hidden':'';
         var chkC=isChecked?' checked':'';
         var safeAsin=r.asin.replace(/"/g,'&quot;');
         var titleHtml=(hasKw&&r.kwMatch)?highlightKeywords(r.title,kw):escapeHtml(r.title);
 
         html+=
-          '<div class="ppu-row'+dimC+srcC+sponC+revC+amzC+chkC+'" data-asin="'+safeAsin+'">'+
+          '<div class="ppu-row'+dimC+srcC+sponC+revC+chkC+'" data-asin="'+safeAsin+'">'+
             '<div class="ppu-cb-wrap"><input type="checkbox" class="ppu-cb"'+(isChecked?' checked':'')+' title="Add to shortlist"></div>'+
             '<div class="ppu-row-content">'+
               '<a href="'+r.href+'" target="_blank" title="'+escapeHtml(r.title)+'">'+titleHtml+'</a>'+
@@ -1116,7 +1105,6 @@
       this.classList.toggle('active',minReviews>0);
       render();
     });
-    amazonOnlyCb.addEventListener('change',function(){amazonOnly=this.checked;render();});
 
     panel.querySelectorAll('.ppu-source-toggle').forEach(function(btn){
       btn.addEventListener('click',function(){
