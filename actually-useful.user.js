@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.12
+// @version      5.13.0
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @license      All Rights Reserved
@@ -18,18 +18,28 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.12';
+  const SCRIPT_VERSION = '5.13.0';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   const NUDGE_DISMISSED_KEY  = 'ppu_nudge_dismissed';
   const NUDGE_LAST_SHOWN_KEY = 'ppu_nudge_last_shown';
   const NUDGE_DELAY_DAYS     = 30;
 
+  // Keywords that positively identify liquid categories (search term must match)
   const LIQUID_KEYWORDS = [
     'syrup','lotion','shampoo','conditioner','soap','detergent','serum',
     'spray','juice','oil','sauce','broth','rinse','gel','cream','toner',
     'mouthwash','cleanser','moisturizer','bleach','vinegar','milk','drink',
     'beverage','liquid','fluid','wash','cologne','perfume','sanitizer'
+  ];
+
+  // Keywords that identify solid/countable categories — suppress liquid inference even if oz dominates
+  const SOLID_KEYWORDS = [
+    'bar','bars','wafer','wafers','cookie','cookies','cracker','crackers',
+    'chip','chips','chew','chews','oat','oatmeal','cereal','granola',
+    'jerky','gummy','gummies','candy','chocolate','snack','snacks',
+    'powder','capsule','capsules','tablet','tablets','pill','pills',
+    'supplement','vitamin','protein powder','coffee','pod','pods','k-cup','kcup'
   ];
 
   const LIQUID_UNITS  = ['fl oz','fluid ounce','fluid ounces','ml','milliliter','milliliters','l','liter','liters'];
@@ -121,20 +131,37 @@
   }
 
   // ── Liquid-dominant inference ─────────────────────────────────────────────
+  // Requires BOTH: search term matches a liquid keyword AND results are
+  // predominantly liquid/oz units. oz is neutral until confirmed by search term.
+  // Solid-food counter-signals suppress liquid mode entirely.
   function inferLiquidDominant(data) {
     var searchTerm = (new URLSearchParams(window.location.search).get('k')||'').toLowerCase();
-    for (var i=0; i<LIQUID_KEYWORDS.length; i++) {
-      if (searchTerm.includes(LIQUID_KEYWORDS[i])) return true;
+
+    // Solid-food counter-signals: never liquid mode if present
+    for (var s=0; s<SOLID_KEYWORDS.length; s++) {
+      if (searchTerm.includes(SOLID_KEYWORDS[s])) return false;
     }
+
+    // Signal 1: search term contains a liquid keyword
+    var termIsLiquid = false;
+    for (var i=0; i<LIQUID_KEYWORDS.length; i++) {
+      if (searchTerm.includes(LIQUID_KEYWORDS[i])) { termIsLiquid=true; break; }
+    }
+
+    // Signal 2: majority of result units are liquid
+    // oz only counts as liquid when term also confirms liquid context
     var liquidCount=0, weightCount=0;
     data.forEach(function(r){
       if (!r.unit) return;
       var u = r.unit.toLowerCase();
-      if (LIQUID_UNITS.indexOf(u)!==-1 || u==='oz') liquidCount++;
-      else if (WEIGHT_UNITS.indexOf(u)!==-1)         weightCount++;
+      if (LIQUID_UNITS.indexOf(u) !== -1) liquidCount++;
+      else if (termIsLiquid && u === 'oz') liquidCount++;
+      else if (WEIGHT_UNITS.indexOf(u) !== -1) weightCount++;
     });
+
+    // Both signals required
     var total = liquidCount+weightCount;
-    return total>0 && liquidCount/total >= 0.6;
+    return termIsLiquid && total>0 && liquidCount/total >= 0.6;
   }
 
   // ── Unit pill generation ──────────────────────────────────────────────────
@@ -153,21 +180,29 @@
     var hasWeightUnit = Object.keys(unitCounts).some(function(u){
       return WEIGHT_UNITS.indexOf(u)!==-1 && !(isLiqDom && u==='oz');
     });
+    // Count units present (ct, count, each, piece, etc.)
+    var COUNT_UNIT_KEYS = ['ct','count','each','pc','piece','pieces','pcs','unit','units','pad','pads','sheet','sheets','wipe','wipes','tablet','tablets','capsule','cap'];
+    var hasCountUnit = Object.keys(unitCounts).some(function(u){ return COUNT_UNIT_KEYS.indexOf(u)!==-1; });
 
     if (hasLiquidUnit) {
       pills.push({ unit:'fl oz', label:'fl oz', isRecommended: isLiqDom });
       pills.push({ unit:'ml',    label:'ml',    isRecommended: false });
     }
     if (hasWeightUnit) {
-      pills.push({ unit:'oz', label:'oz', isRecommended: false });
+      pills.push({ unit:'oz', label:'oz (weight)', isRecommended: false });
       pills.push({ unit:'g',  label:'g',  isRecommended: false });
     }
+    // Show per-item pill when count units exist alongside weight/liquid units
+    if (hasCountUnit && (hasLiquidUnit || hasWeightUnit)) {
+      pills.push({ unit:'ct', label:'per item', isRecommended: false });
+    }
 
-    // Only show pills if there are genuinely 2+ convertible units or liquid-dominant
+    // Show pills if: 2+ convertible units, liquid-dominant, OR any minority units exist
     var convertibleCount = Object.keys(unitCounts).filter(function(u){
       return LIQUID_UNITS.indexOf(u)!==-1 || WEIGHT_UNITS.indexOf(u)!==-1 || (isLiqDom && u==='oz');
     }).length;
-    if (convertibleCount < 2 && !isLiqDom) pills = [];
+    var hasMinorityUnits = Object.keys(unitCounts).length > 1;
+    if (convertibleCount < 2 && !isLiqDom && !hasMinorityUnits) pills = [];
 
     pills.push({ unit: null, label:'As listed', isRecommended: false });
     return pills;
@@ -446,7 +481,7 @@
     .ppu-cb          { cursor:pointer;width:14px;height:14px; }
     .ppu-row-content { flex:1;min-width:0; }
     .ppu-row a {
-      font-size:12px;color:#007185;text-decoration:none;display:block;
+      font-size:0.9rem;color:#007185;text-decoration:none;display:block;
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;
     }
     .ppu-row a:hover { text-decoration:underline; }
@@ -645,6 +680,7 @@
     if(ap&&CONTAINER_UNITS.includes(ap.unit)) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon-container',note:'Per '+ap.unit+', not per item'});
     if(ap) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'});
     if(count&&price){var unit2=guessCountUnit(title)||guessUnitFromTitle(title);return Object.assign(base,{ppu:price/count,unit:unit2,source:'calc'});}
+    if(!price) return Object.assign(base,{ppu:null,unit:null,source:'unavailable'});
     return Object.assign(base,{ppu:null,unit:null,source:'none'});
   }
 
@@ -825,7 +861,7 @@
         '</div>'+
         (hasFresh||hasWF?
           '<div id="ppu-source-row">'+
-            '<span class="label">Sources:</span>'+
+            '<span class="label">Sources <span style="font-weight:normal;color:#888;">(click to show/hide)</span>:</span>'+
             '<span class="ppu-source-toggle src-standard'+(!srcFilter['standard']?' off':'')+'" data-src="standard">Amazon</span>'+
             (hasFresh?'<span class="ppu-source-toggle src-fresh'+(!srcFilter['fresh']?' off':'')+'" data-src="fresh">Fresh</span>':'')+
             (hasWF?'<span class="ppu-source-toggle src-wf'+(!srcFilter['whole-foods']?' off':'')+'" data-src="whole-foods">Whole Foods</span>':'')+
@@ -1009,7 +1045,9 @@
           badge='<span class="ppu-badge'+(isBest?' best':'')+(isCont?' container':'')+'"'+(isBest?' title="Best value among comparable results"':'')+'>'+formatPPU(dPPU)+uDisp+(isBest?' \u2605':'')+' </span>'+warn+convNote;
           if(r.note&&r.source==='calc') noteStr='<div style="font-size:10px;color:#aaa;margin-top:2px;">was: '+r.note+'</div>';
         } else {
-          badge='<span class="ppu-nodata">no unit data</span>';
+          badge = r.source==='unavailable'
+            ? '<span class="ppu-nodata">unavailable</span>'
+            : '<span class="ppu-nodata">no unit data</span>';
         }
 
         if(r.hasCoupon) noteStr+='<div style="font-size:10px;color:#007600;margin-top:2px;">\uD83C\uDFF7\uFE0F Coupon price applied</div>';
