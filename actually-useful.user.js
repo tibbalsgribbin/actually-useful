@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.13.0
+// @version      5.14.0
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @license      All Rights Reserved
@@ -18,7 +18,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.13.0';
+  const SCRIPT_VERSION = '5.14.0';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   const NUDGE_DISMISSED_KEY  = 'ppu_nudge_dismissed';
@@ -30,7 +30,8 @@
     'syrup','lotion','shampoo','conditioner','soap','detergent','serum',
     'spray','juice','oil','sauce','broth','rinse','gel','cream','toner',
     'mouthwash','cleanser','moisturizer','bleach','vinegar','milk','drink',
-    'beverage','liquid','fluid','wash','cologne','perfume','sanitizer'
+    'beverage','liquid','fluid','wash','cologne','perfume','sanitizer',
+    'water','seltzer','sparkling water'
   ];
 
   // Keywords that identify solid/countable categories — suppress liquid inference even if oz dominates
@@ -65,19 +66,16 @@
   }
 
   // ── Unit conversion ───────────────────────────────────────────────────────
-  // In liquid-dominant context oz and fl oz are treated as interchangeable.
   function convertPPU(ppu, fromUnit, toUnit) {
     if (!ppu || !fromUnit || !toUnit) return null;
     var from = fromUnit.toLowerCase().trim();
     var to   = toUnit.toLowerCase().trim();
     if (from === to) return ppu;
-    // Liquid family (oz included for liquid-dominant context)
     var toFlOz = {
       'fl oz':1,'oz':1,'fluid ounce':1,'fluid ounces':1,
       'ml':1/29.5735,'milliliter':1/29.5735,'milliliters':1/29.5735,
       'l':33.814,'liter':33.814,'liters':33.814
     };
-    // Weight family (oz excluded when in liquid context — handled by caller normalising to fl oz)
     var toOz = {
       'oz':1,'g':1/28.3495,'gram':1/28.3495,'grams':1/28.3495,
       'kg':35.274,'kilogram':35.274,'kilograms':35.274,
@@ -88,12 +86,11 @@
     return null;
   }
 
-  // Normalise for sort purposes; liquid-dominant treats oz as fl oz
   function normalizePPUForSort(ppu, unit, isLiqDom) {
     if (!ppu || !unit) return ppu;
     var u = unit.toLowerCase().trim();
     if (LIQUID_UNITS.indexOf(u) !== -1)       return convertPPU(ppu, u, 'fl oz') || ppu;
-    if (isLiqDom && u === 'oz')               return ppu;   // same scale as fl oz
+    if (isLiqDom && u === 'oz')               return ppu;
     if (WEIGHT_UNITS.indexOf(u) !== -1)       return convertPPU(ppu, u, 'oz')    || ppu;
     return ppu;
   }
@@ -131,25 +128,18 @@
   }
 
   // ── Liquid-dominant inference ─────────────────────────────────────────────
-  // Requires BOTH: search term matches a liquid keyword AND results are
-  // predominantly liquid/oz units. oz is neutral until confirmed by search term.
-  // Solid-food counter-signals suppress liquid mode entirely.
   function inferLiquidDominant(data) {
     var searchTerm = (new URLSearchParams(window.location.search).get('k')||'').toLowerCase();
 
-    // Solid-food counter-signals: never liquid mode if present
     for (var s=0; s<SOLID_KEYWORDS.length; s++) {
       if (searchTerm.includes(SOLID_KEYWORDS[s])) return false;
     }
 
-    // Signal 1: search term contains a liquid keyword
     var termIsLiquid = false;
     for (var i=0; i<LIQUID_KEYWORDS.length; i++) {
       if (searchTerm.includes(LIQUID_KEYWORDS[i])) { termIsLiquid=true; break; }
     }
 
-    // Signal 2: majority of result units are liquid
-    // oz only counts as liquid when term also confirms liquid context
     var liquidCount=0, weightCount=0;
     data.forEach(function(r){
       if (!r.unit) return;
@@ -159,9 +149,17 @@
       else if (WEIGHT_UNITS.indexOf(u) !== -1) weightCount++;
     });
 
-    // Both signals required
     var total = liquidCount+weightCount;
     return termIsLiquid && total>0 && liquidCount/total >= 0.6;
+  }
+
+  // ── Extract per-item fl oz from title (for liquid-dominant ct conversion) ──
+  // Looks for patterns like "12 Fl Oz" or "11.15 fl oz" in product title.
+  // Used to convert ct-unit items to fl oz in liquid-dominant categories.
+  function extractFlOzFromTitle(title) {
+    var m = title.match(/(\d+(?:\.\d+)?)\s*(?:fl\.?\s*oz|fluid\s*ounces?)/i);
+    if (m) return parseFloat(m[1]);
+    return null;
   }
 
   // ── Unit pill generation ──────────────────────────────────────────────────
@@ -180,7 +178,6 @@
     var hasWeightUnit = Object.keys(unitCounts).some(function(u){
       return WEIGHT_UNITS.indexOf(u)!==-1 && !(isLiqDom && u==='oz');
     });
-    // Count units present (ct, count, each, piece, etc.)
     var COUNT_UNIT_KEYS = ['ct','count','each','pc','piece','pieces','pcs','unit','units','pad','pads','sheet','sheets','wipe','wipes','tablet','tablets','capsule','cap'];
     var hasCountUnit = Object.keys(unitCounts).some(function(u){ return COUNT_UNIT_KEYS.indexOf(u)!==-1; });
 
@@ -192,12 +189,12 @@
       pills.push({ unit:'oz', label:'oz (weight)', isRecommended: false });
       pills.push({ unit:'g',  label:'g',  isRecommended: false });
     }
-    // Show per-item pill when count units exist alongside weight/liquid units
-    if (hasCountUnit && (hasLiquidUnit || hasWeightUnit)) {
+    // Only show per-item pill when count units exist alongside weight/liquid units
+    // AND we are NOT in liquid-dominant mode (where ct items may be convertible to fl oz)
+    if (hasCountUnit && (hasLiquidUnit || hasWeightUnit) && !isLiqDom) {
       pills.push({ unit:'ct', label:'per item', isRecommended: false });
     }
 
-    // Show pills if: 2+ convertible units, liquid-dominant, OR any minority units exist
     var convertibleCount = Object.keys(unitCounts).filter(function(u){
       return LIQUID_UNITS.indexOf(u)!==-1 || WEIGHT_UNITS.indexOf(u)!==-1 || (isLiqDom && u==='oz');
     }).length;
@@ -248,6 +245,30 @@
       pos=r.end;
     });
     return result+escapeHtml(title.slice(pos));
+  }
+
+  // ── Keyword matching — uses word boundaries for exclusion terms ───────────
+  // FIX v5.14: exclusion terms use \b word boundaries so "-men" does not
+  // match inside "women". Inclusion terms still use substring matching
+  // (so "spiral" matches "spiral-bound") — only exclusions are word-bounded.
+  function titleMatchesKeywords(title, kwRaw) {
+    var nt  = normalizeDimensions(title.toLowerCase());
+    var nk  = normalizeDimensions(kwRaw.trim().toLowerCase());
+    var terms = nk.split(/\s+/).filter(Boolean);
+    for (var i=0; i<terms.length; i++) {
+      var t = terms[i];
+      if (t.startsWith('-')) {
+        if (t.length > 1) {
+          // Word-boundary exclusion: escape regex special chars, then wrap in \b
+          var word = t.slice(1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          var re = new RegExp('\\b' + word + '\\b', 'i');
+          if (re.test(nt)) return false;
+        }
+      } else {
+        if (!nt.includes(t)) return false;
+      }
+    }
+    return true;
   }
 
   // ── Delivery date parsing ─────────────────────────────────────────────────
@@ -495,6 +516,7 @@
     .ppu-delivery.fast   { color:#007185; }
     .ppu-delivery.wf-fee { color:#B12704; }
     .ppu-nodata { font-size:0.82rem;color:#bbb;font-style:italic; }
+    .ppu-note   { font-size:0.78rem;color:#aaa;margin-top:2px; }
     .ppu-src-tag { font-size:0.78rem;padding:1px 4px;border-radius:3px;font-weight:600;margin-bottom:2px;display:inline-block; }
     .ppu-src-wf  { background:#e8f5e8;color:#006400;border:1px solid #a5d6a7; }
     .ppu-src-fr  { background:#e0f4fb;color:#005f7a;border:1px solid #81d4f7; }
@@ -594,6 +616,9 @@
     return null;
   }
 
+  // ── guessCountUnit: always returns ct when item is a pack/count ───────────
+  // FIX v5.14: pack/count titles now return 'ct' not 'pack', so unit label
+  // reflects per-item pricing rather than per-pack (which is meaningless).
   function guessCountUnit(text) {
     if(/\d[\d,]*\s*-?\s*rolls?/i.test(text))    return 'roll';
     if(/\d[\d,]*\s*-?\s*bags?/i.test(text))     return 'bag';
@@ -605,10 +630,11 @@
     if(/\d[\d,]*\s*-?\s*capsules?/i.test(text)) return 'capsule';
     if(/\d[\d,]*\s*-?\s*pcs\.?/i.test(text))    return 'pc';
     if(/\d[\d,]*\s*-?\s*pieces?/i.test(text))   return 'piece';
-    if(/\d[\d,]*\s*-?\s*pack/i.test(text))      return 'pack';
-    if(/pack\s+of\s+\d/i.test(text))            return 'pack';
+    // pack and count now both return 'ct' — per-item, not per-pack
+    if(/\d[\d,]*\s*-?\s*pack/i.test(text))      return 'ct';
+    if(/pack\s+of\s+\d/i.test(text))            return 'ct';
     if(/\d[\d,]*\s*-?\s*count/i.test(text))     return 'ct';
-    if(/box\s+of\s+\d/i.test(text))             return 'box';
+    if(/box\s+of\s+\d/i.test(text))             return 'ct';
     return null;
   }
 
@@ -667,33 +693,64 @@
               reviewCount,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff};
-    if(ap&&ITEM_UNITS.includes(ap.unit)) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'});
+
+    // ── Amazon reported a unit price ────────────────────────────────────────
+    if(ap&&ITEM_UNITS.includes(ap.unit)) {
+      // v5.14: if Amazon says ct but we have price and count, recalculate to
+      // confirm, and in liquid-dominant context attempt fl oz conversion
+      if(ap.unit==='ct'&&count&&price) {
+        var perItem=price/count;
+        // Use Amazon's ct price as-is (it may reflect per-can, etc.)
+        return Object.assign(base,{ppu:ap.ppu,unit:'ct',source:'amazon'});
+      }
+      return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'});
+    }
     if(ap&&LENGTH_UNITS.includes(ap.unit)&&count&&price){
-      var unit=guessCountUnit(title)||guessUnitFromTitle(title);
+      var unit=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
       return Object.assign(base,{ppu:price/count,unit,source:'calc',note:'Amazon said '+formatPPU(ap.ppu)+'/'+ap.unit});
     }
     if(ap&&LENGTH_UNITS.includes(ap.unit)) return Object.assign(base,{ppu:null,unit:null,source:'none'});
     if(ap&&CONTAINER_UNITS.includes(ap.unit)&&count&&price){
-      var unit=guessCountUnit(title)||guessUnitFromTitle(title);
+      var unit=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
       return Object.assign(base,{ppu:price/count,unit,source:'calc',note:'Amazon said '+formatPPU(ap.ppu)+'/'+ap.unit});
     }
     if(ap&&CONTAINER_UNITS.includes(ap.unit)) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon-container',note:'Per '+ap.unit+', not per item'});
     if(ap) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'});
-    if(count&&price){var unit2=guessCountUnit(title)||guessUnitFromTitle(title);return Object.assign(base,{ppu:price/count,unit:unit2,source:'calc'});}
+
+    // ── No Amazon unit price — calculate from count ─────────────────────────
+    if(count&&price){
+      var unit2=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
+      return Object.assign(base,{ppu:price/count,unit:unit2,source:'calc'});
+    }
+
+    // ── v5.14: Single item — default to 1 ct when price is available ────────
+    // This allows single-item listings to be compared against multipacks.
+    // Only applies when there is no count in the title and no Amazon unit price.
+    if(price) {
+      return Object.assign(base,{ppu:price,unit:'ct',source:'calc-single'});
+    }
+
     if(!price) return Object.assign(base,{ppu:null,unit:null,source:'unavailable'});
     return Object.assign(base,{ppu:null,unit:null,source:'none'});
   }
 
-  function titleMatchesKeywords(title,kwRaw) {
-    var nt=normalizeDimensions(title.toLowerCase());
-    var nk=normalizeDimensions(kwRaw.trim().toLowerCase());
-    var terms=nk.split(/\s+/).filter(Boolean);
-    for(var i=0;i<terms.length;i++){
-      var t=terms[i];
-      if(t.startsWith('-')){if(t.length>1&&nt.includes(t.slice(1)))return false;}
-      else{if(!nt.includes(t))return false;}
-    }
-    return true;
+  // ── Liquid-dominant ct→fl oz conversion ──────────────────────────────────
+  // v5.14: After scraping, in liquid-dominant mode, attempt to convert ct
+  // items to fl oz using per-item volume stated in title.
+  // e.g. "La Croix 12 Fl Oz (Pack of 8)" reported as ct → convert to fl oz.
+  function applyLiquidCtConversion(data) {
+    data.forEach(function(r) {
+      if (!r.unit || r.unit !== 'ct') return;
+      if (!r.price || !r.ppu) return;
+      var perItemFlOz = extractFlOzFromTitle(r.title);
+      if (!perItemFlOz) return;
+      // ppu is currently price-per-can (ct). Convert to price-per-fl-oz.
+      var newPPU = r.ppu / perItemFlOz;
+      r.ppu = newPPU;
+      r.unit = 'fl oz';
+      r.source = 'calc-liquid';
+      r.note = 'converted from per-can price';
+    });
   }
 
   function getNextPageUrl() {
@@ -725,7 +782,7 @@
   var hideSponsored    = false;
   var isCollapsed      = false;
   var keyword          = '';
-  var selectedUnit     = null;   // null = "As listed"
+  var selectedUnit     = null;
   var sortVal          = 'ppu-asc';
   var checkedAsins     = {};
   var showCheckedOnly  = false;
@@ -792,6 +849,13 @@
     },[]);
     loadedPages=1; nextPageUrl=getNextPageUrl(); needsResort=false;
 
+    // Liquid inference first pass (before ct conversion)
+    isLiquidDominant=inferLiquidDominant(allData);
+
+    // v5.14: in liquid-dominant mode, convert ct items to fl oz where possible
+    if(isLiquidDominant) applyLiquidCtConversion(allData);
+
+    // Regenerate liquid dominance after conversion (unit distribution may have changed)
     isLiquidDominant=inferLiquidDominant(allData);
     unitPills=generateUnitPills(allData,isLiquidDominant);
 
@@ -801,7 +865,6 @@
     var hasSponsored=allData.some(function(r){return r.isSponsored;});
     var hasPills=unitPills.length>1;
 
-    // Validate selectedUnit still applies
     if(selectedUnit!==null&&!unitPills.some(function(p){return p.unit===selectedUnit;})) selectedUnit=null;
 
     var existing=document.getElementById(PANEL_ID);
@@ -866,7 +929,7 @@
             (hasFresh?'<span class="ppu-source-toggle src-fresh'+(!srcFilter['fresh']?' off':'')+'" data-src="fresh">Fresh</span>':'')+
             (hasWF?'<span class="ppu-source-toggle src-wf'+(!srcFilter['whole-foods']?' off':'')+'" data-src="whole-foods">Whole Foods</span>':'')+
           '</div>':'')+
-        (hasDelivery?'<div id="ppu-delivery-note">\u26a0\ufe0f Delivery dates are estimates \u00b7 Whole Foods "FREE" delivery requires a separate fee</div>':'')+
+        (hasDelivery?'<div id="ppu-delivery-note">\u26a0\ufe0f Delivery dates shown where available \u00b7 Same-day and conditional free delivery may not appear \u00b7 Whole Foods "FREE" requires a separate fee</div>':'')+
         '<div id="ppu-sort-note"></div>'+
       '</div>'+
       '<div id="ppu-scroll-area">'+
@@ -880,7 +943,6 @@
 
     document.body.appendChild(panel);
 
-    // Drag to resize
     var dh=document.getElementById('ppu-drag-handle');
     if(dh){
       var isDrag=false,sX,sW;
@@ -962,7 +1024,6 @@
       if(hasKw&&!showCheckedOnly)
         displayData=displayData.filter(function(r){return r.kwMatch;}).concat(displayData.filter(function(r){return !r.kwMatch;}));
 
-      // Info bar
       var withData=allData.filter(function(r){return r.ppu!=null;}).length;
       var warnings=allData.filter(function(r){return r.source==='amazon-container';}).length;
       var hiddenSrc=allData.filter(function(r){return !srcFilter[r.grocery];}).length;
@@ -979,13 +1040,15 @@
       if(showCheckedOnly)          info+=' \u00b7 '+displayData.length+' selected';
       if(hideSponsored&&sponCount>0) info+=' \u00b7 '+sponCount+' ads hidden';
       if(revHiddenCt>0)            info+=' \u00b7 '+revHiddenCt+' below min reviews';
+      // v5.14: delivery sort caveat
+      if(sortVal==='delivery-free'||sortVal==='delivery-any')
+        info+=' \u00b7 \u26a0\ufe0f same-day & conditional free delivery may not appear';
       document.getElementById('ppu-info').textContent=info;
 
       var sortNoteEl=document.getElementById('ppu-sort-note');
       if(isSparse){sortNoteEl.style.display='block';sortNoteEl.textContent='Too few unit prices to sort by value \u2014 showing by price instead';}
       else sortNoteEl.style.display='none';
 
-      // Comparable PPU helper (respects selected pill + liquid context)
       function getCompPPU(r) {
         if(r.ppu==null) return null;
         if(selectedUnit){
@@ -1043,7 +1106,8 @@
 
           var uDisp=dUnit?'/'+dUnit:'';
           badge='<span class="ppu-badge'+(isBest?' best':'')+(isCont?' container':'')+'"'+(isBest?' title="Best value among comparable results"':'')+'>'+formatPPU(dPPU)+uDisp+(isBest?' \u2605':'')+' </span>'+warn+convNote;
-          if(r.note&&r.source==='calc') noteStr='<div style="font-size:10px;color:#aaa;margin-top:2px;">was: '+r.note+'</div>';
+          // v5.14: note text bumped to 0.78rem via .ppu-note class
+          if(r.note&&(r.source==='calc'||r.source==='calc-liquid')) noteStr='<div class="ppu-note">was: '+r.note+'</div>';
         } else {
           badge = r.source==='unavailable'
             ? '<span class="ppu-nodata">unavailable</span>'
@@ -1119,7 +1183,6 @@
     });
     clearKw.addEventListener('click',function(){kwInput.value='';keyword='';kwInput.classList.remove('active');clearKw.style.display='none';kwInput.focus();render();});
 
-    // Unit pill events
     panel.querySelectorAll('.ppu-unit-pill').forEach(function(pill){
       pill.addEventListener('click',function(){
         var raw=this.getAttribute('data-unit');
@@ -1172,7 +1235,10 @@
         var fp=loadedPages+1,si=allData.length;
         fetchPage(nextPageUrl,fp,si).then(function(result){
           allData=allData.concat(result.rows);loadedPages=fp;needsResort=true;nextPageUrl=result.nextUrl;
-          isLiquidDominant=inferLiquidDominant(allData);unitPills=generateUnitPills(allData,isLiquidDominant);
+          isLiquidDominant=inferLiquidDominant(allData);
+          if(isLiquidDominant) applyLiquidCtConversion(result.rows);
+          isLiquidDominant=inferLiquidDominant(allData);
+          unitPills=generateUnitPills(allData,isLiquidDominant);
           var lmRow=document.getElementById('ppu-load-more-row');
           if(nextPageUrl&&lmRow){btn.disabled=false;btn.textContent='\u2193 Load page '+(loadedPages+1)+' results';}
           else if(lmRow) lmRow.style.display='none';
