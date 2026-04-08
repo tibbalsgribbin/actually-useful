@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.15.0
+// @version      5.16.0
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @license      All Rights Reserved
@@ -18,7 +18,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.15.0';
+  const SCRIPT_VERSION = '5.16.0';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   const NUDGE_DISMISSED_KEY  = 'ppu_nudge_dismissed';
@@ -556,6 +556,7 @@
     #ppu-btn-clear-checked  { display:none; }
     #ppu-btn-hide-sponsored { display:none; }
     #ppu-btn-hide-sponsored.active { background:#eee;border-color:#888; }
+    #ppu-btn-reset-filters  { border-color:#c0392b;color:#c0392b;display:none; }
     #ppu-filter-row {
       padding:6px 14px;background:#f7f7f7;border-bottom:1px solid #e8e8e8;
       display:flex;gap:6px;align-items:center;
@@ -1031,6 +1032,7 @@
           '<button id="ppu-btn-refresh">\u21ba Refresh</button>'+
           '<button id="ppu-btn-resort">Re-sort all \u21c5</button>'+
           '<button id="ppu-btn-hide-sponsored">Hide ads</button>'+
+          '<button id="ppu-btn-reset-filters">\u21ba Reset filters</button>'+
           '<button id="ppu-btn-show-checked">Show selected (0)</button>'+
           '<button id="ppu-btn-clear-checked">Clear selection</button>'+
         '</div>'+
@@ -1081,6 +1083,7 @@
     var showChkBtn=document.getElementById('ppu-btn-show-checked');
     var clearChkBtn=document.getElementById('ppu-btn-clear-checked');
     var hideSponsoredBtn=document.getElementById('ppu-btn-hide-sponsored');
+    var resetFiltersBtn=document.getElementById('ppu-btn-reset-filters');
     var minReviewsInput=document.getElementById('ppu-min-reviews');
 
     if(keyword){kwInput.classList.add('active');clearKw.style.display='block';}
@@ -1100,6 +1103,11 @@
       showChkBtn.textContent=showCheckedOnly?'Show all ('+cc+' selected)':'Show selected ('+cc+')';
       resortBtn.style.display=(needsResort&&!showCheckedOnly)?'block':'none';
       resortBtnBot.style.display=(needsResort&&!showCheckedOnly)?'block':'none';
+
+      var anyFilterActive = keyword.trim().length>0 || minReviews>0 ||
+        Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; }) ||
+        sortVal!=='ppu-asc';
+      resetFiltersBtn.style.display=anyFilterActive?'block':'none';
 
       var unitDataAvail=allData.filter(function(r){return r.ppu!=null;}).length;
       var isSparse=sortVal==='ppu-asc'&&unitDataAvail<Math.ceil(allData.length*0.1);
@@ -1293,6 +1301,20 @@
     function doResort(){needsResort=false;render();}
     resortBtn.addEventListener('click',doResort);
     resortBtnBot.addEventListener('click',doResort);
+    resetFiltersBtn.addEventListener('click',function(){
+      // Reset all filters to defaults
+      kwInput.value=''; keyword='';
+      kwInput.classList.remove('active'); clearKw.style.display='none';
+      minReviews=0; minReviewsInput.value='';
+      minReviewsInput.classList.remove('active');
+      srcFilter={'standard':true,'fresh':true,'whole-foods':true};
+      panel.querySelectorAll('.ppu-source-toggle').forEach(function(btn){
+        btn.classList.remove('off');
+      });
+      sortVal='ppu-asc'; sortEl.value='ppu-asc';
+      render();
+    });
+
     showChkBtn.addEventListener('click',function(){showCheckedOnly=!showCheckedOnly;render();});
     clearChkBtn.addEventListener('click',function(){checkedAsins={};showCheckedOnly=false;render();});
 
