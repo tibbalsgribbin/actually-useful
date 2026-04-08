@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.14.0
+// @version      5.15.0
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @license      All Rights Reserved
@@ -18,7 +18,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.14.0';
+  const SCRIPT_VERSION = '5.15.0';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   const NUDGE_DISMISSED_KEY  = 'ppu_nudge_dismissed';
@@ -215,15 +215,78 @@
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // ── Keyword parsing — supports OR / | syntax ──────────────────────────────
+  // FIX v5.15: OR keyword filtering added. Pipe (|) and uppercase OR are
+  // treated as branch separators. Exclusions (-term) are global across all
+  // branches. Inclusion terms within a branch are AND. A title passes if it
+  // satisfies ANY branch AND none of the global exclusions.
+  // Example: "unscented OR fragrance-free -refill"
+  //   → (has "unscented" OR has "fragrance-free") AND NOT "refill"
+  function parseKeywords(kwRaw) {
+    var nk = normalizeDimensions(kwRaw.trim().toLowerCase());
+    // Split on | or ' OR ' (uppercase only, space-bounded to avoid mid-word matches)
+    var segments = nk.split(/\|| OR /);
+    var exclusions = [];
+    var branches = [];
+    segments.forEach(function(seg) {
+      var terms = seg.trim().split(/\s+/).filter(Boolean);
+      var positive = [];
+      terms.forEach(function(t) {
+        if (t.startsWith('-') && t.length > 1) {
+          exclusions.push(t.slice(1));
+        } else if (!t.startsWith('-')) {
+          positive.push(t);
+        }
+      });
+      if (positive.length > 0) branches.push(positive);
+    });
+    // If no positive branches (only exclusions typed), treat as single empty branch
+    if (branches.length === 0) branches.push([]);
+    return { branches: branches, exclusions: exclusions };
+  }
+
+  // ── Keyword matching ──────────────────────────────────────────────────────
+  // Inclusion terms use substring matching (so "spiral" matches "spiral-bound").
+  // Exclusion terms use word boundaries (so "-men" does not match "women").
+  function titleMatchesKeywords(title, kwRaw) {
+    var nt = normalizeDimensions(title.toLowerCase());
+    var parsed = parseKeywords(kwRaw);
+    // Check global exclusions first
+    for (var i=0; i<parsed.exclusions.length; i++) {
+      var word = parsed.exclusions[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      var re = new RegExp('\\b' + word + '\\b', 'i');
+      if (re.test(nt)) return false;
+    }
+    // Check branches — pass if ANY branch fully matches
+    for (var b=0; b<parsed.branches.length; b++) {
+      var branch = parsed.branches[b];
+      var branchMatch = true;
+      for (var j=0; j<branch.length; j++) {
+        if (!nt.includes(branch[j])) { branchMatch = false; break; }
+      }
+      if (branchMatch) return true;
+    }
+    return false;
+  }
+
+  // ── Keyword highlighting — highlights terms from the matching branch only ──
   function highlightKeywords(title, kwRaw) {
     if (!kwRaw||!kwRaw.trim()) return escapeHtml(title);
-    var normKw    = normalizeDimensions(kwRaw.trim().toLowerCase());
-    var terms     = normKw.split(/\s+/).filter(Boolean);
-    var positive  = terms.filter(function(t){return !t.startsWith('-');});
-    if (!positive.length) return escapeHtml(title);
     var normTitle = normalizeDimensions(title.toLowerCase());
-    var ranges    = [];
-    positive.forEach(function(term){
+    var parsed = parseKeywords(kwRaw);
+    // Find which branch matched
+    var matchingBranch = null;
+    for (var b=0; b<parsed.branches.length; b++) {
+      var branch = parsed.branches[b];
+      var branchMatch = branch.length > 0;
+      for (var j=0; j<branch.length; j++) {
+        if (!normTitle.includes(branch[j])) { branchMatch = false; break; }
+      }
+      if (branchMatch) { matchingBranch = branch; break; }
+    }
+    if (!matchingBranch || matchingBranch.length === 0) return escapeHtml(title);
+    var ranges = [];
+    matchingBranch.forEach(function(term){
       var idx=0;
       while(true){
         var found=normTitle.indexOf(term,idx);
@@ -245,30 +308,6 @@
       pos=r.end;
     });
     return result+escapeHtml(title.slice(pos));
-  }
-
-  // ── Keyword matching — uses word boundaries for exclusion terms ───────────
-  // FIX v5.14: exclusion terms use \b word boundaries so "-men" does not
-  // match inside "women". Inclusion terms still use substring matching
-  // (so "spiral" matches "spiral-bound") — only exclusions are word-bounded.
-  function titleMatchesKeywords(title, kwRaw) {
-    var nt  = normalizeDimensions(title.toLowerCase());
-    var nk  = normalizeDimensions(kwRaw.trim().toLowerCase());
-    var terms = nk.split(/\s+/).filter(Boolean);
-    for (var i=0; i<terms.length; i++) {
-      var t = terms[i];
-      if (t.startsWith('-')) {
-        if (t.length > 1) {
-          // Word-boundary exclusion: escape regex special chars, then wrap in \b
-          var word = t.slice(1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          var re = new RegExp('\\b' + word + '\\b', 'i');
-          if (re.test(nt)) return false;
-        }
-      } else {
-        if (!nt.includes(t)) return false;
-      }
-    }
-    return true;
   }
 
   // ── Delivery date parsing ─────────────────────────────────────────────────
@@ -914,7 +953,7 @@
         '</div>'+
         '<div id="ppu-filter-row">'+
           '<label for="ppu-keyword">Keyword filter:</label>'+
-          '<input id="ppu-keyword" type="text" placeholder="e.g. handles -raisins" value="'+keyword.replace(/"/g,'&quot;')+'">'+
+          '<input id="ppu-keyword" type="text" placeholder="e.g. unscented OR fragrance-free -refill" value="'+keyword.replace(/"/g,'&quot;')+'">'+
           '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
         '</div>'+
         pillHtml+
@@ -1040,7 +1079,6 @@
       if(showCheckedOnly)          info+=' \u00b7 '+displayData.length+' selected';
       if(hideSponsored&&sponCount>0) info+=' \u00b7 '+sponCount+' ads hidden';
       if(revHiddenCt>0)            info+=' \u00b7 '+revHiddenCt+' below min reviews';
-      // v5.14: delivery sort caveat
       if(sortVal==='delivery-free'||sortVal==='delivery-any')
         info+=' \u00b7 \u26a0\ufe0f same-day & conditional free delivery may not appear';
       document.getElementById('ppu-info').textContent=info;
@@ -1106,7 +1144,6 @@
 
           var uDisp=dUnit?'/'+dUnit:'';
           badge='<span class="ppu-badge'+(isBest?' best':'')+(isCont?' container':'')+'"'+(isBest?' title="Best value among comparable results"':'')+'>'+formatPPU(dPPU)+uDisp+(isBest?' \u2605':'')+' </span>'+warn+convNote;
-          // v5.14: note text bumped to 0.78rem via .ppu-note class
           if(r.note&&(r.source==='calc'||r.source==='calc-liquid')) noteStr='<div class="ppu-note">was: '+r.note+'</div>';
         } else {
           badge = r.source==='unavailable'
