@@ -215,21 +215,93 @@
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // ── Card text scraping ────────────────────────────────────────────────────
+  // v5.15: Captures additional card text beyond the title for keyword matching.
+  // Includes deal/promo badges, discount labels, delivery window strings,
+  // plus synthetic tokens from structured data: 'coupon', 'prime', 'today', 'tomorrow'.
+  // Deliberately excludes: title (already in r.title), price strings,
+  // review counts, image alt text, hidden/offscreen elements.
+  function scrapeCardText(el, hasCoupon, freeDate, fastDate) {
+    var parts = [];
+
+    // Deal and promo badge text (e.g. "Limited time deal", "10% off")
+    var badgeSelectors = [
+      '.s-badge-text',
+      '[data-component-type="s-status-badge-component"]',
+      '.a-badge-text',
+      '.s-coupon-highlight-color',
+      '.s-promotional-deal-badge',
+    ];
+    badgeSelectors.forEach(function(sel){
+      el.querySelectorAll(sel).forEach(function(node){
+        var t = (node.textContent||'').trim();
+        if (t && t.length < 200) parts.push(t);
+      });
+    });
+
+    // Discount/subscribe rows (e.g. "10% off on any 4 qualifying items")
+    var discountSelectors = [
+      '.s-coupon-unclipped',
+      '.s-coupon-clipped',
+      '[data-component-type="s-coupon-component"]',
+      '.a-color-success',
+    ];
+    discountSelectors.forEach(function(sel){
+      el.querySelectorAll(sel).forEach(function(node){
+        if (node.closest('.a-price')) return; // skip price elements
+        var t = (node.textContent||'').trim();
+        if (t && t.length < 200) parts.push(t);
+      });
+    });
+
+    // Delivery window text — cutoff times like "10 AM - 3 PM", "in 3 hours"
+    var deliverySelectors = [
+      '.udm-secondary-delivery-message',
+      '[data-component-type="s-delivery-component"] .a-color-base',
+    ];
+    deliverySelectors.forEach(function(sel){
+      el.querySelectorAll(sel).forEach(function(node){
+        if (node.closest('.a-price')) return;
+        if (node.closest('h2')) return; // skip title area
+        var t = (node.textContent||'').trim();
+        if (t && t.length < 150) parts.push(t);
+      });
+    });
+
+    // Synthetic tokens from structured data
+    if (hasCoupon) parts.push('coupon');
+
+    // Prime badge detection
+    if (el.querySelector('.a-icon-prime,[aria-label="Amazon Prime"],[data-component-type*="prime"]')) {
+      parts.push('prime');
+    }
+
+    // Today / tomorrow derived from parsed delivery dates
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+    var deliveryDate = freeDate || fastDate;
+    if (deliveryDate) {
+      if (deliveryDate.toDateString() === today.toDateString())    parts.push('today');
+      if (deliveryDate.toDateString() === tomorrow.toDateString()) parts.push('tomorrow');
+    }
+
+    return parts.join(' ').toLowerCase();
+  }
+
   // ── Keyword parsing — supports OR / | syntax ──────────────────────────────
-  // FIX v5.15: OR keyword filtering added. Pipe (|) and uppercase OR are
-  // treated as branch separators. Exclusions (-term) are global across all
-  // branches. Inclusion terms within a branch are AND. A title passes if it
+  // v5.15: OR keyword filtering. Pipe (|) and uppercase OR (space-bounded) are
+  // branch separators. Exclusions (-term) are global. A title passes if it
   // satisfies ANY branch AND none of the global exclusions.
-  // Example: "unscented OR fragrance-free -refill"
-  //   → (has "unscented" OR has "fragrance-free") AND NOT "refill"
+  // Split happens BEFORE lowercasing so ' OR ' is always recognised and never
+  // accidentally becomes a search term.
   function parseKeywords(kwRaw) {
-    var nk = normalizeDimensions(kwRaw.trim().toLowerCase());
-    // Split on | or ' OR ' (uppercase only, space-bounded to avoid mid-word matches)
-    var segments = nk.split(/\|| OR /);
+    var segments = kwRaw.trim().split(/\s+OR\s+|\|/i);
     var exclusions = [];
     var branches = [];
     segments.forEach(function(seg) {
-      var terms = seg.trim().split(/\s+/).filter(Boolean);
+      var nk = normalizeDimensions(seg.trim().toLowerCase());
+      var terms = nk.split(/\s+/).filter(Boolean);
       var positive = [];
       terms.forEach(function(t) {
         if (t.startsWith('-') && t.length > 1) {
@@ -240,53 +312,63 @@
       });
       if (positive.length > 0) branches.push(positive);
     });
-    // If no positive branches (only exclusions typed), treat as single empty branch
+    // If only exclusions were typed, single empty branch means "all pass unless excluded"
     if (branches.length === 0) branches.push([]);
     return { branches: branches, exclusions: exclusions };
   }
 
   // ── Keyword matching ──────────────────────────────────────────────────────
-  // Inclusion terms use substring matching (so "spiral" matches "spiral-bound").
-  // Exclusion terms use word boundaries (so "-men" does not match "women").
-  function titleMatchesKeywords(title, kwRaw) {
+  // v5.15: searches both title and cardText.
+  // Inclusion terms: substring match against title OR cardText.
+  // Exclusion terms: word-boundary match against title only — we don't want
+  // "-free" to suppress a card because "free delivery" is in cardText.
+  function titleMatchesKeywords(title, cardText, kwRaw) {
     var nt = normalizeDimensions(title.toLowerCase());
+    var nc = cardText || '';
     var parsed = parseKeywords(kwRaw);
-    // Check global exclusions first
+    // Exclusions against title only (word-boundary)
     for (var i=0; i<parsed.exclusions.length; i++) {
       var word = parsed.exclusions[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       var re = new RegExp('\\b' + word + '\\b', 'i');
       if (re.test(nt)) return false;
     }
-    // Check branches — pass if ANY branch fully matches
+    // Branches: pass if ANY branch fully matches (title OR cardText)
     for (var b=0; b<parsed.branches.length; b++) {
       var branch = parsed.branches[b];
       var branchMatch = true;
       for (var j=0; j<branch.length; j++) {
-        if (!nt.includes(branch[j])) { branchMatch = false; break; }
+        var term = branch[j];
+        if (!nt.includes(term) && !nc.includes(term)) { branchMatch = false; break; }
       }
       if (branchMatch) return true;
     }
     return false;
   }
 
-  // ── Keyword highlighting — highlights terms from the matching branch only ──
-  function highlightKeywords(title, kwRaw) {
+  // ── Keyword highlighting — highlights terms from matching branch only ──────
+  // Title-only: cardText matches are silent (nothing to mark in the title).
+  function highlightKeywords(title, cardText, kwRaw) {
     if (!kwRaw||!kwRaw.trim()) return escapeHtml(title);
     var normTitle = normalizeDimensions(title.toLowerCase());
+    var nc = cardText || '';
     var parsed = parseKeywords(kwRaw);
-    // Find which branch matched
+    // Find the first branch that matched
     var matchingBranch = null;
     for (var b=0; b<parsed.branches.length; b++) {
       var branch = parsed.branches[b];
       var branchMatch = branch.length > 0;
       for (var j=0; j<branch.length; j++) {
-        if (!normTitle.includes(branch[j])) { branchMatch = false; break; }
+        var term = branch[j];
+        if (!normTitle.includes(term) && !nc.includes(term)) { branchMatch = false; break; }
       }
       if (branchMatch) { matchingBranch = branch; break; }
     }
     if (!matchingBranch || matchingBranch.length === 0) return escapeHtml(title);
+    // Only highlight terms that actually appear in the title
+    var titleTerms = matchingBranch.filter(function(t){ return normTitle.includes(t); });
+    if (!titleTerms.length) return escapeHtml(title);
     var ranges = [];
-    matchingBranch.forEach(function(term){
+    titleTerms.forEach(function(term){
       var idx=0;
       while(true){
         var found=normTitle.indexOf(term,idx);
@@ -728,8 +810,9 @@
     var delivery=parseDeliveryDates(el);
     var wfFreeFlag=(grocery==='whole-foods')&&!!delivery.freeDate;
     var reviewCount=parseReviewCount(el);
+    var cardText=scrapeCardText(el,hasCoupon,delivery.freeDate,delivery.fastDate);
     var base={title,href,asin,price,count,page,grocery,wfFreeFlag,isSponsored,hasCoupon,
-              reviewCount,originalIndex:originalIndex||0,
+              cardText,reviewCount,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff};
 
@@ -1059,7 +1142,7 @@
       }
 
       var hasKw=kw.trim().length>0;
-      displayData=displayData.map(function(r){return Object.assign({},r,{kwMatch:!hasKw||titleMatchesKeywords(r.title,kw)});});
+      displayData=displayData.map(function(r){return Object.assign({},r,{kwMatch:!hasKw||titleMatchesKeywords(r.title,r.cardText,kw)});});
       if(hasKw&&!showCheckedOnly)
         displayData=displayData.filter(function(r){return r.kwMatch;}).concat(displayData.filter(function(r){return !r.kwMatch;}));
 
@@ -1079,6 +1162,7 @@
       if(showCheckedOnly)          info+=' \u00b7 '+displayData.length+' selected';
       if(hideSponsored&&sponCount>0) info+=' \u00b7 '+sponCount+' ads hidden';
       if(revHiddenCt>0)            info+=' \u00b7 '+revHiddenCt+' below min reviews';
+      // v5.14: delivery sort caveat
       if(sortVal==='delivery-free'||sortVal==='delivery-any')
         info+=' \u00b7 \u26a0\ufe0f same-day & conditional free delivery may not appear';
       document.getElementById('ppu-info').textContent=info;
@@ -1144,6 +1228,7 @@
 
           var uDisp=dUnit?'/'+dUnit:'';
           badge='<span class="ppu-badge'+(isBest?' best':'')+(isCont?' container':'')+'"'+(isBest?' title="Best value among comparable results"':'')+'>'+formatPPU(dPPU)+uDisp+(isBest?' \u2605':'')+' </span>'+warn+convNote;
+          // v5.14: note text bumped to 0.78rem via .ppu-note class
           if(r.note&&(r.source==='calc'||r.source==='calc-liquid')) noteStr='<div class="ppu-note">was: '+r.note+'</div>';
         } else {
           badge = r.source==='unavailable'
@@ -1174,7 +1259,7 @@
         var revC=revHid?' reviews-hidden':'';
         var chkC=isChecked?' checked':'';
         var safeAsin=r.asin.replace(/"/g,'&quot;');
-        var titleHtml=(hasKw&&r.kwMatch)?highlightKeywords(r.title,kw):escapeHtml(r.title);
+        var titleHtml=(hasKw&&r.kwMatch)?highlightKeywords(r.title,r.cardText,kw):escapeHtml(r.title);
 
         html+=
           '<div class="ppu-row'+dimC+srcC+sponC+revC+chkC+'" data-asin="'+safeAsin+'">'+
