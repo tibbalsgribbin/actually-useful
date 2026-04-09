@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.18.0
+// @version      5.19.0
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @license      All Rights Reserved
@@ -18,7 +18,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.18.0';
+  const SCRIPT_VERSION = '5.19.0';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   const NUDGE_DISMISSED_KEY  = 'ppu_nudge_dismissed';
@@ -180,6 +180,8 @@
     });
     var COUNT_UNIT_KEYS = ['ct','count','each','pc','piece','pieces','pcs','unit','units','pad','pads','sheet','sheets','wipe','wipes','tablet','tablets','capsule','cap'];
     var hasCountUnit = Object.keys(unitCounts).some(function(u){ return COUNT_UNIT_KEYS.indexOf(u)!==-1; });
+    // v5.19: also show per-item pill when any items have derived per-item prices
+    var hasAltPPU = data.some(function(r){ return r.altPPU!=null; });
 
     if (hasLiquidUnit) {
       pills.push({ unit:'fl oz', label:'fl oz', isRecommended: isLiqDom });
@@ -189,9 +191,10 @@
       pills.push({ unit:'oz', label:'oz (weight)', isRecommended: false });
       pills.push({ unit:'g',  label:'g',  isRecommended: false });
     }
-    // Only show per-item pill when count units exist alongside weight/liquid units
-    // AND we are NOT in liquid-dominant mode (where ct items may be convertible to fl oz)
-    if (hasCountUnit && (hasLiquidUnit || hasWeightUnit) && !isLiqDom) {
+    // Show per-item pill when count units exist alongside weight/liquid units,
+    // OR when derived per-item prices are available (v5.19)
+    // Suppress in liquid-dominant mode (where ct items may be convertible to fl oz)
+    if ((hasCountUnit || hasAltPPU) && (hasLiquidUnit || hasWeightUnit) && !isLiqDom) {
       pills.push({ unit:'ct', label:'per item', isRecommended: false });
     }
 
@@ -603,7 +606,8 @@
     #ppu-btn-clear-checked  { display:none; }
     #ppu-btn-hide-sponsored { display:none; }
     #ppu-btn-hide-sponsored.active { background:#eee;border-color:#888; }
-    #ppu-btn-reset-filters  { border-color:#c0392b;color:#c0392b;display:none; }
+    #ppu-btn-reset-filters  { border-color:#ccc;color:#ccc;cursor:default; }
+    #ppu-btn-reset-filters.active { border-color:#c0392b;color:#c0392b;cursor:pointer; }
     #ppu-filter-row {
       padding:6px 14px;background:#f7f7f7;border-bottom:1px solid #e8e8e8;
       display:flex;gap:6px;align-items:center;
@@ -665,6 +669,7 @@
     .ppu-row.kw-mismatch        { opacity:0.28; }
     .ppu-row.src-hidden         { display:none; }
     .ppu-row.sponsored-hidden   { display:none; }
+    .ppu-row.sponsored-demoted  { opacity:0.28; }
     .ppu-row.reviews-hidden     { display:none; }
     .ppu-row.checked            { background:#fffbf0; }
     .ppu-cb-wrap     { padding-top:2px;flex-shrink:0; }
@@ -778,9 +783,13 @@
 
   function extractCount(text) {
     var pats=[
-      /(\d[\d,]*)\s*-?\s*count/i,/(\d[\d,]*)\s*-?\s*bags?/i,/(\d[\d,]*)\s*-?\s*pcs\.?/i,
+      /(\d[\d,]*)\s*-?\s*count/i,/(\d[\d,]*)\s*ct\b/i,
+      /(\d[\d,]*)\s*-?\s*bags?/i,/(\d[\d,]*)\s*-?\s*pcs\.?/i,
       /(\d[\d,]*)\s*-?\s*pieces?/i,/(\d[\d,]*)\s*-?\s*pack/i,/(\d[\d,]*)\s*-?\s*rolls?/i,
+      /(\d[\d,]*)\s*-?\s*bars?\b/i,
       /pack\s+of\s+(\d[\d,]*)/i,/box\s+of\s+(\d[\d,]*)/i,
+      // Looser: number + up to 3 words + unit (e.g. "12 Individually Wrapped Bars")
+      /(\d[\d,]*)\s+\w+\s+\w+\s+bars?\b/i,
     ];
     for(var i=0;i<pats.length;i++){var m=text.match(pats[i]);if(m){var n=parseInt(m[1].replace(/,/g,''),10);if(n>1&&n<10000)return n;}}
     return null;
@@ -800,10 +809,12 @@
     if(/\d[\d,]*\s*-?\s*capsules?/i.test(text)) return 'capsule';
     if(/\d[\d,]*\s*-?\s*pcs\.?/i.test(text))    return 'pc';
     if(/\d[\d,]*\s*-?\s*pieces?/i.test(text))   return 'piece';
+    if(/\d[\d,]*\s*-?\s*bars?/i.test(text))     return 'ct';
     // pack and count now both return 'ct' — per-item, not per-pack
     if(/\d[\d,]*\s*-?\s*pack/i.test(text))      return 'ct';
     if(/pack\s+of\s+\d/i.test(text))            return 'ct';
     if(/\d[\d,]*\s*-?\s*count/i.test(text))     return 'ct';
+    if(/\d[\d,]*\s*ct\b/i.test(text))            return 'ct';
     if(/box\s+of\s+\d/i.test(text))             return 'ct';
     return null;
   }
@@ -876,6 +887,12 @@
         var perItem=price/count;
         // Use Amazon's ct price as-is (it may reflect per-can, etc.)
         return Object.assign(base,{ppu:ap.ppu,unit:'ct',source:'amazon'});
+      }
+      // v5.19: when Amazon reports weight/liquid unit but title has count,
+      // derive per-item price so ct pill works for these items
+      if(count&&price&&ap.unit!=='ct') {
+        var altUnit=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
+        return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon',altPPU:price/count,altUnit:altUnit});
       }
       return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'});
     }
@@ -953,7 +970,7 @@
   }
 
   // ── State ─────────────────────────────────────────────────────────────────
-  var hideSponsored    = false;
+  var sponsoredMode    = 'show'; // 'show' | 'demote' | 'hide'
   var isCollapsed      = false;
   var keyword          = '';
   var selectedUnit     = null;
@@ -1000,7 +1017,7 @@
         pagesLoaded:loadedPages,grocerySources:sources.join(', '),
         countStandard,countFresh,countWholeFoods:countWF,
         liquidDominant:isLiquidDominant,selectedUnit:selectedUnit||'as-listed',
-        couponCount,sponsoredCount,hideSponsoredActive:hideSponsored,
+        couponCount,sponsoredCount,hideSponsoredActive:sponsoredMode,
         shortlistCount,minReviewsFilter:minReviews||0,
         userAgent:ua
       });
@@ -1082,7 +1099,7 @@
           '</select>'+
           '<button id="ppu-btn-refresh">\u21ba Refresh</button>'+
           '<button id="ppu-btn-resort">Re-sort all \u21c5</button>'+
-          '<button id="ppu-btn-hide-sponsored">Hide ads</button>'+
+          '<button id="ppu-btn-hide-sponsored">Demote ads</button>'+
           '<button id="ppu-btn-reset-filters">Start over</button>'+
           '<button id="ppu-btn-show-checked">Show selected (0)</button>'+
           '<button id="ppu-btn-clear-checked">Clear selection</button>'+
@@ -1141,7 +1158,8 @@
     if(minReviews>0) minReviewsInput.classList.add('active');
     if(hasSponsored){
       hideSponsoredBtn.style.display='block';
-      if(hideSponsored){hideSponsoredBtn.classList.add('active');hideSponsoredBtn.textContent='Show ads';}
+      if(sponsoredMode==='demote'){hideSponsoredBtn.classList.add('active');hideSponsoredBtn.textContent='Hide ads';}
+      else if(sponsoredMode==='hide'){hideSponsoredBtn.classList.add('active');hideSponsoredBtn.textContent='Show ads';}
     }
 
     // ── Render ────────────────────────────────────────────────────────────
@@ -1157,8 +1175,8 @@
 
       var anyFilterActive = keyword.trim().length>0 || minReviews>0 ||
         Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; }) ||
-        sortVal!=='ppu-asc';
-      resetFiltersBtn.style.display=anyFilterActive?'block':'none';
+        sortVal!=='ppu-asc' || sponsoredMode!=='show';
+      resetFiltersBtn.classList.toggle('active',anyFilterActive);
 
       var unitDataAvail=allData.filter(function(r){return r.ppu!=null;}).length;
       var isSparse=sortVal==='ppu-asc'&&unitDataAvail<Math.ceil(allData.length*0.1);
@@ -1225,7 +1243,8 @@
       if(selectedUnit)             info+=' \u00b7 showing in '+selectedUnit;
       if(isLiquidDominant&&!selectedUnit) info+=' \u00b7 liquid category (oz\u2248fl oz)';
       if(showCheckedOnly)          info+=' \u00b7 '+displayData.length+' selected';
-      if(hideSponsored&&sponCount>0) info+=' \u00b7 '+sponCount+' ads hidden';
+      if(sponsoredMode==='demote'&&sponCount>0) info+=' \u00b7 '+sponCount+' ads demoted';
+      if(sponsoredMode==='hide'&&sponCount>0)   info+=' \u00b7 '+sponCount+' ads hidden';
       if(revHiddenCt>0)            info+=' \u00b7 '+revHiddenCt+' below min reviews';
       // v5.14: delivery sort caveat
       if(sortVal==='delivery-free'||sortVal==='delivery-any')
@@ -1236,9 +1255,14 @@
       if(isSparse){sortNoteEl.style.display='block';sortNoteEl.textContent='Too few unit prices to sort by value \u2014 showing by price instead';}
       else sortNoteEl.style.display='none';
 
+      var COUNT_PILL_UNITS = ['ct','count','each','pc','piece','pieces','pcs','unit','units','pad','pads','sheet','sheets','wipe','wipes','tablet','tablets','capsule','cap','roll','bag'];
       function getCompPPU(r) {
         if(r.ppu==null) return null;
         if(selectedUnit){
+          // v5.19: if user selected a count-type pill and item has a derived per-item price, use it
+          if(r.altPPU!=null && COUNT_PILL_UNITS.indexOf(selectedUnit)!==-1) {
+            return r.altPPU;
+          }
           var from=(isLiquidDominant&&r.unit==='oz')?'fl oz':r.unit;
           return convertPPU(r.ppu,from,selectedUnit);
         }
@@ -1247,7 +1271,7 @@
 
       var ppuVals=displayData.filter(function(r){
         return r.ppu!=null&&r.source!=='amazon-container'&&r.kwMatch&&srcFilter[r.grocery]&&
-               !(hideSponsored&&r.isSponsored)&&
+               !(sponsoredMode==='hide'&&r.isSponsored)&&
                !(minReviews>0&&r.reviewCount!=null&&r.reviewCount<minReviews)&&
                getCompPPU(r)!=null;
       }).map(function(r){return getCompPPU(r);});
@@ -1260,7 +1284,8 @@
           curPage=r.page;
         }
         var srcHid=(r.grocery&&!srcFilter[r.grocery]);
-        var sponHid=hideSponsored&&r.isSponsored;
+        var sponHid=sponsoredMode==='hide'&&r.isSponsored;
+        var sponDem=sponsoredMode==='demote'&&r.isSponsored;
         var revHid=minReviews>0&&r.reviewCount!=null&&r.reviewCount<minReviews;
         var priceStr=r.price!=null?'$'+r.price.toFixed(2):'\u2014';
         var countStr=r.count?r.count+' ct':'';
@@ -1281,13 +1306,19 @@
 
           var dPPU=r.ppu,dUnit=r.unit,convNote='';
           if(selectedUnit){
-            var fromU=(isLiquidDominant&&r.unit==='oz')?'fl oz':r.unit;
-            var conv=convertPPU(r.ppu,fromU,selectedUnit);
-            if(conv!=null){
-              dPPU=conv;dUnit=selectedUnit;
-              if(r.unit!==selectedUnit) convNote='<span class="ppu-converted">('+formatPPU(r.ppu)+'/'+r.unit+')</span>';
+            // v5.19: use derived per-item price when count pill selected
+            if(r.altPPU!=null && COUNT_PILL_UNITS.indexOf(selectedUnit)!==-1) {
+              dPPU=r.altPPU;dUnit=r.altUnit||'ct';
+              convNote='<span class="ppu-converted">('+formatPPU(r.ppu)+'/'+r.unit+')</span>';
             } else {
-              convNote='<span class="ppu-converted" style="color:#e47911;">(\u00b7 can\'t convert to '+selectedUnit+')</span>';
+              var fromU=(isLiquidDominant&&r.unit==='oz')?'fl oz':r.unit;
+              var conv=convertPPU(r.ppu,fromU,selectedUnit);
+              if(conv!=null){
+                dPPU=conv;dUnit=selectedUnit;
+                if(r.unit!==selectedUnit) convNote='<span class="ppu-converted">('+formatPPU(r.ppu)+'/'+r.unit+')</span>';
+              } else {
+                convNote='<span class="ppu-converted" style="color:#e47911;">(\u00b7 can\'t convert to '+selectedUnit+')</span>';
+              }
             }
           }
 
@@ -1324,7 +1355,7 @@
 
         var dimC=(!r.kwMatch&&hasKw)?' kw-mismatch':'';
         var srcC=srcHid?' src-hidden':'';
-        var sponC=sponHid?' sponsored-hidden':'';
+        var sponC=sponHid?' sponsored-hidden':(sponDem?' sponsored-demoted':'');
         var revC=revHid?' reviews-hidden':'';
         var chkC=isChecked?' checked':'';
         var safeAsin=r.asin.replace(/"/g,'&quot;');
@@ -1363,6 +1394,7 @@
     resortBtn.addEventListener('click',doResort);
     resortBtnBot.addEventListener('click',doResort);
     resetFiltersBtn.addEventListener('click',function(){
+      if(!this.classList.contains('active')) return;
       // Reset all filters to defaults
       kwInput.value=''; keyword='';
       kwInput.classList.remove('active'); clearKw.style.display='none';
@@ -1372,6 +1404,9 @@
       panel.querySelectorAll('.ppu-source-toggle').forEach(function(btn){
         btn.classList.remove('off');
       });
+      sponsoredMode='show';
+      hideSponsoredBtn.classList.remove('active');
+      hideSponsoredBtn.textContent='Demote ads';
       sortVal='ppu-asc'; sortEl.value='ppu-asc';
       render();
     });
@@ -1422,9 +1457,13 @@
     });
 
     hideSponsoredBtn.addEventListener('click',function(){
-      hideSponsored=!hideSponsored;
-      this.classList.toggle('active',hideSponsored);
-      this.textContent=hideSponsored?'Show ads':'Hide ads';
+      if(sponsoredMode==='show')       sponsoredMode='demote';
+      else if(sponsoredMode==='demote') sponsoredMode='hide';
+      else                              sponsoredMode='show';
+      this.classList.toggle('active',sponsoredMode!=='show');
+      if(sponsoredMode==='show')       this.textContent='Demote ads';
+      else if(sponsoredMode==='demote') this.textContent='Hide ads';
+      else                              this.textContent='Show ads';
       render();
     });
 
