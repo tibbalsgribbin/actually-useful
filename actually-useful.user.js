@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.17.0
+// @version      5.18.0
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @license      All Rights Reserved
@@ -18,7 +18,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.17.0';
+  const SCRIPT_VERSION = '5.18.0';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   const NUDGE_DISMISSED_KEY  = 'ppu_nudge_dismissed';
@@ -426,6 +426,46 @@
     return result;
   }
 
+  // ── Delivery window start time ────────────────────────────────────────────
+  // Parses the start time from a primary delivery message window like
+  // "FREE delivery Today 10 AM - 3 PM" → 600 (minutes since midnight).
+  // Used as a tiebreaker when two cards share the same delivery date.
+  // Only reads .udm-primary-delivery-message to avoid the paid secondary option.
+  // Returns Infinity if no window found (sorts to bottom within same date).
+  function parseDeliveryWindowMinutes(el) {
+    var msgEl = el.querySelector('.udm-primary-delivery-message');
+    if (!msgEl) return Infinity;
+    var text = msgEl.textContent || '';
+    // Match "10 AM - 3 PM" or "5 PM - 10 PM" — capture start hour and meridiem
+    var m = text.match(/(\d{1,2})\s*(AM|PM)\s*[-–]\s*\d{1,2}\s*(?:AM|PM)/i);
+    if (!m) return Infinity;
+    var hour = parseInt(m[1], 10);
+    var meridiem = m[2].toUpperCase();
+    if (meridiem === 'AM') {
+      return hour === 12 ? 0 : hour * 60;
+    } else {
+      return hour === 12 ? 720 : (hour + 12) * 60;
+    }
+  }
+
+  // Converts minutes-since-midnight back to a readable "by 10 AM" label
+  function formatWindowMinutes(mins) {
+    if (mins === Infinity || mins == null) return '';
+    var h = Math.floor(mins / 60);
+    var meridiem = h < 12 ? 'AM' : 'PM';
+    var display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return 'by ' + display + ' ' + meridiem;
+  }
+
+  // Extracts qualifying condition from primary delivery message, e.g. "on $25 of qualifying items"
+  function parseDeliveryQualifier(el) {
+    var msgEl = el.querySelector('.udm-primary-delivery-message');
+    if (!msgEl) return null;
+    var text = msgEl.textContent || '';
+    var m = text.match(/\bon\s+(\$\d+\s+of\s+qualifying\s+items)/i);
+    return m ? 'on ' + m[1] : null;
+  }
+
   function parseDateString(str) {
     if(!str) return null;
     var s=str.trim(), now=new Date();
@@ -820,10 +860,13 @@
     var wfFreeFlag=(grocery==='whole-foods')&&!!delivery.freeDate;
     var reviewCount=parseReviewCount(el);
     var cardText=scrapeCardText(el,hasCoupon,delivery.freeDate,delivery.fastDate);
+    var freeWindowMinutes=parseDeliveryWindowMinutes(el);
+    var freeQualifier=parseDeliveryQualifier(el);
     var base={title,href,asin,price,count,page,grocery,wfFreeFlag,isSponsored,hasCoupon,
               cardText,reviewCount,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
-              freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff};
+              freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff,
+              freeWindowMinutes:freeWindowMinutes,freeQualifier:freeQualifier};
 
     // ── Amazon reported a unit price ────────────────────────────────────────
     if(ap&&ITEM_UNITS.includes(ap.unit)) {
@@ -1137,12 +1180,18 @@
         if(effectiveSort==='delivery-free'){
           var av=a.freeDate?0:(a.fastDate?1:2),bv=b.freeDate?0:(b.fastDate?1:2);
           if(av!==bv)return av-bv;
-          return (a.freeDate||a.fastDate||FAR)-(b.freeDate||b.fastDate||FAR);
+          var dateDiff=(a.freeDate||a.fastDate||FAR)-(b.freeDate||b.fastDate||FAR);
+          if(dateDiff!==0) return dateDiff;
+          // Tiebreaker: earlier delivery window start time wins
+          return (a.freeWindowMinutes||Infinity)-(b.freeWindowMinutes||Infinity);
         }
         if(effectiveSort==='delivery-any'){
           var da=a.freeDate&&a.fastDate?new Date(Math.min(a.freeDate,a.fastDate)):a.freeDate||a.fastDate||FAR;
           var db=b.freeDate&&b.fastDate?new Date(Math.min(b.freeDate,b.fastDate)):b.freeDate||b.fastDate||FAR;
-          return da-db;
+          var dateDiffAny=da-db;
+          if(dateDiffAny!==0) return dateDiffAny;
+          // Tiebreaker: earlier delivery window start time wins
+          return (a.freeWindowMinutes||Infinity)-(b.freeWindowMinutes||Infinity);
         }
         if(effectiveSort==='default') return a.originalIndex-b.originalIndex;
         return 0;
@@ -1259,7 +1308,11 @@
           if(r.freeDate){
             var fc=r.wfFreeFlag?'ppu-delivery wf-fee':'ppu-delivery';
             var fl=r.wfFreeFlag?'<span title="Whole Foods delivery has a separate fee \u2014 not free with Prime">FREE\u2733: </span>':'FREE: ';
-            var ft=formatDate(r.freeDate)+(r.freeCutoff?' <span style="font-size:10px;color:#888;">('+r.freeCutoff+')</span>':'');
+            var ftParts=[formatDate(r.freeDate)];
+            if(r.freeWindowMinutes!==Infinity) ftParts.push('<span style="font-size:12px;">'+formatWindowMinutes(r.freeWindowMinutes)+'</span>');
+            else if(r.freeCutoff) ftParts.push('<span style="font-size:12px;">'+r.freeCutoff+'</span>');
+            if(r.freeQualifier) ftParts.push('<span style="font-size:12px;">'+r.freeQualifier+'</span>');
+            var ft=ftParts.join(' <span style="font-size:12px;">·</span> ');
             parts.push('<span class="'+fc+'">'+fl+ft+'</span>');
           }
           if(r.fastDate){
