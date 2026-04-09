@@ -1032,7 +1032,7 @@
           '<button id="ppu-btn-refresh">\u21ba Refresh</button>'+
           '<button id="ppu-btn-resort">Re-sort all \u21c5</button>'+
           '<button id="ppu-btn-hide-sponsored">Hide ads</button>'+
-          '<button id="ppu-btn-reset-filters">\u21ba Reset filters</button>'+
+          '<button id="ppu-btn-reset-filters">Start over</button>'+
           '<button id="ppu-btn-show-checked">Show selected (0)</button>'+
           '<button id="ppu-btn-clear-checked">Clear selection</button>'+
         '</div>'+
