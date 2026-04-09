@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Actually Useful Amazon Search
 // @namespace    http://tampermonkey.net/
-// @version      5.16.0
+// @version      5.17.0
 // @description  Shop on your terms instead of Amazon's.
 // @author       Claude / Melissa (ko-fi.com/tibbalsgribbin)
 // @license      All Rights Reserved
@@ -18,7 +18,7 @@
   'use strict';
 
   const PANEL_ID = 'ppu-sorter-panel';
-  const SCRIPT_VERSION = '5.16.0';
+  const SCRIPT_VERSION = '5.17.0';
   const LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
 
   const NUDGE_DISMISSED_KEY  = 'ppu_nudge_dismissed';
@@ -255,8 +255,13 @@
     });
 
     // Delivery window text — cutoff times like "10 AM - 3 PM", "in 3 hours"
+    // udm-primary-delivery-message: "FREE delivery Overnight 4 AM - 8 AM on $25 of qualifying items"
+    // udm-secondary-delivery-message: "Or $4.99 delivery in 3 hours"
+    // udm-badge-block: Prime badge label e.g. "Overnight"
     var deliverySelectors = [
+      '.udm-primary-delivery-message',
       '.udm-secondary-delivery-message',
+      '.udm-badge-block',
       '[data-component-type="s-delivery-component"] .a-color-base',
     ];
     deliverySelectors.forEach(function(sel){
@@ -326,11 +331,13 @@
     var nt = normalizeDimensions(title.toLowerCase());
     var nc = cardText || '';
     var parsed = parseKeywords(kwRaw);
-    // Exclusions against title only (word-boundary)
+    // Exclusions against title (word-boundary) AND cardText (substring).
+    // Note: cardText now includes delivery info, so e.g. "-free" will suppress free-delivery cards.
     for (var i=0; i<parsed.exclusions.length; i++) {
       var word = parsed.exclusions[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       var re = new RegExp('\\b' + word + '\\b', 'i');
       if (re.test(nt)) return false;
+      if (nc.toLowerCase().includes(parsed.exclusions[i])) return false;
     }
     // Branches: pass if ANY branch fully matches (title OR cardText)
     for (var b=0; b<parsed.branches.length; b++) {
@@ -515,7 +522,7 @@
   // ── CSS ───────────────────────────────────────────────────────────────────
   const CSS = `
     #${PANEL_ID} {
-      position:fixed;top:80px;right:16px;width:390px;min-width:280px;max-width:700px;
+      position:fixed;top:80px;right:16px;width:390px;min-width:280px;max-width:900px;
       max-height:calc(100vh - 100px);overflow:hidden;background:#fff;
       border:1px solid #d5d9d9;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.18);
       z-index:99999;font-family:Arial,sans-serif;font-size:13px;color:#0f1111;
@@ -625,7 +632,8 @@
     .ppu-row-content { flex:1;min-width:0; }
     .ppu-row a {
       font-size:0.9rem;color:#007185;text-decoration:none;display:block;
-      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;
+      display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+      overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;
     }
     .ppu-row a:hover { text-decoration:underline; }
     .ppu-meta  { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
@@ -1071,7 +1079,7 @@
     if(dh){
       var isDrag=false,sX,sW;
       dh.addEventListener('mousedown',function(e){isDrag=true;sX=e.clientX;sW=panel.offsetWidth;document.body.style.userSelect='none';e.preventDefault();});
-      document.addEventListener('mousemove',function(e){if(!isDrag)return;panel.style.width=Math.min(700,Math.max(280,sW+(sX-e.clientX)))+'px';});
+      document.addEventListener('mousemove',function(e){if(!isDrag)return;panel.style.width=Math.min(900,Math.max(280,sW+(sX-e.clientX)))+'px';});
       document.addEventListener('mouseup',function(){if(isDrag){isDrag=false;document.body.style.userSelect='';}});
     }
 
