@@ -1,0 +1,246 @@
+/* Actually Useful — content/shared/styles.css
+   Extracted from v5.19.0 userscript. PANEL_ID = ppu-sorter-panel.
+   Product page additions at bottom (ppu-product-* classes). */
+
+#ppu-sorter-panel {
+  position:fixed;top:80px;right:16px;width:390px;min-width:280px;max-width:900px;
+  max-height:calc(100vh - 100px);overflow:hidden;background:#fff;
+  border:1px solid #d5d9d9;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.18);
+  z-index:99999;font-family:Arial,sans-serif;font-size:13px;color:#0f1111;
+  transition:max-height 0.2s;display:flex;flex-direction:column;
+}
+#ppu-sorter-panel.collapsed { width:420px !important; max-height:41px; }
+#ppu-controls-wrap { flex-shrink:0; }
+#ppu-scroll-area   { flex:1;overflow-y:auto;overflow-x:hidden; }
+#ppu-header {
+  background:#232f3e;color:#fff;padding:8px 10px;border-radius:8px 8px 0 0;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;user-select:none;gap:8px;white-space:nowrap;
+}
+#ppu-sorter-panel.collapsed #ppu-header { border-radius:8px; }
+#ppu-header h3  { margin:0;font-size:14px;font-weight:700;flex-shrink:0; }
+#ppu-header-btns{ display:flex;gap:6px;align-items:center;flex-shrink:0; }
+#ppu-collapse,#ppu-close {
+  background:none;border:none;color:#fff;font-size:16px;cursor:pointer;line-height:1;padding:0 3px;flex-shrink:0;
+}
+#ppu-coffee {
+  font-size:12px;text-decoration:none;color:#ffd700;padding:2px 6px;
+  border:1px solid rgba(255,215,0,0.4);border-radius:4px;opacity:0.9;
+  transition:opacity 0.15s;white-space:nowrap;flex-shrink:0;
+}
+#ppu-coffee:hover { opacity:1; }
+#ppu-controls {
+  padding:8px 14px;background:#f0f2f2;border-bottom:1px solid #d5d9d9;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+}
+#ppu-controls label { font-size:12px;color:#565959; }
+#ppu-sort { font-size:12px;padding:3px 6px;border:1px solid #aaa;border-radius:4px;background:#fff;cursor:pointer; }
+#ppu-btn-refresh,#ppu-btn-resort,
+#ppu-btn-show-checked,#ppu-btn-clear-checked,#ppu-btn-hide-sponsored {
+  font-size:11px;padding:3px 8px;border:1px solid #aaa;border-radius:4px;background:#fff;cursor:pointer;
+}
+#ppu-btn-resort       { border-color:#007185;color:#007185;display:none; }
+#ppu-btn-show-checked { border-color:#e47911;color:#e47911;display:none; }
+#ppu-btn-clear-checked  { display:none; }
+#ppu-btn-hide-sponsored { display:none; }
+#ppu-btn-hide-sponsored.active { background:#eee;border-color:#888; }
+#ppu-btn-reset-filters  { border-color:#ccc;color:#ccc;cursor:default; }
+#ppu-btn-reset-filters.active { border-color:#c0392b;color:#c0392b;cursor:pointer; }
+#ppu-filter-row {
+  padding:6px 14px;background:#f7f7f7;border-bottom:1px solid #e8e8e8;
+  display:flex;gap:6px;align-items:center;
+}
+#ppu-filter-row label { font-size:12px;color:#565959;white-space:nowrap; }
+#ppu-keyword {
+  flex:1;min-width:0;font-size:12px;padding:3px 6px;
+  border:1px solid #aaa;border-radius:4px;background:#fff;
+}
+#ppu-keyword.active { border-color:#e47911;outline:none;box-shadow:0 0 0 2px rgba(228,121,17,0.25); }
+#ppu-btn-clear-kw {
+  font-size:13px;padding:1px 5px;border:1px solid #aaa;border-radius:4px;
+  background:#fff;cursor:pointer;color:#555;display:none;
+}
+#ppu-unit-pill-row {
+  padding:6px 14px;background:#f7f7f7;border-bottom:1px solid #d5d9d9;
+  display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+}
+#ppu-unit-pill-row .pill-label { font-size:12px;color:#565959;white-space:nowrap; }
+.ppu-unit-pill {
+  font-size:11px;padding:2px 10px;border-radius:10px;cursor:pointer;
+  border:1px solid #bbb;background:#fff;color:#444;transition:all 0.15s;user-select:none;
+}
+.ppu-unit-pill:hover { border-color:#007185;color:#007185; }
+.ppu-unit-pill.active { background:#007185;color:#fff;border-color:#007185;font-weight:600; }
+.ppu-unit-pill.recommended { border-color:#007185;color:#007185; }
+.ppu-unit-pill.recommended::after { content:' ✓';font-size:10px; }
+#ppu-filter-extra-row {
+  padding:6px 14px;background:#f7f7f7;border-bottom:1px solid #d5d9d9;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+}
+#ppu-filter-extra-row label { font-size:12px;color:#565959;white-space:nowrap; }
+#ppu-min-reviews { width:60px;font-size:12px;padding:3px 6px;border:1px solid #aaa;border-radius:4px;background:#fff; }
+#ppu-min-reviews.active { border-color:#007185;outline:none;box-shadow:0 0 0 2px rgba(0,113,133,0.2); }
+#ppu-source-row {
+  padding:6px 14px;background:#f7f7f7;border-bottom:1px solid #d5d9d9;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+}
+#ppu-source-row span.label { font-size:12px;color:#565959;white-space:nowrap; }
+.ppu-source-toggle {
+  font-size:11px;padding:2px 8px;border-radius:10px;cursor:pointer;
+  border:1px solid currentColor;transition:all 0.15s;user-select:none;font-weight:600;
+}
+.ppu-source-toggle.src-standard { color:#232f3e;background:#e8eaf0; }
+.ppu-source-toggle.src-fresh    { color:#005f7a;background:#e0f4fb; }
+.ppu-source-toggle.src-wf       { color:#006400;background:#e8f5e8; }
+.ppu-source-toggle.off { color:#aaa;background:#f5f5f5;border-color:#ddd;text-decoration:line-through;font-weight:normal; }
+#ppu-info { font-size:0.82rem;color:#888;padding:5px 14px;border-bottom:1px solid #f0f2f2; }
+#ppu-sort-note {
+  font-size:0.82rem;color:#e47911;font-style:italic;
+  padding:3px 14px 4px;border-bottom:1px solid #f0f2f2;display:none;
+}
+#ppu-list { padding:4px 0; }
+.ppu-row {
+  padding:6px 10px 6px 8px;border-bottom:1px solid #f5f5f5;
+  transition:opacity 0.15s;display:flex;gap:8px;align-items:flex-start;
+}
+.ppu-row:last-child         { border-bottom:none; }
+.ppu-row.kw-mismatch        { opacity:0.28; }
+.ppu-row.src-hidden         { display:none; }
+.ppu-row.sponsored-hidden   { display:none; }
+.ppu-row.sponsored-demoted  { opacity:0.28; }
+.ppu-row.reviews-hidden     { display:none; }
+.ppu-row.checked            { background:#fffbf0; }
+.ppu-cb-wrap     { padding-top:2px;flex-shrink:0; }
+.ppu-cb          { cursor:pointer;width:14px;height:14px; }
+.ppu-row-content { flex:1;min-width:0; }
+.ppu-row a {
+  font-size:0.9rem;color:#007185;text-decoration:none;display:block;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+  overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;
+}
+.ppu-row a:hover { text-decoration:underline; }
+.ppu-meta  { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
+.ppu-price { font-weight:700;color:#B12704;font-size:14px; }
+.ppu-count { font-size:0.82rem;color:#666; }
+.ppu-badge { font-size:12px;font-weight:600;padding:2px 6px;border-radius:4px;background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32; }
+.ppu-badge.best { background:#fff8e1;border-color:#ffc107;color:#e65100; }
+.ppu-converted  { font-size:0.78rem;color:#999;font-style:italic;margin-left:2px; }
+.ppu-delivery   { font-size:0.82rem;color:#007600;margin-top:2px; }
+.ppu-delivery.fast   { color:#007185; }
+.ppu-delivery.wf-fee { color:#B12704; }
+.ppu-nodata { font-size:0.82rem;color:#bbb;font-style:italic; }
+.ppu-note   { font-size:0.78rem;color:#aaa;margin-top:2px; }
+.ppu-src-tag { font-size:0.78rem;padding:1px 4px;border-radius:3px;font-weight:600;margin-bottom:2px;display:inline-block; }
+.ppu-src-wf  { background:#e8f5e8;color:#006400;border:1px solid #a5d6a7; }
+.ppu-src-fr  { background:#e0f4fb;color:#005f7a;border:1px solid #81d4f7; }
+.ppu-divider {
+  padding:5px 14px;background:#e8f0fe;border-top:1px solid #c5d0e8;
+  border-bottom:1px solid #c5d0e8;font-size:0.82rem;font-weight:600;color:#3c4a6e;
+}
+mark.ppu-kw-highlight { background:#ffc400;color:#000;border-radius:2px;padding:0 1px; }
+#ppu-load-more-row { padding:10px 14px;text-align:center;border-top:1px solid #f0f2f2; }
+#ppu-btn-load-more {
+  font-size:12px;padding:5px 14px;border:1px solid #007185;border-radius:4px;
+  background:#fff;cursor:pointer;color:#007185;width:100%;
+}
+#ppu-btn-load-more:hover    { background:#f0f9fa; }
+#ppu-btn-load-more:disabled { opacity:0.5;cursor:default; }
+#ppu-btn-resort-bottom {
+  font-size:11px;padding:3px 8px;margin-top:6px;border:1px solid #007185;
+  border-radius:4px;background:#fff;cursor:pointer;color:#007185;width:100%;display:none;
+}
+#ppu-drag-handle {
+  position:absolute;left:0;top:0;bottom:0;width:6px;cursor:ew-resize;
+  background:linear-gradient(to right,rgba(0,0,0,0.06),transparent);
+  border-radius:8px 0 0 8px;z-index:100;
+}
+#ppu-drag-handle:hover { background:linear-gradient(to right,rgba(0,113,133,0.2),transparent); }
+#ppu-sorter-panel { position:fixed; }
+#ppu-delivery-note { font-size:0.82rem;color:#aaa;font-style:italic;padding:3px 14px 4px;border-bottom:1px solid #f0f2f2; }
+#ppu-nudge {
+  position:fixed;bottom:24px;right:16px;z-index:100000;width:340px;
+  background:#232f3e;color:#fff;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);
+  font-family:Arial,sans-serif;font-size:1rem;animation:ppu-nudge-in 0.3s ease;
+}
+@keyframes ppu-nudge-in { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
+#ppu-nudge-inner { padding:14px 16px;position:relative; }
+#ppu-nudge-close {
+  position:absolute;top:8px;right:10px;background:none;border:none;
+  color:#aaa;font-size:1.1rem;cursor:pointer;line-height:1;padding:2px 4px;
+}
+#ppu-nudge-close:hover { color:#fff; }
+#ppu-nudge-msg   { margin-bottom:12px;margin-right:20px;line-height:1.5;color:#e0e0e0;font-size:0.95rem; }
+#ppu-nudge-btns  { display:flex;gap:8px;flex-wrap:wrap; }
+#ppu-nudge-yes { font-size:0.85rem;padding:5px 12px;border-radius:4px;cursor:pointer;background:#e47911;color:#fff;border:none;text-decoration:none;font-weight:600; }
+#ppu-nudge-yes:hover { background:#c96d0a; }
+#ppu-nudge-did,#ppu-nudge-no { font-size:0.85rem;padding:5px 10px;border-radius:4px;cursor:pointer;background:transparent;color:#ccc;border:1px solid #666; }
+#ppu-nudge-did:hover,#ppu-nudge-no:hover { color:#fff;border-color:#888; }
+
+/* ── Product page panel ───────────────────────────────────────────────────
+   Shares the header, drag handle, collapse/close, Ko-fi, and nudge styles
+   above. The styles below are product-page-specific additions. */
+
+#ppu-product-panel {
+  position:fixed;top:80px;right:16px;width:340px;min-width:260px;max-width:600px;
+  max-height:calc(100vh - 100px);overflow:hidden;background:#fff;
+  border:1px solid #d5d9d9;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.18);
+  z-index:99999;font-family:Arial,sans-serif;font-size:13px;color:#0f1111;
+  display:flex;flex-direction:column;
+}
+#ppu-product-panel.collapsed { width:340px !important; max-height:41px; }
+#ppu-product-panel.collapsed #ppu-header { border-radius:8px; }
+#ppu-product-scroll { flex:1;overflow-y:auto;overflow-x:hidden; }
+
+/* Context bar — shown when arriving from search */
+#ppu-product-context {
+  padding:6px 14px;background:#e8f0fe;border-bottom:1px solid #c5d0e8;
+  font-size:0.82rem;color:#3c4a6e;
+}
+#ppu-product-context strong { font-weight:700; }
+
+/* Data rows in standalone evaluation mode */
+.ppu-product-section {
+  padding:8px 14px;border-bottom:1px solid #f0f2f2;
+}
+.ppu-product-section:last-child { border-bottom:none; }
+.ppu-product-label {
+  font-size:0.78rem;color:#888;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;
+}
+.ppu-product-value {
+  font-size:0.9rem;color:#0f1111;
+}
+.ppu-product-value.good  { color:#007600; }
+.ppu-product-value.warn  { color:#e47911; }
+.ppu-product-value.bad   { color:#B12704; }
+
+/* Shortlist button */
+#ppu-btn-shortlist {
+  display:block;width:calc(100% - 28px);margin:10px 14px;
+  padding:7px 0;background:#232f3e;color:#fff;border:none;border-radius:5px;
+  font-size:13px;font-weight:600;cursor:pointer;text-align:center;
+}
+#ppu-btn-shortlist:hover   { background:#37475a; }
+#ppu-btn-shortlist.saved   { background:#007600; }
+#ppu-btn-shortlist.saved:hover { background:#005a00; }
+
+/* Note field */
+#ppu-product-note-wrap { padding:0 14px 10px; }
+#ppu-product-note {
+  width:100%;box-sizing:border-box;font-size:12px;padding:5px 7px;
+  border:1px solid #aaa;border-radius:4px;resize:vertical;min-height:48px;
+  font-family:Arial,sans-serif;color:#0f1111;
+}
+#ppu-product-note:focus { border-color:#007185;outline:none;box-shadow:0 0 0 2px rgba(0,113,133,0.2); }
+
+/* Search button */
+#ppu-btn-start-search {
+  display:block;width:calc(100% - 28px);margin:0 14px 12px;
+  padding:6px 0;background:#fff;color:#007185;border:1px solid #007185;border-radius:5px;
+  font-size:12px;cursor:pointer;text-align:center;
+}
+#ppu-btn-start-search:hover { background:#f0f9fa; }
+
+/* Search result row when on product page (from-search mode) */
+.ppu-row.ppu-current-asin {
+  background:#fffbf0;border-left:3px solid #e47911;
+}
