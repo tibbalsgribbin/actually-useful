@@ -3,7 +3,7 @@
 // Provides: shortlist storage, nudge state, affiliate tag, shared constants.
 
 // ── Version ───────────────────────────────────────────────────────────────
-const AU_VERSION = '6.0.0';
+const AU_VERSION = '6.1.0';
 
 // ── Storage keys ──────────────────────────────────────────────────────────
 const AU_SHORTLIST_KEY      = 'au_shortlist';       // chrome.storage.local — persists across sessions
@@ -86,7 +86,7 @@ function auNudgeDismissPermanently() {
 }
 
 // ── Logging ───────────────────────────────────────────────────────────────
-const AU_LOG_URL = 'https://script.google.com/macros/s/AKfycbwIgxS_WSeFFSq50Vaa2O1wRhMbmQagWNn-S9pwFT-MR0tgOnNr3wugOMXx9N0QJ-M/exec';
+const AU_LOG_URL = 'https://script.google.com/macros/s/AKfycby0y2gsDtOKxNLXXsOoSVVx_82QYb8wKESx847_ExIBNW6_XW72CfBR4-bQnCx9V1bn/exec';
 
 function auSendLog(data) {
   try {

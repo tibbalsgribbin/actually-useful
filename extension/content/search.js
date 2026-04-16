@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v6.0.0)
+// Part of the Actually Useful Chrome/Edge extension (v6.1.0)
 
 'use strict';
 
@@ -38,14 +38,16 @@ const ITEM_UNITS = [
   ];
 
   // ── Search Context Persistence (v6.0.0) ───────────────────────────────────
-  // Saves current search term and ASINs to background service worker via
+  // Saves current search term and result items to background service worker via
   // chrome.runtime.sendMessage so product.js can read them on the next page.
-  function saveSearchContext(term, asins) {
+  // Each item includes asin, title, price, ppu, ppuUnit for display in the
+  // product page from-search panel.
+  function saveSearchContext(term, searchUrl, items) {
     if (!term) return;
     try {
       chrome.runtime.sendMessage({
         type: 'AU_SAVE_SEARCH_CONTEXT',
-        payload: { term: term, asins: asins || [] }
+        payload: { term: term, searchUrl: searchUrl, items: items || [] }
       });
     } catch(e) {}
   }
@@ -175,7 +177,7 @@ const ITEM_UNITS = [
     });
     var COUNT_UNIT_KEYS = ['ct','count','each','pc','piece','pieces','pcs','unit','units','pad','pads','sheet','sheets','wipe','wipes','tablet','tablets','capsule','cap'];
     var hasCountUnit = Object.keys(unitCounts).some(function(u){ return COUNT_UNIT_KEYS.indexOf(u)!==-1; });
-    // v5.19: also show per-item pill when any items have derived per-item prices
+    // Also show per-item pill when any items have derived per-item prices
     var hasAltPPU = data.some(function(r){ return r.altPPU!=null; });
 
     if (hasLiquidUnit) {
@@ -187,7 +189,7 @@ const ITEM_UNITS = [
       pills.push({ unit:'g',  label:'g',  isRecommended: false });
     }
     // Show per-item pill when count units exist alongside weight/liquid units,
-    // OR when derived per-item prices are available (v5.19)
+    // OR when derived per-item prices are available
     // Suppress in liquid-dominant mode (where ct items may be convertible to fl oz)
     if ((hasCountUnit || hasAltPPU) && (hasLiquidUnit || hasWeightUnit) && !isLiqDom) {
       pills.push({ unit:'ct', label:'per item', isRecommended: false });
@@ -214,7 +216,7 @@ const ITEM_UNITS = [
   }
 
   // ── Card text scraping ────────────────────────────────────────────────────
-  // v5.15: Captures additional card text beyond the title for keyword matching.
+  // Captures additional card text beyond the title for keyword matching.
   // Includes deal/promo badges, discount labels, delivery window strings,
   // plus synthetic tokens from structured data: 'coupon', 'prime', 'today', 'tomorrow'.
   // Deliberately excludes: title (already in r.title), price strings,
@@ -293,7 +295,7 @@ const ITEM_UNITS = [
   }
 
   // ── Keyword parsing — supports OR / | syntax ──────────────────────────────
-  // v5.15: OR keyword filtering. Pipe (|) and uppercase OR (space-bounded) are
+  // OR keyword filtering. Pipe (|) and uppercase OR (space-bounded) are
   // branch separators. Exclusions (-term) are global. A title passes if it
   // satisfies ANY branch AND none of the global exclusions.
   // Split happens BEFORE lowercasing so ' OR ' is always recognised and never
@@ -321,7 +323,7 @@ const ITEM_UNITS = [
   }
 
   // ── Keyword matching ──────────────────────────────────────────────────────
-  // v5.15: searches both title and cardText.
+  // Searches both title and cardText.
   // Inclusion terms: substring match against title OR cardText.
   // Exclusion terms: word-boundary match against title only — we don't want
   // "-free" to suppress a card because "free delivery" is in cardText.
@@ -492,10 +494,46 @@ const ITEM_UNITS = [
     return days[d.getDay()]+' '+mons[d.getMonth()]+' '+d.getDate();
   }
 
+  // ── Known retailer partners ───────────────────────────────────────────────
+  // Maps img alt text to a stable key and display label.
+  // Any img.s-image-logo-alm not in this table is auto-detected from its alt text.
+  var KNOWN_RETAILERS = {
+    'Amazon Fresh':       { key: 'fresh',              label: 'Fresh' },
+    'Whole Foods Market': { key: 'whole-foods',        label: 'Whole Foods' },
+    'Metropolitan Market':{ key: 'metropolitan-market',label: 'Metropolitan Market' },
+    'Bristol Farms':      { key: 'bristol-farms',      label: 'Bristol Farms' },
+    'Cardenas Markets':   { key: 'cardenas',           label: 'Cardenas' },
+    'Lucky':              { key: 'lucky',              label: 'Lucky' },
+    'FoodMaxx':           { key: 'foodmaxx',           label: 'FoodMaxx' },
+    'Food Maxx':          { key: 'foodmaxx',           label: 'FoodMaxx' },
+    'Save Mart':          { key: 'save-mart',          label: 'Save Mart' },
+    'Weis Markets':       { key: 'weis',               label: 'Weis Markets' },
+    'Winn-Dixie':         { key: 'winn-dixie',         label: 'Winn-Dixie' },
+    'Amazon Pharmacy':    { key: 'pharmacy',           label: 'Amazon Pharmacy' },
+  };
+
+  // Converts an arbitrary retailer name to a URL-safe key
+  function retailerNameToKey(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  }
+
   function detectSource(el) {
-    if(el.querySelector('img[alt="Whole Foods Market"]')) return 'whole-foods';
-    if(el.querySelector('img[alt="Amazon Fresh"]'))      return 'fresh';
-    return 'standard';
+    // Amazon Pharmacy: identified by link domain, not logo class
+    if(el.querySelector('a[href*="pharmacy.amazon.com"]')) {
+      return { key: 'pharmacy', label: 'Amazon Pharmacy' };
+    }
+    // All grocery/retail partners: identified by logo class
+    var logo = el.querySelector('img.s-image-logo-alm');
+    if(logo) {
+      var alt = (logo.getAttribute('alt') || '').trim();
+      if(alt) {
+        var known = KNOWN_RETAILERS[alt];
+        if(known) return { key: known.key, label: known.label };
+        // Unknown partner — auto-label from alt text
+        return { key: retailerNameToKey(alt), label: alt };
+      }
+    }
+    return { key: 'standard', label: 'Amazon' };
   }
 
   // ── Review count ──────────────────────────────────────────────────────────
@@ -552,9 +590,6 @@ const ITEM_UNITS = [
   }
 
 
-  // CSS lives in content/shared/styles.css — injected automatically by manifest.json.
-  function injectStyles() { /* no-op in extension */ }
-
   function cleanHref(rawHref,card) {
     var asin=card&&card.getAttribute('data-asin');
     if(asin) return 'https://www.amazon.com/dp/'+asin;
@@ -568,6 +603,46 @@ const ITEM_UNITS = [
     if(m){var v=parseFloat(m[1].replace(/,/g,''));if(!isNaN(v)&&v>0) return v;}
     m=text.match(/coupon\s*price\s*\$\s*([\d,]+\.?\d*)/i);
     if(m){var v2=parseFloat(m[1].replace(/,/g,''));if(!isNaN(v2)&&v2>0) return v2;}
+    return null;
+  }
+
+  // Detects a coupon pill when no dollar amount can be extracted.
+  // Uses text matching only — CSS classes are shared with S&S and unreliable.
+  function detectCouponPill(el) {
+    var leaves=Array.from(el.querySelectorAll('*')).filter(function(e){return e.children.length===0;});
+    for(var i=0;i<leaves.length;i++){
+      var t=leaves[i].textContent.trim();
+      if(/coupon\s*price/i.test(t)||/clip\s*coupon/i.test(t)) return true;
+    }
+    return false;
+  }
+
+  // Extracts S&S discount amount from text like "Extra 5% off when you subscribe"
+  // or "Extra $5.00 off when you subscribe". Returns display string or null.
+  function parseSnS(el) {
+    // Amazon renders "Extra 5% off" and "when you subscribe" in separate leaf nodes.
+    // So we check for subscribe presence on the card level, then hunt for the amount separately.
+    var fullText=el.textContent||'';
+    if(!/when you subscribe/i.test(fullText)) return null;
+    // Try percentage: "Extra 5% off"
+    var mp=fullText.match(/extra\s+([\d.]+%)\s+off/i);
+    if(mp) return mp[1]+' off';
+    // Try dollar: "Extra $5.00 off"
+    var md=fullText.match(/extra\s+\$([\d.,]+)\s+off/i);
+    if(md) return '$'+md[1]+' off';
+    // S&S confirmed but amount not parseable
+    return 'unknown';
+  }
+
+  // Detects promotional savings like "Get 2 for the price of 1".
+  // Returns display string or null.
+  function parseSavings(el) {
+    var leaves=Array.from(el.querySelectorAll('*')).filter(function(e){return e.children.length===0;});
+    for(var i=0;i<leaves.length;i++){
+      var t=leaves[i].textContent.trim();
+      var m=t.match(/get\s+(\d+)\s+for\s+the\s+price\s+of\s+(\d+)/i);
+      if(m) return 'Get '+m[1]+' for the price of '+m[2];
+    }
     return null;
   }
 
@@ -595,7 +670,7 @@ const ITEM_UNITS = [
     var pats=[
       /(\d[\d,]*)\s*-?\s*count/i,/(\d[\d,]*)\s*ct\b/i,
       /(\d[\d,]*)\s*-?\s*bags?/i,/(\d[\d,]*)\s*-?\s*pcs\.?/i,
-      /(\d[\d,]*)\s*-?\s*pieces?/i,/(\d[\d,]*)\s*-?\s*pack/i,/(\d[\d,]*)\s*-?\s*rolls?/i,
+      /(\d[\d,]*)\s*-?\s*pieces?/i,/(\d[\d,]*)\s*-?\s*pack/i,/(\d[\d,]*)\s*-?\s*pk\b/i,/(\d[\d,]*)\s*-?\s*rolls?/i,
       /(\d[\d,]*)\s*-?\s*bars?\b/i,
       /pack\s+of\s+(\d[\d,]*)/i,/box\s+of\s+(\d[\d,]*)/i,
       // Looser: number + up to 3 words + unit (e.g. "12 Individually Wrapped Bars")
@@ -606,8 +681,6 @@ const ITEM_UNITS = [
   }
 
   // ── guessCountUnit: always returns ct when item is a pack/count ───────────
-  // FIX v5.14: pack/count titles now return 'ct' not 'pack', so unit label
-  // reflects per-item pricing rather than per-pack (which is meaningless).
   function guessCountUnit(text) {
     if(/\d[\d,]*\s*-?\s*rolls?/i.test(text))    return 'roll';
     if(/\d[\d,]*\s*-?\s*bags?/i.test(text))     return 'bag';
@@ -622,6 +695,7 @@ const ITEM_UNITS = [
     if(/\d[\d,]*\s*-?\s*bars?/i.test(text))     return 'ct';
     // pack and count now both return 'ct' — per-item, not per-pack
     if(/\d[\d,]*\s*-?\s*pack/i.test(text))      return 'ct';
+    if(/\d[\d,]*\s*-?\s*pk\b/i.test(text))      return 'ct';
     if(/pack\s+of\s+\d/i.test(text))            return 'ct';
     if(/\d[\d,]*\s*-?\s*count/i.test(text))     return 'ct';
     if(/\d[\d,]*\s*ct\b/i.test(text))            return 'ct';
@@ -655,6 +729,20 @@ const ITEM_UNITS = [
   }
 
   // ── Scrape one card ───────────────────────────────────────────────────────
+  function parseRating(el) {
+    var ratingEl = el.querySelector('[aria-label*="out of 5 stars"]');
+    if (ratingEl) {
+      var m = ratingEl.getAttribute('aria-label').match(/([\d.]+)\s+out of/);
+      if (m) return parseFloat(m[1]);
+    }
+    var altEl = el.querySelector('span.a-icon-alt');
+    if (altEl) {
+      var m2 = altEl.textContent.match(/([\d.]+)\s+out of/);
+      if (m2) return parseFloat(m2[1]);
+    }
+    return null;
+  }
+
   function scrapeCard(el,pageNum,originalIndex) {
     var h2El=el.querySelector('h2[aria-label]')||el.querySelector('h2');
     var brandEl=el.querySelector('h2.a-size-mini span,h2[class*="a-size-mini"] span');
@@ -671,38 +759,49 @@ const ITEM_UNITS = [
     var href=cleanHref(linkEl?linkEl.href:null,el);
     var asin=el.getAttribute('data-asin')||href;
     var couponPrice=parseCouponPrice(el);
-    var price=couponPrice!==null?couponPrice:parsePrice(el);
+    var listPrice=parsePrice(el);
+    var price=couponPrice!==null?couponPrice:listPrice;
     var hasCoupon=couponPrice!==null;
+    var couponPillOnly=!hasCoupon&&detectCouponPill(el);
+    var sns=parseSnS(el);
+    var savings=parseSavings(el);
     var ap=parseAmazonUnitPrice(el);
     var count=extractCount(title);
     var page=pageNum||1;
-    var grocery=detectSource(el);
+    var retailer=detectSource(el);
     var delivery=parseDeliveryDates(el);
-    var wfFreeFlag=(grocery==='whole-foods')&&!!delivery.freeDate;
+    var wfFreeFlag=(retailer.key==='whole-foods')&&!!delivery.freeDate;
     var reviewCount=parseReviewCount(el);
+    var rating=parseRating(el);
     var cardText=scrapeCardText(el,hasCoupon,delivery.freeDate,delivery.fastDate);
     var freeWindowMinutes=parseDeliveryWindowMinutes(el);
     var freeQualifier=parseDeliveryQualifier(el);
-    var base={title,href,asin,price,count,page,grocery,wfFreeFlag,isSponsored,hasCoupon,
-              cardText,reviewCount,originalIndex:originalIndex||0,
+    var imgEl=el.querySelector('img.s-image');
+    var imgUrl=imgEl?imgEl.src:'';
+    var base={title,href,asin,price,listPrice,count,page,retailer,wfFreeFlag,isSponsored,hasCoupon,
+              couponPillOnly,sns,savings,cardText,reviewCount,rating,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff,
-              freeWindowMinutes:freeWindowMinutes,freeQualifier:freeQualifier};
+              freeWindowMinutes:freeWindowMinutes,freeQualifier:freeQualifier,imgUrl:imgUrl};
 
     // ── Amazon reported a unit price ────────────────────────────────────────
     if(ap&&ITEM_UNITS.includes(ap.unit)) {
-      // v5.14: if Amazon says ct but we have price and count, recalculate to
+      // If Amazon says ct but we have price and count, recalculate to
       // confirm, and in liquid-dominant context attempt fl oz conversion
       if(ap.unit==='ct'&&count&&price) {
         var perItem=price/count;
         // Use Amazon's ct price as-is (it may reflect per-can, etc.)
         return Object.assign(base,{ppu:ap.ppu,unit:'ct',source:'amazon'});
       }
-      // v5.19: when Amazon reports weight/liquid unit but title has count,
+      // When Amazon reports weight/liquid unit but title has count,
       // derive per-item price so ct pill works for these items
       if(count&&price&&ap.unit!=='ct') {
         var altUnit=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
         return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon',altPPU:price/count,altUnit:altUnit});
+      }
+      // Single item with liquid/weight unit — show full price as per-item so ct pill works
+      if(!count&&price&&(LIQUID_UNITS.includes(ap.unit)||WEIGHT_UNITS.includes(ap.unit))) {
+        return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon',altPPU:price,altUnit:'ct'});
       }
       return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'});
     }
@@ -724,7 +823,6 @@ const ITEM_UNITS = [
       return Object.assign(base,{ppu:price/count,unit:unit2,source:'calc'});
     }
 
-    // ── v5.14: Single item — default to 1 ct when price is available ────────
     // This allows single-item listings to be compared against multipacks.
     // Only applies when there is no count in the title and no Amazon unit price.
     if(price) {
@@ -736,7 +834,7 @@ const ITEM_UNITS = [
   }
 
   // ── Liquid-dominant ct→fl oz conversion ──────────────────────────────────
-  // v5.14: After scraping, in liquid-dominant mode, attempt to convert ct
+  // After scraping, in liquid-dominant mode, attempt to convert ct
   // items to fl oz using per-item volume stated in title.
   // e.g. "La Croix 12 Fl Oz (Pack of 8)" reported as ct → convert to fl oz.
   function applyLiquidCtConversion(data) {
@@ -791,11 +889,16 @@ const ITEM_UNITS = [
   var loadedPages      = 1;
   var nextPageUrl      = null;
   var needsResort      = false;
-  var srcFilter        = {'standard':true,'fresh':true,'whole-foods':true};
+  var srcFilter        = {};
   var logTimer         = null;
   var minReviews       = 0;
+  var minRating        = 0;
   var isLiquidDominant = false;
   var unitPills        = [];
+  var panelMoved       = false;
+  var sortChanged      = false;
+  var sortChangedTo    = null;
+  var sessionSource    = 'search-only';
 
   function scheduleLog() {
     if(logTimer) clearTimeout(logTimer);
@@ -808,14 +911,23 @@ const ITEM_UNITS = [
       var unitCounts={};
       withUnit.forEach(function(r){if(r.unit)unitCounts[r.unit]=(unitCounts[r.unit]||0)+1;});
       var unitsFound=Object.keys(unitCounts).sort(function(a,b){return unitCounts[b]-unitCounts[a];}).map(function(u){return u+'('+unitCounts[u]+')';}).join(', ');
-      var countStandard=allData.filter(function(r){return r.grocery==='standard';}).length;
-      var countFresh=allData.filter(function(r){return r.grocery==='fresh';}).length;
-      var countWF=allData.filter(function(r){return r.grocery==='whole-foods';}).length;
-      var sources=[];
-      if(countStandard>0) sources.push('standard');
-      if(countFresh>0)    sources.push('fresh');
-      if(countWF>0)       sources.push('whole-foods');
+      // Dynamic source tally
+      var sourceCounts={};
+      allData.forEach(function(r){
+        var k=r.retailer?r.retailer.key:'standard';
+        sourceCounts[k]=(sourceCounts[k]||0)+1;
+      });
+      var countStandard=sourceCounts['standard']||0;
+      var countFresh=sourceCounts['fresh']||0;
+      var countWF=sourceCounts['whole-foods']||0;
+      var countPharmacy=sourceCounts['pharmacy']||0;
+      var retailerSources=Object.keys(sourceCounts).join(', ');
       var couponCount=allData.filter(function(r){return r.hasCoupon;}).length;
+      var snsCount=allData.filter(function(r){return r.sns;}).length;
+      var couponPillItems=allData.filter(function(r){return r.couponPillOnly;});
+      var couponPillCount=couponPillItems.length;
+      var couponUndetectedCount=couponPillCount;
+      var couponUndetectedAsins=couponPillItems.map(function(r){return r.asin;}).join(',');
       var sponsoredCount=allData.filter(function(r){return r.isSponsored;}).length;
       var shortlistCount=Object.keys(checkedAsins).length;
       var ua='';try{ua=navigator.userAgent||'';}catch(e){}
@@ -824,14 +936,49 @@ const ITEM_UNITS = [
         withoutUnitData:allData.length-withUnit.length,unitsFound,
         sortMethod:sortVal,keywordFilterActive:keyword.trim().length>0,
         keywordFilter:keyword.trim()||'',
-        pagesLoaded:loadedPages,grocerySources:sources.join(', '),
-        countStandard,countFresh,countWholeFoods:countWF,
+        pagesLoaded:loadedPages,retailerSources,
+        countStandard,countFresh,countWholeFoods:countWF,countPharmacy,
         liquidDominant:isLiquidDominant,selectedUnit:selectedUnit||'as-listed',
-        couponCount,sponsoredCount,hideSponsoredActive:sponsoredMode,
-        shortlistCount,minReviewsFilter:minReviews||0,
-        userAgent:ua
+        couponCount,snsCount,couponPillCount,couponUndetectedCount,
+        couponUndetectedAsins,sponsoredCount,hideSponsoredActive:sponsoredMode,
+        shortlistCount,minReviewsFilter:minReviews||0,minRatingFilter:minRating||0,
+        panelMoved,sortChanged,sortChangedTo:sortChangedTo||'',
+        sessionSource,userAgent:ua
       });
     } catch(e){}
+  }
+
+  // ── Demote ads button state helper ───────────────────────────────────────
+  function updateSponsoredBtn(btn, mode) {
+    btn.classList.remove('mode-demote','mode-hide');
+    if (mode === 'show')        { btn.textContent = 'Demote ads'; }
+    else if (mode === 'demote') { btn.textContent = '\u2713 Demoted \u00b7 Hide ads'; btn.classList.add('mode-demote'); }
+    else                        { btn.textContent = '\u2713 Hidden \u00b7 Show ads'; btn.classList.add('mode-hide'); }
+  }
+
+  // Updates bottom load-more row and pages slider after any page load
+  function updateLoadMoreRow() {
+    var lmRow = document.getElementById('ppu-load-more-row');
+    var lmBtn = document.getElementById('ppu-btn-load-more');
+    if (!lmRow) return;
+    if (nextPageUrl) {
+      lmRow.style.display = '';
+      if (lmBtn) lmBtn.textContent = '\u2193 Load page '+(loadedPages+1)+' results';
+    } else {
+      lmRow.style.display = 'none';
+    }
+    // Sync pages slider to current loadedPages
+    var pagesSlider = document.getElementById('ppu-pages-slider');
+    if (pagesSlider) {
+      pagesSlider.value = loadedPages;
+      var pct = ((loadedPages - 1) / 9) * 100;
+      pagesSlider.style.setProperty('--fill', pct + '%');
+      pagesSlider.classList.toggle('active', loadedPages > 1);
+      var labelEl = document.getElementById('ppu-pages-label');
+      if (labelEl) labelEl.innerHTML = 'Pages to load: <em>' + loadedPages + '</em>';
+      var warnEl = document.getElementById('ppu-pages-warning');
+      if (warnEl) warnEl.style.display = loadedPages >= 7 ? 'block' : 'none';
+    }
   }
 
   // ── Build panel ───────────────────────────────────────────────────────────
@@ -840,11 +987,13 @@ const ITEM_UNITS = [
     var cards=document.querySelectorAll('[data-component-type="s-search-result"]');
     if(!cards.length){console.log('[PPU] No result cards found.');return;}
 
+    try {
+
     var seenAsins={},idx=0;
     allData=Array.from(cards).reduce(function(acc,c){
       if(c.offsetParent===null) return acc;
       var row=scrapeCard(c,1,idx++);
-      if(row.asin&&seenAsins[row.asin]) return acc;
+      if(row.asin&&seenAsins[row.asin]) row.isDuplicate=true;
       if(row.asin) seenAsins[row.asin]=true;
       acc.push(row); return acc;
     },[]);
@@ -852,24 +1001,64 @@ const ITEM_UNITS = [
 
     // v6.0.0: Save search context to background service worker so product.js
     // knows what search we came from when the user clicks through to a product page.
+    // Passes full item objects (asin, title, price, ppu, ppuUnit) so the product
+    // page can display a real titled list in from-search mode.
     var searchTerm=(new URLSearchParams(window.location.search).get('k')||'').trim();
-    saveSearchContext(searchTerm, allData.map(function(r){return r.asin;}));
+    saveSearchContext(searchTerm, window.location.href, allData.map(function(r){
+      return {
+        asin: r.asin,
+        title: r.title,
+        price: r.price ? '$'+r.price.toFixed(2) : '',
+        ppu: r.ppu ? formatPPU(r.ppu) : '',
+        ppuUnit: r.unit || ''
+      };
+    }));
 
     // Liquid inference first pass (before ct conversion)
     isLiquidDominant=inferLiquidDominant(allData);
 
-    // v5.14: in liquid-dominant mode, convert ct items to fl oz where possible
+    // In liquid-dominant mode, convert ct items to fl oz where possible
     if(isLiquidDominant) applyLiquidCtConversion(allData);
 
     // Regenerate liquid dominance after conversion (unit distribution may have changed)
     isLiquidDominant=inferLiquidDominant(allData);
     unitPills=generateUnitPills(allData,isLiquidDominant);
 
-    var hasFresh=allData.some(function(r){return r.grocery==='fresh';});
-    var hasWF=allData.some(function(r){return r.grocery==='whole-foods';});
+    // v6.0.3: Detect all retailer sources dynamically
+    // Build srcFilter from whatever retailers actually appear in results.
+    // Preserve any existing filter state for sources already seen this session.
+    var detectedRetailers = {};
+    allData.forEach(function(r) {
+      var k = r.retailer ? r.retailer.key : 'standard';
+      var l = r.retailer ? r.retailer.label : 'Amazon';
+      if(!detectedRetailers[k]) detectedRetailers[k] = l;
+    });
+    // Add any new sources to srcFilter (default on); preserve existing state
+    Object.keys(detectedRetailers).forEach(function(k) {
+      if(!(k in srcFilter)) srcFilter[k] = true;
+    });
+    // Remove keys no longer present in results
+    Object.keys(srcFilter).forEach(function(k) {
+      if(!(k in detectedRetailers)) delete srcFilter[k];
+    });
+
+    var hasNonStandard = Object.keys(detectedRetailers).some(function(k){ return k !== 'standard'; });
     var hasDelivery=allData.some(function(r){return r.freeDate||r.fastDate;});
+    var hasWholeFoods=allData.some(function(r){return r.retailer&&r.retailer.key==='whole-foods';});
     var hasSponsored=allData.some(function(r){return r.isSponsored;});
     var hasPills=unitPills.length>1;
+
+    // sessionSource: determined by whether the user navigated here from a product page.
+    // background.js stores context when search.js saves it; product.js reads it.
+    // If context exists AND has items (populated by a prior search → product → back flow),
+    // this is a 'from-product' session. Otherwise 'search-only'.
+    // We reset to 'search-only' each buildPanel call so Refresh gives a clean reading.
+    sessionSource = 'search-only';
+    chrome.runtime.sendMessage({type:'AU_GET_SEARCH_CONTEXT'}, function(ctx) {
+      if(ctx && ctx.payload && ctx.payload.items && ctx.payload.items.length > 0) {
+        sessionSource = 'from-product';
+      }
+    });
 
     if(selectedUnit!==null&&!unitPills.some(function(p){return p.unit===selectedUnit;})) selectedUnit=null;
 
@@ -898,83 +1087,241 @@ const ITEM_UNITS = [
         '<div id="ppu-header">'+
           '<h3>Actually Useful</h3>'+
           '<div id="ppu-header-btns">'+
-            '<a id="ppu-coffee" href="https://ko-fi.com/tibbalsgribbin" target="_blank">\u2615 buy me a coffee</a>'+
+            '<a id="ppu-help" href="https://actuallyuseful.net" target="_blank" title="Help &amp; instructions">?</a>'+
             '<button id="ppu-collapse" title="Collapse/expand">\u2195</button>'+
             '<button id="ppu-close" title="Close">\u00d7</button>'+
           '</div>'+
         '</div>'+
+        '<div class="ppu-section-divider"><span>Sort</span></div>'+
         '<div id="ppu-controls">'+
-          '<label for="ppu-sort">Sort:</label>'+
-          '<select id="ppu-sort">'+
+          '<select id="ppu-sort" class="ppu-sort-select">'+
             '<option value="ppu-asc">Best value \u2191</option>'+
             '<option value="price-asc">Price low\u2192high</option>'+
             '<option value="delivery-free">Soonest FREE delivery</option>'+
             '<option value="delivery-any">Soonest ANY delivery</option>'+
-            '<option value="default">Default order</option>'+
+            '<option value="default">As shown in Amazon results</option>'+
           '</select>'+
-          '<button id="ppu-btn-refresh">\u21ba Refresh</button>'+
-          '<button id="ppu-btn-resort">Re-sort all \u21c5</button>'+
-          '<button id="ppu-btn-hide-sponsored">Demote ads</button>'+
-          '<button id="ppu-btn-reset-filters">Start over</button>'+
-          '<button id="ppu-btn-show-checked">Show selected (0)</button>'+
-          '<button id="ppu-btn-clear-checked">Clear selection</button>'+
+          '<button id="ppu-btn-refresh" class="ppu-btn">\u21ba Refresh</button>'+
+          '<button id="ppu-btn-resort" class="ppu-btn btn-teal">Re-sort all \u21c5</button>'+
+          '<button id="ppu-btn-hide-sponsored" class="ppu-btn">Demote ads</button>'+
+          '<button id="ppu-btn-show-checked" class="ppu-btn btn-orange">Show selected (0)</button>'+
+          '<button id="ppu-btn-clear-checked" class="ppu-btn">Clear selection</button>'+
+          '<button id="ppu-btn-reset-filters" class="ppu-btn btn-muted">Start over</button>'+
         '</div>'+
+        (nextPageUrl ?
+          '<div id="ppu-pages-row">'+
+            '<span id="ppu-pages-label">Pages to load: <em>1</em></span>'+
+            '<div class="ppu-slider-wrap">'+
+              '<span class="ppu-slider-startlabel">1</span>'+
+              '<div class="ppu-slider-track-wrap">'+
+                '<input id="ppu-pages-slider" type="range" class="ppu-slider" min="1" max="10" step="1" value="1">'+
+                '<div class="ppu-slider-ticks">'+
+                  '<span class="major"></span>'+
+                  '<span class="minor"></span>'+
+                  '<span class="minor"></span>'+
+                  '<span class="minor"></span>'+
+                  '<span class="major"></span>'+
+                  '<span class="minor"></span>'+
+                  '<span class="minor"></span>'+
+                  '<span class="minor"></span>'+
+                  '<span class="minor"></span>'+
+                  '<span class="major"></span>'+
+                '</div>'+
+              '</div>'+
+              '<span class="ppu-slider-endlabel">10</span>'+
+            '</div>'+
+            '<span id="ppu-pages-status"></span>'+
+          '</div>'+
+          '<div id="ppu-pages-warning" style="margin:0 14px 6px;display:none;">\u26a0\ufe0f Amazon sometimes limits results beyond 7 pages, and those results may be less relevant to your search.</div>'
+        : '')+
+        pillHtml+
+        '<div class="ppu-section-divider"><span>Filter</span></div>'+
         '<div id="ppu-filter-row">'+
-          '<label for="ppu-keyword">Keyword filter:</label>'+
-          '<input id="ppu-keyword" type="text" placeholder="e.g. unscented OR fragrance-free -refill" value="'+keyword.replace(/"/g,'&quot;')+'">'+
+          '<label for="ppu-keyword">Keywords:</label>'+
+          '<input id="ppu-keyword" type="text" placeholder="e.g. unscented -refill" value="'+keyword.replace(/"/g,'&quot;')+'">'+
           '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
         '</div>'+
-        pillHtml+
-        '<div id="ppu-filter-extra-row">'+
-          '<label for="ppu-min-reviews">Min reviews:</label>'+
-          '<input id="ppu-min-reviews" type="number" min="0" step="50" placeholder="0" value="'+(minReviews||'')+'">'+
+        '<div class="ppu-slider-row">'+
+          '<span class="ppu-slider-label">Minimum reviews: <em id="ppu-min-reviews-val">'+(minReviews||0)+'</em></span>'+
+          '<div class="ppu-slider-wrap">'+
+            '<span class="ppu-slider-startlabel">0</span>'+
+            '<div class="ppu-slider-track-wrap">'+
+              '<input id="ppu-min-reviews-slider" type="range" class="ppu-slider" min="0" max="1000" step="100" value="'+(minReviews||0)+'">'+
+              '<div class="ppu-slider-ticks">'+
+                '<span class="major"></span>'+
+                '<span class="minor"></span>'+
+                '<span class="major"></span>'+
+                '<span class="minor"></span>'+
+                '<span class="major"></span>'+
+                '<span class="minor"></span>'+
+                '<span class="major"></span>'+
+                '<span class="minor"></span>'+
+                '<span class="major"></span>'+
+                '<span class="minor"></span>'+
+                '<span class="major"></span>'+
+              '</div>'+
+            '</div>'+
+            '<span class="ppu-slider-endlabel">1000</span>'+
+          '</div>'+
         '</div>'+
-        (hasFresh||hasWF?
+        '<div class="ppu-slider-row">'+
+          '<span class="ppu-slider-label">Minimum rating: <em id="ppu-min-rating-val">'+(minRating>0?(minRating+'\u2605'):'Any')+'</em></span>'+
+          '<div class="ppu-slider-wrap">'+
+            '<span class="ppu-slider-startlabel">0</span>'+
+            '<div class="ppu-slider-track-wrap">'+
+              '<input id="ppu-min-rating-slider" type="range" class="ppu-slider" min="0" max="5" step="0.5" value="'+(minRating||0)+'">'+
+              '<div class="ppu-slider-ticks">'+
+                '<span class="major"></span>'+
+                '<span class="minor"></span>'+
+                '<span class="major"></span>'+
+                '<span class="minor"></span>'+
+                '<span class="major"></span>'+
+                '<span class="minor"></span>'+
+                '<span class="major"></span>'+
+                '<span class="minor"></span>'+
+                '<span class="major"></span>'+
+                '<span class="minor"></span>'+
+                '<span class="major"></span>'+
+              '</div>'+
+            '</div>'+
+            '<span class="ppu-slider-endlabel">5\u2605</span>'+
+          '</div>'+
+        '</div>'+
+        (hasNonStandard?
           '<div id="ppu-source-row">'+
-            '<span class="label">Sources <span style="font-weight:normal;color:#888;">(click to show/hide)</span>:</span>'+
-            '<span class="ppu-source-toggle src-standard'+(!srcFilter['standard']?' off':'')+'" data-src="standard">Amazon</span>'+
-            (hasFresh?'<span class="ppu-source-toggle src-fresh'+(!srcFilter['fresh']?' off':'')+'" data-src="fresh">Fresh</span>':'')+
-            (hasWF?'<span class="ppu-source-toggle src-wf'+(!srcFilter['whole-foods']?' off':'')+'" data-src="whole-foods">Whole Foods</span>':'')+
+            '<span class="label">Sources:</span>'+
+            Object.keys(detectedRetailers).map(function(k){
+              var label=detectedRetailers[k];
+              var cls='ppu-source-toggle'+
+                (k==='standard'?' src-standard':k==='fresh'?' src-fresh':k==='whole-foods'?' src-wf':k==='pharmacy'?' src-pharmacy':' src-partner')+
+                (!srcFilter[k]?' off':'');
+              return '<span class="'+cls+'" data-src="'+k+'">'+label+'</span>';
+            }).join('')+
           '</div>':'')+
-        (hasDelivery?'<div id="ppu-delivery-note">\u26a0\ufe0f Delivery dates shown where available \u00b7 Same-day and conditional free delivery may not appear \u00b7 Whole Foods "FREE" requires a separate fee</div>':'')+
+        '<div id="ppu-footer-row">'+
+          '<a id="ppu-feedback" href="https://docs.google.com/forms/d/e/1FAIpQLSf7APKSpbKsSgP28G1NU_7flVdgbrfduta88xs90515YzOakw/viewform" target="_blank">\ud83d\udcac Give feedback</a>'+
+          '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">\u2615 Buy me a coffee</a>'+
+        '</div>'+
         '<div id="ppu-sort-note"></div>'+
+        '<div id="ppu-info"></div>'+
       '</div>'+
       '<div id="ppu-scroll-area">'+
-        '<div id="ppu-info"></div>'+
         '<div id="ppu-list"></div>'+
         '<div id="ppu-load-more-row" style="'+(nextPageUrl?'':'display:none')+'">'+
-          '<button id="ppu-btn-load-more">\u2193 Load page 2 results</button>'+
-          '<button id="ppu-btn-resort-bottom">Re-sort all \u21c5</button>'+
+          '<button id="ppu-btn-load-more">\u2193 Load page '+(loadedPages+1)+' results</button>'+
         '</div>'+
-      '</div>';
+      '</div>'+
+      '<div id="ppu-wf-note" style="display:none">\u26a0\ufe0f Whole Foods delivery is not included in your Prime membership. Free pickup or $9.95 delivery.</div>';
 
     document.body.appendChild(panel);
 
-    var dh=document.getElementById('ppu-drag-handle');
-    if(dh){
-      var isDrag=false,sX,sW;
-      dh.addEventListener('mousedown',function(e){isDrag=true;sX=e.clientX;sW=panel.offsetWidth;document.body.style.userSelect='none';e.preventDefault();});
-      document.addEventListener('mousemove',function(e){if(!isDrag)return;panel.style.width=Math.min(900,Math.max(280,sW+(sX-e.clientX)))+'px';});
-      document.addEventListener('mouseup',function(){if(isDrag){isDrag=false;document.body.style.userSelect='';}});
+    // ── Position panel ────────────────────────────────────────────────────
+    // JS owns position entirely. CSS has no top/left/right/width defaults.
+    // Always use top+left. Never set right — avoids browser stretching the
+    // panel to satisfy both left and right simultaneously.
+    var DEFAULT_WIDTH = 390;
+    var DEFAULT_TOP   = 80;
+
+    function applyPosition(top, left, width) {
+      panel.style.top   = top   + 'px';
+      panel.style.left  = left  + 'px';
+      panel.style.width = width + 'px';
+    }
+
+    function defaultLeft() {
+      return window.innerWidth - DEFAULT_WIDTH - 16;
+    }
+
+    chrome.storage.local.get('au_search_panel_pos', function(result) {
+      var pos = result['au_search_panel_pos'];
+      if (pos && typeof pos.top === 'number' && typeof pos.left === 'number' && typeof pos.width === 'number') {
+        applyPosition(pos.top, pos.left, pos.width);
+      } else {
+        applyPosition(DEFAULT_TOP, defaultLeft(), DEFAULT_WIDTH);
+      }
+    });
+
+    // ── Drag to move (header) ─────────────────────────────────────────────
+    var header = document.getElementById('ppu-header');
+    if (header) {
+      var isDragMove = false, moveStartX, moveStartY, moveStartLeft, moveStartTop;
+      header.addEventListener('mousedown', function(e) {
+        if (e.target.closest('button,a')) return;
+        isDragMove = true;
+        var rect = panel.getBoundingClientRect();
+        moveStartX    = e.clientX;
+        moveStartY    = e.clientY;
+        moveStartLeft = rect.left;
+        moveStartTop  = rect.top;
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragMove) return;
+        var newLeft = moveStartLeft + (e.clientX - moveStartX);
+        var newTop  = moveStartTop  + (e.clientY - moveStartY);
+        newLeft = Math.max(-panel.offsetWidth + 60, Math.min(newLeft, window.innerWidth - 60));
+        newTop  = Math.max(0, Math.min(newTop, window.innerHeight - 40));
+        panel.style.left = newLeft + 'px';
+        panel.style.top  = newTop  + 'px';
+      });
+      document.addEventListener('mouseup', function(e) {
+        if (!isDragMove) return;
+        isDragMove = false;
+        panelMoved = true;
+        document.body.style.userSelect = '';
+        var rect = panel.getBoundingClientRect();
+        chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth } });
+      });
+    }
+
+    // ── Drag to resize (left edge handle) ────────────────────────────────
+    // Captures the right edge position once at mousedown. During drag, width
+    // is computed as (fixedRight - mouseX) so the right edge never moves.
+    var dh = document.getElementById('ppu-drag-handle');
+    if (dh) {
+      var isDragResize = false, fixedRight;
+      dh.addEventListener('mousedown', function(e) {
+        isDragResize = true;
+        fixedRight = panel.getBoundingClientRect().right;
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragResize) return;
+        var newWidth = Math.min(900, Math.max(280, fixedRight - e.clientX));
+        // Adjust left to keep right edge fixed: left = fixedRight - newWidth
+        panel.style.width = newWidth + 'px';
+        panel.style.left  = (fixedRight - newWidth) + 'px';
+      });
+      document.addEventListener('mouseup', function() {
+        if (!isDragResize) return;
+        isDragResize = false;
+        document.body.style.userSelect = '';
+        // Save new width and position
+        var rect = panel.getBoundingClientRect();
+        chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth } });
+      });
     }
 
     var sortEl=document.getElementById('ppu-sort'); sortEl.value=sortVal;
     var kwInput=document.getElementById('ppu-keyword');
     var clearKw=document.getElementById('ppu-btn-clear-kw');
     var resortBtn=document.getElementById('ppu-btn-resort');
-    var resortBtnBot=document.getElementById('ppu-btn-resort-bottom');
     var showChkBtn=document.getElementById('ppu-btn-show-checked');
     var clearChkBtn=document.getElementById('ppu-btn-clear-checked');
     var hideSponsoredBtn=document.getElementById('ppu-btn-hide-sponsored');
     var resetFiltersBtn=document.getElementById('ppu-btn-reset-filters');
-    var minReviewsInput=document.getElementById('ppu-min-reviews');
+    var minReviewsSlider=document.getElementById('ppu-min-reviews-slider');
+    var minRatingSlider=document.getElementById('ppu-min-rating-slider');
+    var pagesSlider=document.getElementById('ppu-pages-slider');
 
     if(keyword){kwInput.classList.add('active');clearKw.style.display='block';}
-    if(minReviews>0) minReviewsInput.classList.add('active');
+    updateSliderFill(minReviewsSlider,0,1000);
+    updateSliderFill(minRatingSlider,0,5);
     if(hasSponsored){
       hideSponsoredBtn.style.display='block';
-      if(sponsoredMode==='demote'){hideSponsoredBtn.classList.add('active');hideSponsoredBtn.textContent='Hide ads';}
-      else if(sponsoredMode==='hide'){hideSponsoredBtn.classList.add('active');hideSponsoredBtn.textContent='Show ads';}
+      updateSponsoredBtn(hideSponsoredBtn,sponsoredMode);
     }
 
     // ── Render ────────────────────────────────────────────────────────────
@@ -985,13 +1332,16 @@ const ITEM_UNITS = [
       showChkBtn.style.display=cc>0?'block':'none';
       clearChkBtn.style.display=cc>0?'block':'none';
       showChkBtn.textContent=showCheckedOnly?'Show all ('+cc+' selected)':'Show selected ('+cc+')';
+      var sortLabels={'ppu-asc':'best value','price-asc':'price','delivery-free':'soonest free delivery','delivery-any':'soonest delivery','default':'Amazon order'};
+      var resortLabel='Re-sort all by '+( sortLabels[sortVal]||'current sort')+' \u21c5';
       resortBtn.style.display=(needsResort&&!showCheckedOnly)?'block':'none';
-      resortBtnBot.style.display=(needsResort&&!showCheckedOnly)?'block':'none';
+      resortBtn.textContent=resortLabel;
 
-      var anyFilterActive = keyword.trim().length>0 || minReviews>0 ||
+      var anyFilterActive = keyword.trim().length>0 || minReviews>0 || minRating>0 ||
         Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; }) ||
         sortVal!=='ppu-asc' || sponsoredMode!=='show';
-      resetFiltersBtn.classList.toggle('active',anyFilterActive);
+      resetFiltersBtn.classList.toggle('btn-danger',anyFilterActive);
+      resetFiltersBtn.classList.toggle('btn-muted',!anyFilterActive);
 
       var unitDataAvail=allData.filter(function(r){return r.ppu!=null;}).length;
       var isSparse=sortVal==='ppu-asc'&&unitDataAvail<Math.ceil(allData.length*0.1);
@@ -1011,11 +1361,12 @@ const ITEM_UNITS = [
         }
         if(effectiveSort==='price-asc') return (a.price==null?Infinity:a.price)-(b.price==null?Infinity:b.price);
         if(effectiveSort==='delivery-free'){
-          var av=a.freeDate?0:(a.fastDate?1:2),bv=b.freeDate?0:(b.fastDate?1:2);
+          var aFree=a.wfFreeFlag?null:a.freeDate, bFree=b.wfFreeFlag?null:b.freeDate;
+          var aFast=a.wfFreeFlag?null:a.fastDate, bFast=b.wfFreeFlag?null:b.fastDate;
+          var av=aFree?0:(aFast?1:2),bv=bFree?0:(bFast?1:2);
           if(av!==bv)return av-bv;
-          var dateDiff=(a.freeDate||a.fastDate||FAR)-(b.freeDate||b.fastDate||FAR);
+          var dateDiff=(aFree||aFast||FAR)-(bFree||bFast||FAR);
           if(dateDiff!==0) return dateDiff;
-          // Tiebreaker: earlier delivery window start time wins
           return (a.freeWindowMinutes||Infinity)-(b.freeWindowMinutes||Infinity);
         }
         if(effectiveSort==='delivery-any'){
@@ -1045,14 +1396,16 @@ const ITEM_UNITS = [
         displayData=displayData.filter(function(r){return r.kwMatch;}).concat(displayData.filter(function(r){return !r.kwMatch;}));
 
       var withData=allData.filter(function(r){return r.ppu!=null;}).length;
-      var warnings=allData.filter(function(r){return r.source==='amazon-container';}).length;
-      var hiddenSrc=allData.filter(function(r){return !srcFilter[r.grocery];}).length;
+      var hiddenSrc=allData.filter(function(r){return !srcFilter[r.retailer?r.retailer.key:'standard'];}).length;
       var sponCount=allData.filter(function(r){return r.isSponsored;}).length;
       var revHiddenCt=minReviews>0?allData.filter(function(r){return r.reviewCount!=null&&r.reviewCount<minReviews;}).length:0;
+      var ratingHiddenCt=minRating>0?allData.filter(function(r){return r.rating!=null&&r.rating<minRating;}).length:0;
       var matchCt=hasKw?displayData.filter(function(r){return r.kwMatch;}).length:null;
       var info=withData+'/'+allData.length+' have unit data';
-      if(loadedPages>1)            info+=' \u00b7 '+loadedPages+' pages';
-      if(warnings>0)               info+=' \u00b7 \u26a0\ufe0f '+warnings+' per-container';
+      if(loadedPages>1){
+        if(nextPageUrl) info+=' \u00b7 '+loadedPages+' pages';
+        else            info+=' \u00b7 '+loadedPages+' pages loaded \u2014 Amazon\'s limit reached';
+      }
       if(hasKw)                    info+=' \u00b7 \uD83D\uDD0D '+matchCt+' match filter';
       if(hiddenSrc>0)              info+=' \u00b7 '+hiddenSrc+' source-hidden';
       if(selectedUnit)             info+=' \u00b7 showing in '+selectedUnit;
@@ -1061,20 +1414,24 @@ const ITEM_UNITS = [
       if(sponsoredMode==='demote'&&sponCount>0) info+=' \u00b7 '+sponCount+' ads demoted';
       if(sponsoredMode==='hide'&&sponCount>0)   info+=' \u00b7 '+sponCount+' ads hidden';
       if(revHiddenCt>0)            info+=' \u00b7 '+revHiddenCt+' below min reviews';
-      // v5.14: delivery sort caveat
-      if(sortVal==='delivery-free'||sortVal==='delivery-any')
-        info+=' \u00b7 \u26a0\ufe0f same-day & conditional free delivery may not appear';
+      if(ratingHiddenCt>0)         info+=' \u00b7 '+ratingHiddenCt+' below min rating';
       document.getElementById('ppu-info').textContent=info;
 
       var sortNoteEl=document.getElementById('ppu-sort-note');
       if(isSparse){sortNoteEl.style.display='block';sortNoteEl.textContent='Too few unit prices to sort by value \u2014 showing by price instead';}
       else sortNoteEl.style.display='none';
 
+      var wfNoteEl=document.getElementById('ppu-wf-note');
+      if(wfNoteEl){
+        var isDeliverySort=effectiveSort==='delivery-free'||effectiveSort==='delivery-any';
+        wfNoteEl.style.display=(hasWholeFoods&&isDeliverySort)?'block':'none';
+      }
+
       var COUNT_PILL_UNITS = ['ct','count','each','pc','piece','pieces','pcs','unit','units','pad','pads','sheet','sheets','wipe','wipes','tablet','tablets','capsule','cap','roll','bag'];
       function getCompPPU(r) {
         if(r.ppu==null) return null;
         if(selectedUnit){
-          // v5.19: if user selected a count-type pill and item has a derived per-item price, use it
+          // If user selected a count-type pill and item has a derived per-item price, use it
           if(r.altPPU!=null && COUNT_PILL_UNITS.indexOf(selectedUnit)!==-1) {
             return r.altPPU;
           }
@@ -1085,9 +1442,10 @@ const ITEM_UNITS = [
       }
 
       var ppuVals=displayData.filter(function(r){
-        return r.ppu!=null&&r.source!=='amazon-container'&&r.kwMatch&&srcFilter[r.grocery]&&
+        return r.ppu!=null&&r.source!=='amazon-container'&&r.kwMatch&&srcFilter[r.retailer?r.retailer.key:'standard']&&
                !(sponsoredMode==='hide'&&r.isSponsored)&&
                !(minReviews>0&&r.reviewCount!=null&&r.reviewCount<minReviews)&&
+               !(minRating>0&&r.rating!=null&&r.rating<minRating)&&
                getCompPPU(r)!=null;
       }).map(function(r){return getCompPPU(r);});
       var bestPPU=ppuVals.length?Math.min.apply(null,ppuVals):null;
@@ -1098,30 +1456,36 @@ const ITEM_UNITS = [
           if(r.page>1) html+='<div class="ppu-divider">\u2500\u2500 Page '+r.page+' results \u2500\u2500</div>';
           curPage=r.page;
         }
-        var srcHid=(r.grocery&&!srcFilter[r.grocery]);
+        var srcHid=(r.retailer&&!srcFilter[r.retailer.key]);
         var sponHid=sponsoredMode==='hide'&&r.isSponsored;
         var sponDem=sponsoredMode==='demote'&&r.isSponsored;
         var revHid=minReviews>0&&r.reviewCount!=null&&r.reviewCount<minReviews;
+        var ratingHid=minRating>0&&r.rating!=null&&r.rating<minRating;
         var priceStr=r.price!=null?'$'+r.price.toFixed(2):'\u2014';
         var countStr=r.count?r.count+' ct':'';
         var badge='',noteStr='',deliveryStr='',srcTag='';
         var isChecked=!!checkedAsins[r.asin];
 
-        if(r.grocery==='whole-foods') srcTag='<span class="ppu-src-tag ppu-src-wf">Whole Foods</span><br>';
-        else if(r.grocery==='fresh')  srcTag='<span class="ppu-src-tag ppu-src-fr">Fresh</span><br>';
+        var rKey=r.retailer?r.retailer.key:'standard';
+        var rLabel=r.retailer?r.retailer.label:'Amazon';
+        if(rKey==='whole-foods')   srcTag='<span class="ppu-src-tag ppu-src-wf">'+rLabel+'</span><br>';
+        else if(rKey==='fresh')    srcTag='<span class="ppu-src-tag ppu-src-fr">'+rLabel+'</span><br>';
+        else if(rKey==='pharmacy') srcTag='<span class="ppu-src-tag ppu-src-rx">'+rLabel+'</span><br>';
+        else if(rKey!=='standard') srcTag='<span class="ppu-src-tag ppu-src-pt">'+rLabel+'</span><br>';
         if(r.isSponsored) srcTag+='<span class="ppu-src-tag" style="background:#f0f0f0;color:#888;border:1px solid #ddd;">Ad</span><br>';
+        if(r.isDuplicate) srcTag+='<span class="ppu-src-tag ppu-src-dup">Shown again by Amazon</span><br>';
 
         if(r.ppu!=null){
           var compPPU=getCompPPU(r);
           var isBest=bestPPU!=null&&r.kwMatch&&r.source!=='amazon-container'&&
-            srcFilter[r.grocery]&&!sponHid&&!revHid&&
+            srcFilter[r.retailer?r.retailer.key:'standard']&&!sponHid&&!revHid&&!ratingHid&&
             compPPU!=null&&Math.abs(compPPU-bestPPU)<0.000001;
           var isCont=r.source==='amazon-container';
-          var warn=isCont?' <span style="font-size:10px;color:#aaa;">\u26a0\ufe0f per-container</span>':'';
+          var warn=isCont?' <span style="font-size:10px;color:#aaa;" title="Amazon is reporting the price per container (box/pack), not per item \u2014 actual per-item cost may differ">\u26a0\ufe0f price is per pack, not per item</span>':'';
 
           var dPPU=r.ppu,dUnit=r.unit,convNote='';
           if(selectedUnit){
-            // v5.19: use derived per-item price when count pill selected
+            // Use derived per-item price when count pill selected
             if(r.altPPU!=null && COUNT_PILL_UNITS.indexOf(selectedUnit)!==-1) {
               dPPU=r.altPPU;dUnit=r.altUnit||'ct';
               convNote='<span class="ppu-converted">('+formatPPU(r.ppu)+'/'+r.unit+')</span>';
@@ -1139,7 +1503,6 @@ const ITEM_UNITS = [
 
           var uDisp=dUnit?'/'+dUnit:'';
           badge='<span class="ppu-badge'+(isBest?' best':'')+(isCont?' container':'')+'"'+(isBest?' title="Best value among comparable results"':'')+'>'+formatPPU(dPPU)+uDisp+(isBest?' \u2605':'')+' </span>'+warn+convNote;
-          // v5.14: note text bumped to 0.78rem via .ppu-note class
           if(r.note&&(r.source==='calc'||r.source==='calc-liquid')) noteStr='<div class="ppu-note">was: '+r.note+'</div>';
         } else {
           badge = r.source==='unavailable'
@@ -1147,38 +1510,50 @@ const ITEM_UNITS = [
             : '<span class="ppu-nodata">no unit data</span>';
         }
 
-        if(r.hasCoupon) noteStr+='<div style="font-size:10px;color:#007600;margin-top:2px;">\uD83C\uDFF7\uFE0F Coupon price applied</div>';
+        if(r.hasCoupon) noteStr+='<div class="ppu-note-deal">\uD83C\uDFF7\uFE0F $'+r.price.toFixed(2)+' with coupon <span class="ppu-note-was">(was $'+r.listPrice.toFixed(2)+')</span></div>';
+        if(r.couponPillOnly) noteStr+='<div class="ppu-note-deal">\uD83C\uDFF7\uFE0F Coupon detected \u2014 check Amazon for details</div>';
+        if(r.sns&&r.sns!=='unknown') noteStr+='<div class="ppu-note-deal ppu-note-sns">\uD83D\uDCE6 '+r.sns+' with Subscribe &amp; Save</div>';
+        else if(r.sns==='unknown') noteStr+='<div class="ppu-note-deal ppu-note-sns">\uD83D\uDCE6 Subscribe &amp; Save available \u2014 check Amazon for amount</div>';
+        if(r.savings) noteStr+='<div class="ppu-note-deal ppu-note-sns">\uD83C\uDF81 '+r.savings+'</div>';
 
         if(r.freeDate||r.fastDate){
           var parts=[];
           if(r.freeDate){
             var fc=r.wfFreeFlag?'ppu-delivery wf-fee':'ppu-delivery';
-            var fl=r.wfFreeFlag?'<span title="Whole Foods delivery has a separate fee \u2014 not free with Prime">FREE\u2733: </span>':'FREE: ';
             var ftParts=[formatDate(r.freeDate)];
             if(r.freeWindowMinutes!==Infinity) ftParts.push('<span style="font-size:12px;">'+formatWindowMinutes(r.freeWindowMinutes)+'</span>');
             else if(r.freeCutoff) ftParts.push('<span style="font-size:12px;">'+r.freeCutoff+'</span>');
             if(r.freeQualifier) ftParts.push('<span style="font-size:12px;">'+r.freeQualifier+'</span>');
             var ft=ftParts.join(' <span style="font-size:12px;">·</span> ');
-            parts.push('<span class="'+fc+'">'+fl+ft+'</span>');
+            if(r.wfFreeFlag){
+              parts.push('<span class="'+fc+'">'+ft+' <span class="ppu-wf-inline">\u2014 Whole Foods delivery is not included in your Prime membership. Free pickup or $9.95 delivery.</span></span>');
+            } else {
+              parts.push('<span class="'+fc+'">FREE: '+ft+'</span>');
+            }
           }
           if(r.fastDate){
             var fst=formatDate(r.fastDate)+(r.fastCutoff?' <span style="font-size:10px;color:#888;">('+r.fastCutoff+')</span>':'');
             parts.push('<span class="ppu-delivery fast">Fastest: '+fst+'</span>');
           }
           deliveryStr='<div class="ppu-meta" style="margin-top:2px;">'+parts.join(' &nbsp; ')+'</div>';
+        } else if(effectiveSort==='delivery-free'||effectiveSort==='delivery-any'){
+          deliveryStr='<div class="ppu-meta ppu-no-delivery" style="margin-top:2px;">No delivery date found \u2014 check product page for details.</div>';
         }
 
         var dimC=(!r.kwMatch&&hasKw)?' kw-mismatch':'';
         var srcC=srcHid?' src-hidden':'';
         var sponC=sponHid?' sponsored-hidden':(sponDem?' sponsored-demoted':'');
         var revC=revHid?' reviews-hidden':'';
+        var ratingC=ratingHid?' rating-hidden':'';
         var chkC=isChecked?' checked':'';
+        var wfC=(r.wfFreeFlag&&effectiveSort==='delivery-free')?' wf-excluded':'';
         var safeAsin=r.asin.replace(/"/g,'&quot;');
         var titleHtml=(hasKw&&r.kwMatch)?highlightKeywords(r.title,r.cardText,kw):escapeHtml(r.title);
-
+        var thumbHtml=r.imgUrl?'<img class="ppu-thumb" src="'+r.imgUrl+'" loading="lazy" alt="">':'';
         html+=
-          '<div class="ppu-row'+dimC+srcC+sponC+revC+chkC+'" data-asin="'+safeAsin+'">'+
+          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
             '<div class="ppu-cb-wrap"><input type="checkbox" class="ppu-cb"'+(isChecked?' checked':'')+' title="Add to shortlist"></div>'+
+            '<div class="ppu-thumb-wrap">'+thumbHtml+'</div>'+
             '<div class="ppu-row-content">'+
               '<a href="'+r.href+'" target="_blank" title="'+escapeHtml(r.title)+'">'+titleHtml+'</a>'+
               srcTag+
@@ -1203,25 +1578,49 @@ const ITEM_UNITS = [
       scheduleLog();
     } // end render
 
+    // ── Helper: slider fill track ────────────────────────────────────────
+    function updateSliderFill(el, min, max) {
+      if (!el) return;
+      var pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
+      var filled = pct.toFixed(1) + '%';
+      el.style.background = 'linear-gradient(to right,#007185 ' + filled + ',#d0d5d8 ' + filled + ')';
+    }
+    function updatePagesSliderFill(el) { if (el) updateSliderFill(el, 1, 10); }
+    function updatePagesLabel() {
+      var labelEl = document.getElementById('ppu-pages-label');
+      if (!labelEl || !pagesSlider) return;
+      var v = parseInt(pagesSlider.value, 10);
+      labelEl.innerHTML = 'Pages to load: <em>' + v + '</em>';
+      var warnEl = document.getElementById('ppu-pages-warning');
+      if (warnEl) warnEl.style.display = v >= 7 ? 'block' : 'none';
+    }
+
     // ── Events ────────────────────────────────────────────────────────────
-    sortEl.addEventListener('change',function(){sortVal=this.value;if(needsResort)needsResort=false;render();});
+    sortEl.addEventListener('change',function(){
+      sortVal=this.value;
+      if(sortVal!=='ppu-asc'){ sortChanged=true; sortChangedTo=sortVal; }
+      if(needsResort)needsResort=false;
+      render();
+    });
     function doResort(){needsResort=false;render();}
     resortBtn.addEventListener('click',doResort);
-    resortBtnBot.addEventListener('click',doResort);
+
     resetFiltersBtn.addEventListener('click',function(){
-      if(!this.classList.contains('active')) return;
-      // Reset all filters to defaults
+      if(!this.classList.contains('btn-danger')) return;
       kwInput.value=''; keyword='';
       kwInput.classList.remove('active'); clearKw.style.display='none';
-      minReviews=0; minReviewsInput.value='';
-      minReviewsInput.classList.remove('active');
-      srcFilter={'standard':true,'fresh':true,'whole-foods':true};
-      panel.querySelectorAll('.ppu-source-toggle').forEach(function(btn){
-        btn.classList.remove('off');
-      });
+      minReviews=0;
+      if(minReviewsSlider){ minReviewsSlider.value=0; updateSliderFill(minReviewsSlider,0,1000); }
+      var rvLabel=document.getElementById('ppu-min-reviews-val');
+      if(rvLabel) rvLabel.textContent='0';
+      minRating=0;
+      if(minRatingSlider){ minRatingSlider.value=0; updateSliderFill(minRatingSlider,0,5); }
+      var rtLabel=document.getElementById('ppu-min-rating-val');
+      if(rtLabel) rtLabel.textContent='Any';
+      Object.keys(srcFilter).forEach(function(k){ srcFilter[k]=true; });
+      panel.querySelectorAll('.ppu-source-toggle').forEach(function(btn){ btn.classList.remove('off'); });
       sponsoredMode='show';
-      hideSponsoredBtn.classList.remove('active');
-      hideSponsoredBtn.textContent='Demote ads';
+      updateSponsoredBtn(hideSponsoredBtn,sponsoredMode);
       sortVal='ppu-asc'; sortEl.value='ppu-asc';
       render();
     });
@@ -1255,12 +1654,27 @@ const ITEM_UNITS = [
       });
     });
 
-    minReviewsInput.addEventListener('input',function(){
-      var val=parseInt(this.value,10);
-      minReviews=isNaN(val)||val<=0?0:val;
-      this.classList.toggle('active',minReviews>0);
-      render();
-    });
+    // Min reviews slider
+    if(minReviewsSlider){
+      minReviewsSlider.addEventListener('input',function(){
+        minReviews=parseInt(this.value,10)||0;
+        updateSliderFill(this,0,1000);
+        var lbl=document.getElementById('ppu-min-reviews-val');
+        if(lbl) lbl.textContent=minReviews;
+        render();
+      });
+    }
+
+    // Min rating slider
+    if(minRatingSlider){
+      minRatingSlider.addEventListener('input',function(){
+        minRating=parseFloat(this.value)||0;
+        updateSliderFill(this,0,5);
+        var lbl=document.getElementById('ppu-min-rating-val');
+        if(lbl) lbl.textContent=minRating>0?(minRating+'\u2605'):'Any';
+        render();
+      });
+    }
 
     panel.querySelectorAll('.ppu-source-toggle').forEach(function(btn){
       btn.addEventListener('click',function(){
@@ -1275,10 +1689,7 @@ const ITEM_UNITS = [
       if(sponsoredMode==='show')       sponsoredMode='demote';
       else if(sponsoredMode==='demote') sponsoredMode='hide';
       else                              sponsoredMode='show';
-      this.classList.toggle('active',sponsoredMode!=='show');
-      if(sponsoredMode==='show')       this.textContent='Demote ads';
-      else if(sponsoredMode==='demote') this.textContent='Hide ads';
-      else                              this.textContent='Show ads';
+      updateSponsoredBtn(hideSponsoredBtn,sponsoredMode);
       render();
     });
 
@@ -1286,6 +1697,51 @@ const ITEM_UNITS = [
     document.getElementById('ppu-close').addEventListener('click',function(e){e.stopPropagation();panel.remove();});
     document.getElementById('ppu-btn-refresh').addEventListener('click',function(){this.textContent='Refreshing\u2026';this.disabled=true;checkedAsins={};showCheckedOnly=false;setTimeout(function(){buildPanel();},100);});
 
+    var coffeeLink=document.getElementById('ppu-coffee');
+    if(coffeeLink) coffeeLink.addEventListener('click',function(){sendLog({event:'kofi_click'});});
+
+    // ── Pages slider ─────────────────────────────────────────────────────
+    if(pagesSlider){
+      updatePagesSliderFill(pagesSlider);
+      updatePagesLabel();
+      pagesSlider.addEventListener('input',function(){
+        updatePagesSliderFill(this);
+        updatePagesLabel();
+      });
+      pagesSlider.addEventListener('change',function(){
+        var target=parseInt(this.value,10);
+        if(target<=loadedPages||!nextPageUrl) return;
+        var statusEl=document.getElementById('ppu-pages-status');
+        if(statusEl){statusEl.style.display='block';statusEl.textContent='Loading\u2026';}
+        pagesSlider.disabled=true;
+        function loadNext(remaining){
+          if(remaining===0||!nextPageUrl){
+            pagesSlider.disabled=false;
+            if(statusEl) statusEl.style.display='none';
+            needsResort=true;
+            updateLoadMoreRow();
+            maybeShowNudge();render();return;
+          }
+          var fp=loadedPages+1,si=allData.length;
+          if(statusEl) statusEl.textContent='Loading page '+fp+'\u2026';
+          fetchPage(nextPageUrl,fp,si).then(function(result){
+            allData=allData.concat(result.rows);loadedPages=fp;nextPageUrl=result.nextUrl;
+            isLiquidDominant=inferLiquidDominant(allData);
+            if(isLiquidDominant) applyLiquidCtConversion(result.rows);
+            isLiquidDominant=inferLiquidDominant(allData);
+            unitPills=generateUnitPills(allData,isLiquidDominant);
+            loadNext(result.nextUrl?remaining-1:0);
+          }).catch(function(err){
+            console.log('[PPU] Pages slider load failed:',err);
+            pagesSlider.disabled=false;
+            if(statusEl){statusEl.textContent='Load failed \u2014 try Refresh';setTimeout(function(){statusEl.style.display='none';},3000);}
+          });
+        }
+        loadNext(target-loadedPages);
+      });
+    }
+
+    // ── Bottom load-more button (for pages beyond slider) ────────────────
     var lmBtn=document.getElementById('ppu-btn-load-more');
     if(lmBtn){
       lmBtn.addEventListener('click',function(){
@@ -1298,15 +1754,40 @@ const ITEM_UNITS = [
           if(isLiquidDominant) applyLiquidCtConversion(result.rows);
           isLiquidDominant=inferLiquidDominant(allData);
           unitPills=generateUnitPills(allData,isLiquidDominant);
-          var lmRow=document.getElementById('ppu-load-more-row');
-          if(nextPageUrl&&lmRow){btn.disabled=false;btn.textContent='\u2193 Load page '+(loadedPages+1)+' results';}
-          else if(lmRow) lmRow.style.display='none';
+          btn.disabled=false;
+          updateLoadMoreRow();
           maybeShowNudge();render();
         }).catch(function(err){console.log('[PPU] Load more failed:',err);btn.textContent='Load failed \u2014 try Refresh';btn.disabled=false;});
       });
     }
 
     render();
+
+    } catch(err) {
+      console.error('[PPU] Panel build failed:', err);
+      var existing=document.getElementById(PANEL_ID);
+      if(existing) existing.remove();
+      var errPanel=document.createElement('div');
+      errPanel.id=PANEL_ID;
+      errPanel.style.cssText='position:fixed;top:80px;right:20px;width:320px;z-index:99999;';
+      errPanel.innerHTML=
+        '<div id="ppu-controls-wrap">'+
+          '<div id="ppu-header">'+
+            '<h3>Actually Useful</h3>'+
+            '<div id="ppu-header-btns">'+
+              '<button id="ppu-close-err" title="Close">\u00d7</button>'+
+            '</div>'+
+          '</div>'+
+          '<div style="padding:12px 16px;">'+
+            '<p style="margin:0 0 8px;color:#c0392b;font-weight:600;">\u26a0 Something went wrong</p>'+
+            '<p style="margin:0 0 12px;font-size:13px;">The panel couldn\u2019t load. Try refreshing the page. If this keeps happening, please let us know.</p>'+
+            '<button id="ppu-err-refresh">\u21ba Refresh page</button>'+
+          '</div>'+
+        '</div>';
+      document.body.appendChild(errPanel);
+      document.getElementById('ppu-close-err').addEventListener('click',function(){errPanel.remove();});
+      document.getElementById('ppu-err-refresh').addEventListener('click',function(){location.reload();});
+    }
   }
 
   function tryBuild(n){

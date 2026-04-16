@@ -236,7 +236,21 @@ function buildShortlistSection(asin, data) {
     </div>`;
 }
 
-// ─── Search button ────────────────────────────────────────────────────────────
+// ─── Back to search button (from-search mode only) ───────────────────────────
+
+function buildBackToSearchButton(searchUrl) {
+  if (!searchUrl) return '';
+  return `
+    <div class="ppu-product-section ppu-product-back-section">
+      <button id="au-btn-back-to-search"
+        data-search-url="${searchUrl.replace(/"/g, '&quot;')}">
+        ← Back to search results
+      </button>
+      <div id="au-back-to-search-caveat">Results may differ — Amazon's rankings change between visits.</div>
+    </div>`;
+}
+
+
 
 function buildSearchButton(title) {
   const query = titleToSearchQuery(title);
@@ -260,7 +274,7 @@ function buildPanelShell(innerHtml, title) {
         <button id="au-product-close" class="ppu-product-close" title="Close">×</button>
       </div>
       <div class="ppu-product-title-block">${title}</div>
-      <div class="ppu-product-body">
+      <div id="ppu-product-scroll">
         ${innerHtml}
       </div>
     </div>`;
@@ -268,12 +282,21 @@ function buildPanelShell(innerHtml, title) {
 
 // ─── Wire up interactions ─────────────────────────────────────────────────────
 
-function wirePanel(asin, pageData) {
+function wirePanel(asin, pageData, context) {
   // Close button
   document.getElementById('au-product-close').addEventListener('click', () => {
     const panel = document.getElementById(PANEL_ID);
     if (panel) panel.remove();
   });
+
+  // Back to search button (from-search mode only)
+  const backBtn = document.getElementById('au-btn-back-to-search');
+  if (backBtn) {
+    backBtn.addEventListener('click', () => {
+      const url = backBtn.getAttribute('data-search-url');
+      if (url) window.open(url, '_blank');
+    });
+  }
 
   // Search button
   const searchBtn = document.getElementById('au-btn-start-search');
@@ -366,6 +389,10 @@ function saveToShortlist(asin, pageData, note) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 function init() {
+  // ── Alpha: product page disabled ────────────────────────────────────────────
+  // Product panel is not active during alpha testing. Remove this block to re-enable.
+  return;
+
   // Don't run if panel already exists
   if (document.getElementById(PANEL_ID)) return;
 
@@ -387,12 +414,16 @@ function init() {
   };
 
   // Ask background worker if we arrived from a search
-  chrome.runtime.sendMessage({ type: 'AU_GET_SEARCH_CONTEXT' }, (context) => {
+  chrome.runtime.sendMessage({ type: 'AU_GET_SEARCH_CONTEXT' }, (response) => {
+    // background.js wraps the stored payload in { payload: ... }
+    const context = (response && response.payload) ? response.payload : null;
     let bodyHtml = '';
 
     if (context && context.term && context.items && context.items.length > 0) {
       // Arrived from search — show research mode
       bodyHtml = buildPanelFromSearch(asin, context);
+      // Back to search button (from-search mode only)
+      bodyHtml += buildBackToSearchButton(context.searchUrl);
     } else {
       // Cold arrival — standalone evaluation mode
       bodyHtml = buildPanelCold(pageData);
@@ -408,8 +439,56 @@ function init() {
     wrapper.innerHTML = shell;
     document.body.appendChild(wrapper.firstElementChild);
 
+    const panel = document.getElementById(PANEL_ID);
+
+    // ── Restore saved position ──────────────────────────────────────────
+    chrome.storage.local.get('au_product_panel_pos', function(result) {
+      const pos = result['au_product_panel_pos'];
+      if (pos && typeof pos.top === 'number' && typeof pos.left === 'number') {
+        panel.style.top   = pos.top  + 'px';
+        panel.style.left  = pos.left + 'px';
+        panel.style.right = 'auto';
+      }
+    });
+
+    // ── Header drag to move ─────────────────────────────────────────────
+    const header = panel.querySelector('.ppu-product-header');
+    if (header) {
+      let isDragMove = false, moveStartX, moveStartY, moveStartLeft, moveStartTop;
+      header.addEventListener('mousedown', function(e) {
+        if (e.target.closest('button,a')) return;
+        isDragMove = true;
+        const rect = panel.getBoundingClientRect();
+        moveStartX    = e.clientX;
+        moveStartY    = e.clientY;
+        moveStartLeft = rect.left;
+        moveStartTop  = rect.top;
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragMove) return;
+        let newLeft = moveStartLeft + (e.clientX - moveStartX);
+        let newTop  = moveStartTop  + (e.clientY - moveStartY);
+        const maxLeft = window.innerWidth  - 60;
+        const maxTop  = window.innerHeight - 40;
+        newLeft = Math.max(-panel.offsetWidth + 60, Math.min(newLeft, maxLeft));
+        newTop  = Math.max(0, Math.min(newTop, maxTop));
+        panel.style.left  = newLeft + 'px';
+        panel.style.top   = newTop  + 'px';
+        panel.style.right = 'auto';
+      });
+      document.addEventListener('mouseup', function() {
+        if (!isDragMove) return;
+        isDragMove = false;
+        document.body.style.userSelect = '';
+        const rect = panel.getBoundingClientRect();
+        chrome.storage.local.set({ 'au_product_panel_pos': { top: rect.top, left: rect.left } });
+      });
+    }
+
     // Wire up all interactions
-    wirePanel(asin, pageData);
+    wirePanel(asin, pageData, context);
   });
 }
 
