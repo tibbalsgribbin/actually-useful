@@ -31,7 +31,17 @@
 }
 #ppu-help:hover { opacity:1; }
 #ppu-footer-row {
-  padding:5px 14px;background:#eef6f7;border-top:1px solid #c8e6ea;border-bottom:1px solid #c8e6ea;
+  flex-shrink:0;border-top:1px solid #d0d5d8;background:#f4f6f7;
+}
+#ppu-sort-note {
+  padding:3px 14px 0;font-size:11px;color:#888;font-style:italic;
+  min-height:0;
+}
+#ppu-info {
+  padding:2px 14px 4px;font-size:11px;color:#888;
+}
+#ppu-footer-links {
+  padding:5px 14px;background:#eef6f7;border-top:1px solid #c8e6ea;
   display:flex;gap:14px;align-items:center;
 }
 #ppu-feedback, #ppu-coffee {
@@ -39,6 +49,12 @@
   transition:opacity 0.15s;white-space:nowrap;
 }
 #ppu-feedback:hover, #ppu-coffee:hover { opacity:1;text-decoration:underline; }
+
+/* Keyword hint text */
+#ppu-keyword-hint {
+  font-size:11px;color:#888;font-style:italic;
+  padding:0 14px 6px;line-height:1.4;user-select:text;cursor:text;
+}
 /* ── Controls wrapper ──────────────────────────────────────────────────── */
 #ppu-controls-wrap { flex-shrink:0;user-select:none;background:#f4f6f7;border-bottom:1px solid #d0d5d8; }
 
@@ -54,6 +70,19 @@
 .ppu-section-divider span {
   font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
   color:#8a9199;padding:0 8px;white-space:nowrap;
+}
+/* Clickable collapsible divider */
+.ppu-collapsible-toggle {
+  cursor:pointer;user-select:none;
+}
+.ppu-collapsible-toggle:hover span { color:#555; }
+.ppu-chevron {
+  font-size:9px;transition:transform 0.2s;display:inline-block;
+}
+/* Collapsible section */
+.ppu-collapsible-section {
+  overflow:hidden;
+  transition:max-height 0.25s ease;
 }
 
 /* ── Tactile button base ─────────────────────────────────────────────── */
@@ -117,7 +146,6 @@
 #ppu-btn-resort       { display:none; }
 #ppu-btn-show-checked { display:none; }
 #ppu-btn-clear-checked  { display:none; }
-#ppu-btn-reset-filters  { }
 
 /* ── Pages slider row ────────────────────────────────────────────────── */
 #ppu-pages-row {
@@ -156,10 +184,15 @@
 
 /* ── Keyword filter row ──────────────────────────────────────────────── */
 #ppu-filter-row {
-  padding:4px 14px 4px;
-  display:flex;gap:6px;align-items:center;
+  padding:6px 14px 2px;
+  display:flex;gap:6px;align-items:center;flex-wrap:wrap;
 }
 #ppu-filter-row label { font-size:12px;color:#444;white-space:nowrap; }
+#ppu-btn-reset-filters {
+  font-size:11px;padding:3px 8px;white-space:nowrap;flex-shrink:0;
+  border-color:#ddd;color:#999;background:#f8f8f8;box-shadow:none;
+}
+#ppu-btn-reset-filters:hover { border-color:#bbb;color:#666;background:#f0f0f0; }
 #ppu-keyword {
   flex:1;min-width:0;font-size:12px;padding:4px 7px;
   border:1px solid #c8cdd0;border-radius:5px;background:#fff;
@@ -174,15 +207,20 @@
 }
 #ppu-btn-clear-kw:hover { background:#e8eced;color:#333; }
 
-/* ── Slider rows (min reviews, min rating) ───────────────────────────── */
-.ppu-slider-row {
-  padding:3px 14px 14px;display:flex;align-items:center;gap:8px;
+/* ── Dual slider row (min reviews + min rating side by side) ─────────── */
+#ppu-sliders-row {
+  display:flex;gap:0;padding:3px 14px 14px;
 }
-.ppu-slider-label { font-size:12px;color:#444;white-space:nowrap;flex-shrink:0;min-width:120px; }
+.ppu-slider-half {
+  flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;
+}
+.ppu-slider-half:first-child { padding-right:10px;border-right:1px solid #e4e8ea; }
+.ppu-slider-half:last-child  { padding-left:10px; }
+.ppu-slider-label { font-size:11px;color:#444;white-space:nowrap; }
 .ppu-slider-label em { font-style:normal;font-weight:600;color:#1a2a3d; }
-.ppu-slider-wrap { display:flex;align-items:center;gap:6px;flex:1; }
+.ppu-slider-wrap { display:flex;align-items:center;gap:4px;flex:1; }
 .ppu-slider-endlabel, .ppu-slider-startlabel {
-  font-size:11px;color:#333;white-space:nowrap;flex-shrink:0;font-weight:600;min-width:16px;
+  font-size:10px;color:#333;white-space:nowrap;flex-shrink:0;font-weight:600;min-width:14px;
 }
 .ppu-slider-startlabel { text-align:right; }
 .ppu-slider-endlabel   { text-align:left; }
@@ -247,11 +285,26 @@ input[type=range].ppu-slider::-moz-range-thumb {
   text-decoration:line-through;font-weight:normal;
   box-shadow:inset 0 1px 2px rgba(0,0,0,0.08);
 }
-#ppu-info { font-size:0.82rem;color:#888;padding:5px 14px 6px;border-top:1px solid #e4e8ea;user-select:text;cursor:text;background:#f4f6f7; }
-#ppu-sort-note {
-  font-size:0.82rem;color:#e47911;font-style:italic;
-  padding:3px 14px 4px;border-bottom:1px solid #f0f2f2;display:none;background:#fffaf4;
+
+/* ── Shortlist bar ───────────────────────────────────────────────────── */
+#ppu-shortlist-bar {
+  display:none;align-items:center;gap:8px;
+  padding:6px 10px;background:#fffbf0;border-bottom:2px solid #e47911;
+  position:sticky;top:0;z-index:10;flex-shrink:0;
 }
+#ppu-select-all-wrap {
+  display:flex;align-items:center;gap:5px;font-size:12px;color:#444;
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
+}
+#ppu-select-all { cursor:pointer;width:14px;height:14px; }
+#ppu-btn-open-tabs {
+  font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;
+  border:1px solid #e47911;background:#fff;color:#e47911;
+  box-shadow:0 1px 2px rgba(228,121,17,0.12);white-space:nowrap;
+  flex-shrink:0;
+}
+#ppu-btn-open-tabs:hover { background:#fff8f2; }
+
 #ppu-list { padding:4px 0; }
 .ppu-row {
   padding:6px 10px 6px 8px;border-bottom:1px solid #f5f5f5;

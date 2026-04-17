@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v6.1.0)
+// Part of the Actually Useful Chrome/Edge extension (v6.1.1)
 
 'use strict';
 
@@ -729,20 +729,6 @@ const ITEM_UNITS = [
   }
 
   // ── Scrape one card ───────────────────────────────────────────────────────
-  function parseRating(el) {
-    var ratingEl = el.querySelector('[aria-label*="out of 5 stars"]');
-    if (ratingEl) {
-      var m = ratingEl.getAttribute('aria-label').match(/([\d.]+)\s+out of/);
-      if (m) return parseFloat(m[1]);
-    }
-    var altEl = el.querySelector('span.a-icon-alt');
-    if (altEl) {
-      var m2 = altEl.textContent.match(/([\d.]+)\s+out of/);
-      if (m2) return parseFloat(m2[1]);
-    }
-    return null;
-  }
-
   function scrapeCard(el,pageNum,originalIndex) {
     var h2El=el.querySelector('h2[aria-label]')||el.querySelector('h2');
     var brandEl=el.querySelector('h2.a-size-mini span,h2[class*="a-size-mini"] span');
@@ -772,14 +758,13 @@ const ITEM_UNITS = [
     var delivery=parseDeliveryDates(el);
     var wfFreeFlag=(retailer.key==='whole-foods')&&!!delivery.freeDate;
     var reviewCount=parseReviewCount(el);
-    var rating=parseRating(el);
     var cardText=scrapeCardText(el,hasCoupon,delivery.freeDate,delivery.fastDate);
     var freeWindowMinutes=parseDeliveryWindowMinutes(el);
     var freeQualifier=parseDeliveryQualifier(el);
     var imgEl=el.querySelector('img.s-image');
     var imgUrl=imgEl?imgEl.src:'';
     var base={title,href,asin,price,listPrice,count,page,retailer,wfFreeFlag,isSponsored,hasCoupon,
-              couponPillOnly,sns,savings,cardText,reviewCount,rating,originalIndex:originalIndex||0,
+              couponPillOnly,sns,savings,cardText,reviewCount,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff,
               freeWindowMinutes:freeWindowMinutes,freeQualifier:freeQualifier,imgUrl:imgUrl};
@@ -951,8 +936,8 @@ const ITEM_UNITS = [
   // ── Demote ads button state helper ───────────────────────────────────────
   function updateSponsoredBtn(btn, mode) {
     btn.classList.remove('mode-demote','mode-hide');
-    if (mode === 'show')        { btn.textContent = 'Demote ads'; }
-    else if (mode === 'demote') { btn.textContent = '\u2713 Demoted \u00b7 Hide ads'; btn.classList.add('mode-demote'); }
+    if (mode === 'show')        { btn.textContent = 'Move ads to end of results'; }
+    else if (mode === 'demote') { btn.textContent = '\u2713 Moved \u00b7 Hide ads'; btn.classList.add('mode-demote'); }
     else                        { btn.textContent = '\u2713 Hidden \u00b7 Show ads'; btn.classList.add('mode-hide'); }
   }
 
@@ -1081,6 +1066,9 @@ const ITEM_UNITS = [
       pillHtml+='</div>';
     }
 
+    var sortOpen    = true;
+    var filtersOpen = true;
+
     panel.innerHTML=
       '<div id="ppu-drag-handle"></div>'+
       '<div id="ppu-controls-wrap">'+
@@ -1092,126 +1080,143 @@ const ITEM_UNITS = [
             '<button id="ppu-close" title="Close">\u00d7</button>'+
           '</div>'+
         '</div>'+
-        '<div class="ppu-section-divider"><span>Sort</span></div>'+
-        '<div id="ppu-controls">'+
-          '<select id="ppu-sort" class="ppu-sort-select">'+
-            '<option value="ppu-asc">Best value \u2191</option>'+
-            '<option value="price-asc">Price low\u2192high</option>'+
-            '<option value="delivery-free">Soonest FREE delivery</option>'+
-            '<option value="delivery-any">Soonest ANY delivery</option>'+
-            '<option value="default">As shown in Amazon results</option>'+
-          '</select>'+
-          '<button id="ppu-btn-refresh" class="ppu-btn">\u21ba Refresh</button>'+
-          '<button id="ppu-btn-resort" class="ppu-btn btn-teal">Re-sort all \u21c5</button>'+
-          '<button id="ppu-btn-hide-sponsored" class="ppu-btn">Demote ads</button>'+
-          '<button id="ppu-btn-show-checked" class="ppu-btn btn-orange">Show selected (0)</button>'+
-          '<button id="ppu-btn-clear-checked" class="ppu-btn">Clear selection</button>'+
-          '<button id="ppu-btn-reset-filters" class="ppu-btn btn-muted">Start over</button>'+
-        '</div>'+
-        (nextPageUrl ?
-          '<div id="ppu-pages-row">'+
-            '<span id="ppu-pages-label">Pages to load: <em>1</em></span>'+
-            '<div class="ppu-slider-wrap">'+
-              '<span class="ppu-slider-startlabel">1</span>'+
-              '<div class="ppu-slider-track-wrap">'+
-                '<input id="ppu-pages-slider" type="range" class="ppu-slider" min="1" max="10" step="1" value="1">'+
-                '<div class="ppu-slider-ticks">'+
-                  '<span class="major"></span>'+
-                  '<span class="minor"></span>'+
-                  '<span class="minor"></span>'+
-                  '<span class="minor"></span>'+
-                  '<span class="major"></span>'+
-                  '<span class="minor"></span>'+
-                  '<span class="minor"></span>'+
-                  '<span class="minor"></span>'+
-                  '<span class="minor"></span>'+
-                  '<span class="major"></span>'+
-                '</div>'+
-              '</div>'+
-              '<span class="ppu-slider-endlabel">10</span>'+
-            '</div>'+
-            '<span id="ppu-pages-status"></span>'+
-          '</div>'+
-          '<div id="ppu-pages-warning" style="margin:0 14px 6px;display:none;">\u26a0\ufe0f Amazon sometimes limits results beyond 7 pages, and those results may be less relevant to your search.</div>'
-        : '')+
-        pillHtml+
-        '<div class="ppu-section-divider"><span>Filter</span></div>'+
         '<div id="ppu-filter-row">'+
           '<label for="ppu-keyword">Keywords:</label>'+
-          '<input id="ppu-keyword" type="text" placeholder="e.g. unscented -refill" value="'+keyword.replace(/"/g,'&quot;')+'">'+
+          '<input id="ppu-keyword" type="text" placeholder="e.g. unscented -refill \u00b7 6ft OR 72 inches \u00b7 organic -sponsored" value="'+keyword.replace(/"/g,'&quot;')+'">'+
           '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
+          '<button id="ppu-btn-reset-filters" class="ppu-btn">Start over</button>'+
         '</div>'+
-        '<div class="ppu-slider-row">'+
-          '<span class="ppu-slider-label">Minimum reviews: <em id="ppu-min-reviews-val">'+(minReviews||0)+'</em></span>'+
-          '<div class="ppu-slider-wrap">'+
-            '<span class="ppu-slider-startlabel">0</span>'+
-            '<div class="ppu-slider-track-wrap">'+
-              '<input id="ppu-min-reviews-slider" type="range" class="ppu-slider" min="0" max="1000" step="100" value="'+(minReviews||0)+'">'+
-              '<div class="ppu-slider-ticks">'+
-                '<span class="major"></span>'+
-                '<span class="minor"></span>'+
-                '<span class="major"></span>'+
-                '<span class="minor"></span>'+
-                '<span class="major"></span>'+
-                '<span class="minor"></span>'+
-                '<span class="major"></span>'+
-                '<span class="minor"></span>'+
-                '<span class="major"></span>'+
-                '<span class="minor"></span>'+
-                '<span class="major"></span>'+
+        '<div id="ppu-keyword-hint">Actually Useful works best in conjunction with Amazon\u2019s existing filters. Make your selections in the left sidebar before refining with Actually Useful.</div>'+
+        pillHtml+
+        '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-sort-toggle" data-target="ppu-sort-collapsible">'+
+          '<span>Sort <span class="ppu-chevron">\u25be</span></span>'+
+        '</div>'+
+        '<div id="ppu-sort-collapsible" class="ppu-collapsible-section">'+
+          '<div id="ppu-controls">'+
+            '<select id="ppu-sort" class="ppu-sort-select">'+
+              '<option value="ppu-asc">Best value \u2191</option>'+
+              '<option value="price-asc">Price low\u2192high</option>'+
+              '<option value="delivery-free">Soonest FREE delivery</option>'+
+              '<option value="delivery-any">Soonest ANY delivery</option>'+
+              '<option value="default">As shown in Amazon results</option>'+
+            '</select>'+
+            '<button id="ppu-btn-refresh" class="ppu-btn">\u21ba Refresh</button>'+
+            '<button id="ppu-btn-resort" class="ppu-btn btn-teal">Re-sort all \u21c5</button>'+
+            '<button id="ppu-btn-hide-sponsored" class="ppu-btn">Move ads to end of results</button>'+
+            '<button id="ppu-btn-show-checked" class="ppu-btn btn-orange">Show selected (0)</button>'+
+            '<button id="ppu-btn-clear-checked" class="ppu-btn">Clear selection</button>'+
+          '</div>'+
+          (nextPageUrl ?
+            '<div id="ppu-pages-row">'+
+              '<span id="ppu-pages-label">Pages to load: <em>1</em></span>'+
+              '<div class="ppu-slider-wrap">'+
+                '<span class="ppu-slider-startlabel">1</span>'+
+                '<div class="ppu-slider-track-wrap">'+
+                  '<input id="ppu-pages-slider" type="range" class="ppu-slider" min="1" max="10" step="1" value="1">'+
+                  '<div class="ppu-slider-ticks">'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                  '</div>'+
+                '</div>'+
+                '<span class="ppu-slider-endlabel">10</span>'+
+              '</div>'+
+              '<span id="ppu-pages-status"></span>'+
+            '</div>'+
+            '<div id="ppu-pages-warning" style="margin:0 14px 6px;display:none;">\u26a0\ufe0f Amazon sometimes limits results beyond 7 pages, and those results may be less relevant to your search.</div>'
+          : '')+
+        '</div>'+
+        '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-filters-toggle" data-target="ppu-filters-collapsible">'+
+          '<span>Filters <span class="ppu-chevron">\u25be</span></span>'+
+        '</div>'+
+        '<div id="ppu-filters-collapsible" class="ppu-collapsible-section">'+
+          '<div id="ppu-sliders-row">'+
+            '<div class="ppu-slider-half">'+
+              '<span class="ppu-slider-label">Minimum reviews: <em id="ppu-min-reviews-val">'+(minReviews||0)+'</em></span>'+
+              '<div class="ppu-slider-wrap">'+
+                '<span class="ppu-slider-startlabel">0</span>'+
+                '<div class="ppu-slider-track-wrap">'+
+                  '<input id="ppu-min-reviews-slider" type="range" class="ppu-slider" min="0" max="1000" step="100" value="'+(minReviews||0)+'">'+
+                  '<div class="ppu-slider-ticks">'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                  '</div>'+
+                '</div>'+
+                '<span class="ppu-slider-endlabel">1000</span>'+
               '</div>'+
             '</div>'+
-            '<span class="ppu-slider-endlabel">1000</span>'+
-          '</div>'+
-        '</div>'+
-        '<div class="ppu-slider-row">'+
-          '<span class="ppu-slider-label">Minimum rating: <em id="ppu-min-rating-val">'+(minRating>0?(minRating+'\u2605'):'Any')+'</em></span>'+
-          '<div class="ppu-slider-wrap">'+
-            '<span class="ppu-slider-startlabel">0</span>'+
-            '<div class="ppu-slider-track-wrap">'+
-              '<input id="ppu-min-rating-slider" type="range" class="ppu-slider" min="0" max="5" step="0.5" value="'+(minRating||0)+'">'+
-              '<div class="ppu-slider-ticks">'+
-                '<span class="major"></span>'+
-                '<span class="minor"></span>'+
-                '<span class="major"></span>'+
-                '<span class="minor"></span>'+
-                '<span class="major"></span>'+
-                '<span class="minor"></span>'+
-                '<span class="major"></span>'+
-                '<span class="minor"></span>'+
-                '<span class="major"></span>'+
-                '<span class="minor"></span>'+
-                '<span class="major"></span>'+
+            '<div class="ppu-slider-half">'+
+              '<span class="ppu-slider-label">Minimum rating: <em id="ppu-min-rating-val">'+(minRating>0?(minRating+'\u2605'):'Any')+'</em></span>'+
+              '<div class="ppu-slider-wrap">'+
+                '<span class="ppu-slider-startlabel">0</span>'+
+                '<div class="ppu-slider-track-wrap">'+
+                  '<input id="ppu-min-rating-slider" type="range" class="ppu-slider" min="0" max="5" step="0.5" value="'+(minRating||0)+'">'+
+                  '<div class="ppu-slider-ticks">'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                    '<span class="minor"></span>'+
+                    '<span class="major"></span>'+
+                  '</div>'+
+                '</div>'+
+                '<span class="ppu-slider-endlabel">5\u2605</span>'+
               '</div>'+
             '</div>'+
-            '<span class="ppu-slider-endlabel">5\u2605</span>'+
           '</div>'+
+          (hasNonStandard?
+            '<div id="ppu-source-row">'+
+              '<span class="label">Sources:</span>'+
+              Object.keys(detectedRetailers).map(function(k){
+                var label=detectedRetailers[k];
+                var cls='ppu-source-toggle'+
+                  (k==='standard'?' src-standard':k==='fresh'?' src-fresh':k==='whole-foods'?' src-wf':k==='pharmacy'?' src-pharmacy':' src-partner')+
+                  (!srcFilter[k]?' off':'');
+                return '<span class="'+cls+'" data-src="'+k+'">'+label+'</span>';
+              }).join('')+
+            '</div>':'')+
         '</div>'+
-        (hasNonStandard?
-          '<div id="ppu-source-row">'+
-            '<span class="label">Sources:</span>'+
-            Object.keys(detectedRetailers).map(function(k){
-              var label=detectedRetailers[k];
-              var cls='ppu-source-toggle'+
-                (k==='standard'?' src-standard':k==='fresh'?' src-fresh':k==='whole-foods'?' src-wf':k==='pharmacy'?' src-pharmacy':' src-partner')+
-                (!srcFilter[k]?' off':'');
-              return '<span class="'+cls+'" data-src="'+k+'">'+label+'</span>';
-            }).join('')+
-          '</div>':'')+
-        '<div id="ppu-footer-row">'+
-          '<a id="ppu-feedback" href="https://docs.google.com/forms/d/e/1FAIpQLSf7APKSpbKsSgP28G1NU_7flVdgbrfduta88xs90515YzOakw/viewform" target="_blank">\ud83d\udcac Give feedback</a>'+
-          '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">\u2615 Buy me a coffee</a>'+
-        '</div>'+
-        '<div id="ppu-sort-note"></div>'+
-        '<div id="ppu-info"></div>'+
       '</div>'+
       '<div id="ppu-scroll-area">'+
+        '<div id="ppu-shortlist-bar" style="display:none">'+
+          '<label id="ppu-select-all-wrap"><input type="checkbox" id="ppu-select-all"> Select all</label>'+
+          '<button id="ppu-btn-open-tabs">Open selected listings in new tabs (0)</button>'+
+        '</div>'+
         '<div id="ppu-list"></div>'+
         '<div id="ppu-load-more-row" style="'+(nextPageUrl?'':'display:none')+'">'+
           '<button id="ppu-btn-load-more">\u2193 Load page '+(loadedPages+1)+' results</button>'+
         '</div>'+
       '</div>'+
-      '<div id="ppu-wf-note" style="display:none">\u26a0\ufe0f Whole Foods delivery is not included in your Prime membership. Free pickup or $9.95 delivery.</div>';
+      '<div id="ppu-wf-note" style="display:none">\u26a0\ufe0f Whole Foods delivery is not included in your Prime membership. Free pickup or $9.95 delivery.</div>'+
+      '<div id="ppu-footer-row">'+
+        '<div id="ppu-sort-note"></div>'+
+        '<div id="ppu-info"></div>'+
+        '<div id="ppu-footer-links">'+
+          '<a id="ppu-feedback" href="https://forms.gle/J3AECVTDHWKDZZKE7" target="_blank">\ud83d\udcac Give feedback</a>'+
+          '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">\u2615 Buy me a coffee</a>'+
+        '</div>'+
+      '</div>';
 
     document.body.appendChild(panel);
 
@@ -1315,6 +1320,9 @@ const ITEM_UNITS = [
     var minReviewsSlider=document.getElementById('ppu-min-reviews-slider');
     var minRatingSlider=document.getElementById('ppu-min-rating-slider');
     var pagesSlider=document.getElementById('ppu-pages-slider');
+    var shortlistBar=document.getElementById('ppu-shortlist-bar');
+    var selectAllChk=document.getElementById('ppu-select-all');
+    var openTabsBtn=document.getElementById('ppu-btn-open-tabs');
 
     if(keyword){kwInput.classList.add('active');clearKw.style.display='block';}
     updateSliderFill(minReviewsSlider,0,1000);
@@ -1332,6 +1340,15 @@ const ITEM_UNITS = [
       showChkBtn.style.display=cc>0?'block':'none';
       clearChkBtn.style.display=cc>0?'block':'none';
       showChkBtn.textContent=showCheckedOnly?'Show all ('+cc+' selected)':'Show selected ('+cc+')';
+      // Shortlist bar
+      if(shortlistBar) shortlistBar.style.display=cc>0?'flex':'none';
+      if(openTabsBtn) openTabsBtn.textContent='Open selected listings in new tabs ('+cc+')';
+      if(selectAllChk) {
+        var allAsins=allData.map(function(r){return r.asin;});
+        var checkedCount=allAsins.filter(function(a){return checkedAsins[a];}).length;
+        selectAllChk.indeterminate=checkedCount>0&&checkedCount<allAsins.length;
+        selectAllChk.checked=checkedCount===allAsins.length&&allAsins.length>0;
+      }
       var sortLabels={'ppu-asc':'best value','price-asc':'price','delivery-free':'soonest free delivery','delivery-any':'soonest delivery','default':'Amazon order'};
       var resortLabel='Re-sort all by '+( sortLabels[sortVal]||'current sort')+' \u21c5';
       resortBtn.style.display=(needsResort&&!showCheckedOnly)?'block':'none';
@@ -1404,7 +1421,7 @@ const ITEM_UNITS = [
       var info=withData+'/'+allData.length+' have unit data';
       if(loadedPages>1){
         if(nextPageUrl) info+=' \u00b7 '+loadedPages+' pages';
-        else            info+=' \u00b7 '+loadedPages+' pages loaded \u2014 Amazon\'s limit reached';
+        else            info+=' \u00b7 '+loadedPages+' pages loaded \u2014 no more available';
       }
       if(hasKw)                    info+=' \u00b7 \uD83D\uDD0D '+matchCt+' match filter';
       if(hiddenSrc>0)              info+=' \u00b7 '+hiddenSrc+' source-hidden';
@@ -1628,6 +1645,40 @@ const ITEM_UNITS = [
     showChkBtn.addEventListener('click',function(){showCheckedOnly=!showCheckedOnly;render();});
     clearChkBtn.addEventListener('click',function(){checkedAsins={};showCheckedOnly=false;render();});
 
+    // ── Shortlist bar: select-all ─────────────────────────────────────────
+    if(selectAllChk){
+      selectAllChk.addEventListener('click',function(){
+        var allAsins=allData.map(function(r){return r.asin;});
+        var checkedCount=allAsins.filter(function(a){return checkedAsins[a];}).length;
+        if(checkedCount===0){
+          // None checked → check all
+          allAsins.forEach(function(a){checkedAsins[a]=true;});
+        } else if(checkedCount===allAsins.length){
+          // All checked → uncheck all
+          checkedAsins={};
+        } else {
+          // Some checked → confirm then check all
+          if(confirm('Check all '+allAsins.length+' results?')){
+            allAsins.forEach(function(a){checkedAsins[a]=true;});
+          } else {
+            // User cancelled — leave state as-is, but we need to restore checkbox appearance
+          }
+        }
+        render();
+      });
+    }
+
+    // ── Shortlist bar: open in tabs ───────────────────────────────────────
+    if(openTabsBtn){
+      openTabsBtn.addEventListener('click',function(){
+        var asins=Object.keys(checkedAsins);
+        asins.forEach(function(asin){
+          var row=allData.find(function(r){return r.asin===asin;});
+          if(row&&row.href) window.open(row.href,'_blank');
+        });
+      });
+    }
+
     kwInput.addEventListener('input',function(){
       keyword=this.value;
       this.classList.toggle('active',this.value.trim().length>0);
@@ -1692,6 +1743,33 @@ const ITEM_UNITS = [
       updateSponsoredBtn(hideSponsoredBtn,sponsoredMode);
       render();
     });
+
+    // ── Collapsible section dividers ──────────────────────────────────────
+    function setupCollapsible(toggleId, sectionId, openFlag) {
+      var toggle  = document.getElementById(toggleId);
+      var section = document.getElementById(sectionId);
+      if (!toggle || !section) return;
+      // Set initial height for smooth animation
+      section.style.maxHeight = section.scrollHeight + 'px';
+      toggle.addEventListener('click', function() {
+        openFlag = !openFlag;
+        var chevron = toggle.querySelector('.ppu-chevron');
+        if (openFlag) {
+          section.style.maxHeight = section.scrollHeight + 'px';
+          if (chevron) chevron.style.transform = '';
+          toggle.classList.remove('collapsed');
+        } else {
+          section.style.maxHeight = '0';
+          if (chevron) chevron.style.transform = 'rotate(-90deg)';
+          toggle.classList.add('collapsed');
+        }
+        // Update the outer flag variable
+        if (toggleId === 'ppu-sort-toggle')    sortOpen    = openFlag;
+        if (toggleId === 'ppu-filters-toggle') filtersOpen = openFlag;
+      });
+    }
+    setupCollapsible('ppu-sort-toggle',    'ppu-sort-collapsible',    sortOpen);
+    setupCollapsible('ppu-filters-toggle', 'ppu-filters-collapsible', filtersOpen);
 
     document.getElementById('ppu-collapse').addEventListener('click',function(e){e.stopPropagation();isCollapsed=!isCollapsed;panel.classList.toggle('collapsed',isCollapsed);});
     document.getElementById('ppu-close').addEventListener('click',function(e){e.stopPropagation();panel.remove();});
