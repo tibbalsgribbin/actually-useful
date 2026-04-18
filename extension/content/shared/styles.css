@@ -371,6 +371,14 @@ mark.ppu-kw-highlight { background:#ffc400;color:#000;border-radius:2px;padding:
 }
 #ppu-drag-handle:hover { background:linear-gradient(to right,rgba(0,113,133,0.2),transparent); }
 
+/* ── Bottom resize handle (height) ──────────────────────────────────── */
+#ppu-bottom-handle {
+  position:absolute;bottom:0;left:0;right:0;height:6px;cursor:ns-resize;
+  background:linear-gradient(to bottom,transparent,rgba(0,0,0,0.06));
+  border-radius:0 0 8px 8px;z-index:100;flex-shrink:0;
+}
+#ppu-bottom-handle:hover { background:linear-gradient(to bottom,transparent,rgba(0,113,133,0.2)); }
+
 #ppu-delivery-note { font-size:0.82rem;color:#aaa;font-style:italic;padding:3px 14px 4px;border-bottom:1px solid #f0f2f2; }
 #ppu-wf-note { font-size:0.82rem;color:#888;font-style:italic;padding:8px 14px;border-top:1px solid #e0e0e0;background:#fafafa;flex-shrink:0;text-align:center; }
 .ppu-no-delivery { font-size:11px;color:#bbb;font-style:italic; }

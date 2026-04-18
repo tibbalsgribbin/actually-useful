@@ -1,10 +1,11 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v6.1.2)
+// Part of the Actually Useful Chrome/Edge extension (v6.1.3)
 
 'use strict';
 
 const PANEL_ID = 'ppu-sorter-panel';
+const AU_FILTERS_KEY = 'au_search_filters'; // persists filter state per search term within session
 // SCRIPT_VERSION and LOG_URL are defined in core.js — not duplicated here.
 // Nudge state and delay are managed entirely by core.js (auNudge* functions).
 
@@ -55,6 +56,46 @@ const ITEM_UNITS = [
         searchTerm: (new URLSearchParams(window.location.search).get('k')||'').trim(),
       }, data));
     } catch(e) {}
+  }
+
+  // ── Filter persistence (session-scoped per search term) ───────────────────
+  // Filters are saved to sessionStorage keyed by search term.
+  // chrome.storage.local is for cross-session data (shortlist, panel position).
+  // Filters intentionally reset when the search term changes.
+
+  function getFilterStorageKey(term) {
+    return AU_FILTERS_KEY + ':' + (term || '').trim().toLowerCase();
+  }
+
+  function saveFilters(searchTerm) {
+    try {
+      var key = getFilterStorageKey(searchTerm);
+      var state = {
+        keyword:       keyword,
+        sortVal:       sortVal,
+        minReviews:    minReviews,
+        minRating:     minRating,
+        sponsoredMode: sponsoredMode,
+        selectedUnit:  selectedUnit,
+        srcFilter:     srcFilter
+      };
+      sessionStorage.setItem(key, JSON.stringify(state));
+    } catch(e) {}
+  }
+
+  function loadFilters(searchTerm, callback) {
+    try {
+      var key = getFilterStorageKey(searchTerm);
+      var raw = sessionStorage.getItem(key);
+      if (raw) {
+        var state = JSON.parse(raw);
+        callback(state);
+      } else {
+        callback(null);
+      }
+    } catch(e) {
+      callback(null);
+    }
   }
 
   // ── Unit conversion ───────────────────────────────────────────────────────
@@ -843,6 +884,32 @@ const ITEM_UNITS = [
       return {asin:r.asin,title:r.title,price:r.price?'$'+r.price.toFixed(2):'',ppu:r.ppu?formatPPU(r.ppu):'',ppuUnit:r.unit||''};
     }));
 
+    // ── Restore filters for this search term ──────────────────────────────
+    var savedFilters = null;
+    try {
+      var fkey = getFilterStorageKey(searchTerm);
+      var fraw = sessionStorage.getItem(fkey);
+      if (fraw) savedFilters = JSON.parse(fraw);
+    } catch(e) {}
+
+    if (savedFilters) {
+      keyword       = savedFilters.keyword       || '';
+      sortVal       = savedFilters.sortVal       || 'ppu-asc';
+      minReviews    = savedFilters.minReviews    || 0;
+      minRating     = savedFilters.minRating     || 0;
+      sponsoredMode = savedFilters.sponsoredMode || 'show';
+      selectedUnit  = savedFilters.selectedUnit  || null;
+      // srcFilter restored after detectedRetailers is built below
+    } else {
+      // Fresh search — reset all filters
+      keyword       = '';
+      sortVal       = 'ppu-asc';
+      minReviews    = 0;
+      minRating     = 0;
+      sponsoredMode = 'show';
+      selectedUnit  = null;
+    }
+
     isLiquidDominant=inferLiquidDominant(allData);
     if(isLiquidDominant) applyLiquidCtConversion(allData);
     isLiquidDominant=inferLiquidDominant(allData);
@@ -854,8 +921,17 @@ const ITEM_UNITS = [
       var l = r.retailer ? r.retailer.label : 'Amazon';
       if(!detectedRetailers[k]) detectedRetailers[k] = l;
     });
-    Object.keys(detectedRetailers).forEach(function(k) { if(!(k in srcFilter)) srcFilter[k] = true; });
-    Object.keys(srcFilter).forEach(function(k) { if(!(k in detectedRetailers)) delete srcFilter[k]; });
+
+    // Restore srcFilter from saved state, or initialise fresh
+    if (savedFilters && savedFilters.srcFilter) {
+      srcFilter = {};
+      Object.keys(detectedRetailers).forEach(function(k) {
+        srcFilter[k] = (savedFilters.srcFilter[k] !== undefined) ? savedFilters.srcFilter[k] : true;
+      });
+    } else {
+      Object.keys(detectedRetailers).forEach(function(k) { if(!(k in srcFilter)) srcFilter[k] = true; });
+      Object.keys(srcFilter).forEach(function(k) { if(!(k in detectedRetailers)) delete srcFilter[k]; });
+    }
 
     var hasNonStandard = Object.keys(detectedRetailers).some(function(k){ return k !== 'standard'; });
     var hasWholeFoods=allData.some(function(r){return r.retailer&&r.retailer.key==='whole-foods';});
@@ -893,6 +969,7 @@ const ITEM_UNITS = [
 
     panel.innerHTML=
       '<div id="ppu-drag-handle"></div>'+
+      '<div id="ppu-bottom-handle"></div>'+
       '<div id="ppu-controls-wrap">'+
         '<div id="ppu-header">'+
           '<h3>Actually Useful</h3>'+
@@ -922,7 +999,7 @@ const ITEM_UNITS = [
               '<option value="delivery-any">Soonest ANY delivery</option>'+
               '<option value="default">As shown in Amazon results</option>'+
             '</select>'+
-            '<button id="ppu-btn-refresh" class="ppu-btn">\u21ba Refresh</button>'+
+            '<button id="ppu-btn-refresh" class="ppu-btn">\u21ba Re-scan page</button>'+
             '<button id="ppu-btn-resort" class="ppu-btn btn-teal">Re-sort all \u21c5</button>'+
             '<button id="ppu-btn-hide-sponsored" class="ppu-btn">Move ads to end of results</button>'+
             '<button id="ppu-btn-show-checked" class="ppu-btn btn-orange">Show selected (0)</button>'+
@@ -1018,13 +1095,19 @@ const ITEM_UNITS = [
     document.body.appendChild(panel);
 
     // ── Position panel ────────────────────────────────────────────────────
-    var DEFAULT_WIDTH = 390;
-    var DEFAULT_TOP   = 80;
+    var DEFAULT_WIDTH  = 390;
+    var DEFAULT_HEIGHT = null; // null = natural height (max-height from CSS)
+    var DEFAULT_TOP    = 80;
+    var MIN_HEIGHT     = 200;
 
-    function applyPosition(top, left, width) {
+    function applyPosition(top, left, width, height) {
       panel.style.top   = top   + 'px';
       panel.style.left  = left  + 'px';
       panel.style.width = width + 'px';
+      if (height) {
+        panel.style.maxHeight = height + 'px';
+        panel.style.height    = height + 'px';
+      }
     }
 
     function defaultLeft() { return window.innerWidth - DEFAULT_WIDTH - 16; }
@@ -1032,9 +1115,9 @@ const ITEM_UNITS = [
     chrome.storage.local.get('au_search_panel_pos', function(result) {
       var pos = result['au_search_panel_pos'];
       if (pos && typeof pos.top === 'number' && typeof pos.left === 'number' && typeof pos.width === 'number') {
-        applyPosition(pos.top, pos.left, pos.width);
+        applyPosition(pos.top, pos.left, pos.width, pos.height || null);
       } else {
-        applyPosition(DEFAULT_TOP, defaultLeft(), DEFAULT_WIDTH);
+        applyPosition(DEFAULT_TOP, defaultLeft(), DEFAULT_WIDTH, null);
       }
     });
 
@@ -1061,7 +1144,8 @@ const ITEM_UNITS = [
         if (!isDragMove) return;
         isDragMove = false; panelMoved = true; document.body.style.userSelect = '';
         var rect = panel.getBoundingClientRect();
-        chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth } });
+        var curHeight = panel.style.height ? panel.offsetHeight : null;
+        chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth, height: curHeight } });
       });
     }
 
@@ -1085,7 +1169,33 @@ const ITEM_UNITS = [
         if (!isDragResize) return;
         isDragResize = false; document.body.style.userSelect = '';
         var rect = panel.getBoundingClientRect();
-        chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth } });
+        var curHeight = panel.style.height ? panel.offsetHeight : null;
+        chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth, height: curHeight } });
+      });
+    }
+
+    // ── Drag to resize (bottom edge handle — height) ──────────────────────
+    var bh = document.getElementById('ppu-bottom-handle');
+    if (bh) {
+      var isDragBottom = false, fixedTop, startHeight;
+      bh.addEventListener('mousedown', function(e) {
+        isDragBottom = true;
+        fixedTop = panel.getBoundingClientRect().top;
+        startHeight = panel.offsetHeight;
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragBottom) return;
+        var newHeight = Math.min(window.innerHeight - fixedTop - 10, Math.max(MIN_HEIGHT, e.clientY - fixedTop));
+        panel.style.height    = newHeight + 'px';
+        panel.style.maxHeight = newHeight + 'px';
+      });
+      document.addEventListener('mouseup', function() {
+        if (!isDragBottom) return;
+        isDragBottom = false; document.body.style.userSelect = '';
+        var rect = panel.getBoundingClientRect();
+        chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth, height: panel.offsetHeight } });
       });
     }
 
@@ -1112,6 +1222,11 @@ const ITEM_UNITS = [
       updateSponsoredBtn(hideSponsoredBtn,sponsoredMode);
     }
 
+    // ── Helper: save filters ──────────────────────────────────────────────
+    function persistFilters() {
+      saveFilters(searchTerm);
+    }
+
     // ── Render ────────────────────────────────────────────────────────────
     function render() {
       sortVal=sortEl.value;
@@ -1125,7 +1240,6 @@ const ITEM_UNITS = [
       if(selectAllChk) {
         var allAsins=allData.map(function(r){return r.asin;});
         var checkedCount=allAsins.filter(function(a){return checkedAsins[a];}).length;
-        // Simple checked/unchecked — no indeterminate state needed with the new toggle model
         selectAllChk.indeterminate = false;
         selectAllChk.checked = checkedCount === allAsins.length && allAsins.length > 0;
       }
@@ -1366,6 +1480,7 @@ const ITEM_UNITS = [
         });
       });
       scheduleLog();
+      persistFilters();
     } // end render
 
     // ── Helper: slider fill track ────────────────────────────────────────
@@ -1418,16 +1533,13 @@ const ITEM_UNITS = [
     clearChkBtn.addEventListener('click',function(){checkedAsins={};showCheckedOnly=false;render();});
 
     // ── Shortlist bar: select-all ─────────────────────────────────────────
-    // Simple toggle: nothing checked → check all; anything checked → uncheck all.
     if(selectAllChk){
       selectAllChk.addEventListener('click',function(){
         var allAsins=allData.map(function(r){return r.asin;});
         var checkedCount=allAsins.filter(function(a){return checkedAsins[a];}).length;
         if(checkedCount===0){
-          // Nothing checked → check all
           allAsins.forEach(function(a){checkedAsins[a]=true;});
         } else {
-          // Anything checked (some or all) → uncheck all
           checkedAsins={};
         }
         render();
@@ -1537,7 +1649,11 @@ const ITEM_UNITS = [
 
     document.getElementById('ppu-collapse').addEventListener('click',function(e){e.stopPropagation();isCollapsed=!isCollapsed;panel.classList.toggle('collapsed',isCollapsed);});
     document.getElementById('ppu-close').addEventListener('click',function(e){e.stopPropagation();panel.remove();});
-    document.getElementById('ppu-btn-refresh').addEventListener('click',function(){this.textContent='Refreshing\u2026';this.disabled=true;checkedAsins={};showCheckedOnly=false;setTimeout(function(){buildPanel();},100);});
+    document.getElementById('ppu-btn-refresh').addEventListener('click',function(){
+      this.textContent='Re-scanning\u2026';this.disabled=true;
+      checkedAsins={};showCheckedOnly=false;
+      setTimeout(function(){buildPanel();},100);
+    });
 
     var coffeeLink=document.getElementById('ppu-coffee');
     if(coffeeLink) coffeeLink.addEventListener('click',function(){sendLog({event:'kofi_click'});});
@@ -1571,7 +1687,7 @@ const ITEM_UNITS = [
           }).catch(function(err){
             console.log('[PPU] Pages slider load failed:',err);
             pagesSlider.disabled=false;
-            if(statusEl){statusEl.textContent='Load failed \u2014 try Refresh';setTimeout(function(){statusEl.style.display='none';},3000);}
+            if(statusEl){statusEl.textContent='Load failed \u2014 try Re-scan page';setTimeout(function(){statusEl.style.display='none';},3000);}
           });
         }
         loadNext(target-loadedPages);
@@ -1592,7 +1708,7 @@ const ITEM_UNITS = [
           isLiquidDominant=inferLiquidDominant(allData);
           unitPills=generateUnitPills(allData,isLiquidDominant);
           btn.disabled=false; updateLoadMoreRow(); maybeShowNudge(); render();
-        }).catch(function(err){console.log('[PPU] Load more failed:',err);btn.textContent='Load failed \u2014 try Refresh';btn.disabled=false;});
+        }).catch(function(err){console.log('[PPU] Load more failed:',err);btn.textContent='Load failed \u2014 try Re-scan page';btn.disabled=false;});
       });
     }
 
@@ -1616,7 +1732,7 @@ const ITEM_UNITS = [
           '<div style="padding:12px 16px;">'+
             '<p style="margin:0 0 8px;color:#c0392b;font-weight:600;">\u26a0 Something went wrong</p>'+
             '<p style="margin:0 0 12px;font-size:13px;">The panel couldn\u2019t load. Try refreshing the page. If this keeps happening, please let us know.</p>'+
-            '<button id="ppu-err-refresh">\u21ba Refresh page</button>'+
+            '<button id="ppu-err-refresh">\u21ba Re-scan page</button>'+
           '</div>'+
         '</div>';
       document.body.appendChild(errPanel);
