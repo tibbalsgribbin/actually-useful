@@ -1086,7 +1086,7 @@ const ITEM_UNITS = [
           '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
           '<button id="ppu-btn-reset-filters" class="ppu-btn">Start over</button>'+
         '</div>'+
-        '<div id="ppu-keyword-hint">Actually Useful works best in conjunction with Amazon\u2019s existing filters. Make your selections in the left sidebar before refining with Actually Useful.</div>'+
+        '<div id="ppu-keyword-hint">Actually Useful works best in conjunction with Amazon\u2019s existing filters. Make your selections in the left sidebar of the results page before refining with Actually Useful.</div>'+
         pillHtml+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-sort-toggle" data-target="ppu-sort-collapsible">'+
           '<span>Sort <span class="ppu-chevron">\u25be</span></span>'+
@@ -1580,6 +1580,7 @@ const ITEM_UNITS = [
           '</div>';
       });
 
+      if(hasKw&&matchCt===0){html='<div class="ppu-empty-kw">No results match your keyword(s)</div>'+html;}
       document.getElementById('ppu-list').innerHTML=html;
       document.querySelectorAll('.ppu-cb').forEach(function(cb){
         cb.addEventListener('change',function(){
@@ -1590,6 +1591,8 @@ const ITEM_UNITS = [
           showChkBtn.style.display=cnt>0?'block':'none';
           clearChkBtn.style.display=cnt>0?'block':'none';
           showChkBtn.textContent=showCheckedOnly?'Show all ('+cnt+' selected)':'Show selected ('+cnt+')';
+          if(shortlistBar) shortlistBar.style.display=cnt>0?'flex':'none';
+          if(openTabsBtn) openTabsBtn.textContent='Open selected listings in new tabs ('+cnt+')';
         });
       });
       scheduleLog();
@@ -1679,12 +1682,14 @@ const ITEM_UNITS = [
       });
     }
 
+    var kwDebounceTimer=null;
     kwInput.addEventListener('input',function(){
       keyword=this.value;
       this.classList.toggle('active',this.value.trim().length>0);
       clearKw.style.display=this.value.trim().length>0?'block':'none';
       if(keyword.includes('-')) maybeShowNudge();
-      render();
+      clearTimeout(kwDebounceTimer);
+      kwDebounceTimer=setTimeout(function(){render();},250);
     });
     clearKw.addEventListener('click',function(){kwInput.value='';keyword='';kwInput.classList.remove('active');clearKw.style.display='none';kwInput.focus();render();});
 
