@@ -996,7 +996,7 @@ const ITEM_UNITS = [
         '</div>'+
       '</div>'+
       '<div id="ppu-scroll-area">'+
-        '<div id="ppu-shortlist-bar" style="display:none">'+
+        '<div id="ppu-shortlist-bar">'+
           '<label id="ppu-select-all-wrap"><input type="checkbox" id="ppu-select-all"> Select all</label>'+
           '<button id="ppu-btn-open-tabs">Open selected listings in new tabs (0)</button>'+
         '</div>'+
@@ -1120,7 +1120,7 @@ const ITEM_UNITS = [
       showChkBtn.style.display=cc>0?'block':'none';
       clearChkBtn.style.display=cc>0?'block':'none';
       showChkBtn.textContent=showCheckedOnly?'Show all ('+cc+' selected)':'Show selected ('+cc+')';
-      if(shortlistBar) shortlistBar.style.display=cc>0?'flex':'none';
+
       if(openTabsBtn) openTabsBtn.textContent='Open selected listings in new tabs ('+cc+')';
       if(selectAllChk) {
         var allAsins=allData.map(function(r){return r.asin;});
@@ -1361,7 +1361,7 @@ const ITEM_UNITS = [
           showChkBtn.style.display=cnt>0?'block':'none';
           clearChkBtn.style.display=cnt>0?'block':'none';
           showChkBtn.textContent=showCheckedOnly?'Show all ('+cnt+' selected)':'Show selected ('+cnt+')';
-          if(shortlistBar) shortlistBar.style.display=cnt>0?'flex':'none';
+
           if(openTabsBtn) openTabsBtn.textContent='Open selected listings in new tabs ('+cnt+')';
         });
       });

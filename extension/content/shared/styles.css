@@ -288,7 +288,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 
 /* ── Shortlist bar ───────────────────────────────────────────────────── */
 #ppu-shortlist-bar {
-  display:none;align-items:center;gap:8px;
+  display:flex;align-items:center;gap:8px;
   padding:6px 10px;background:#fffbf0;border-bottom:2px solid #e47911;
   position:sticky;top:0;z-index:10;flex-shrink:0;
 }
