@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v6.1.1)
+// Part of the Actually Useful Chrome/Edge extension (v6.1.2)
 
 'use strict';
 
@@ -37,11 +37,7 @@ const ITEM_UNITS = [
     'g','gram','grams','kg','kilogram','kilograms','ml','milliliter','milliliters','l','liter','liters'
   ];
 
-  // ── Search Context Persistence (v6.0.0) ───────────────────────────────────
-  // Saves current search term and result items to background service worker via
-  // chrome.runtime.sendMessage so product.js can read them on the next page.
-  // Each item includes asin, title, price, ppu, ppuUnit for display in the
-  // product page from-search panel.
+  // ── Search Context Persistence ────────────────────────────────────────────
   function saveSearchContext(term, searchUrl, items) {
     if (!term) return;
     try {
@@ -52,7 +48,6 @@ const ITEM_UNITS = [
     } catch(e) {}
   }
 
-  // sendLog → delegates to auSendLog from core.js
   function sendLog(data) {
     try {
       auSendLog(Object.assign({
@@ -127,16 +122,13 @@ const ITEM_UNITS = [
   // ── Liquid-dominant inference ─────────────────────────────────────────────
   function inferLiquidDominant(data) {
     var searchTerm = (new URLSearchParams(window.location.search).get('k')||'').toLowerCase();
-
     for (var s=0; s<SOLID_KEYWORDS.length; s++) {
       if (searchTerm.includes(SOLID_KEYWORDS[s])) return false;
     }
-
     var termIsLiquid = false;
     for (var i=0; i<LIQUID_KEYWORDS.length; i++) {
       if (searchTerm.includes(LIQUID_KEYWORDS[i])) { termIsLiquid=true; break; }
     }
-
     var liquidCount=0, weightCount=0;
     data.forEach(function(r){
       if (!r.unit) return;
@@ -145,14 +137,10 @@ const ITEM_UNITS = [
       else if (termIsLiquid && u === 'oz') liquidCount++;
       else if (WEIGHT_UNITS.indexOf(u) !== -1) weightCount++;
     });
-
     var total = liquidCount+weightCount;
     return termIsLiquid && total>0 && liquidCount/total >= 0.6;
   }
 
-  // ── Extract per-item fl oz from title (for liquid-dominant ct conversion) ──
-  // Looks for patterns like "12 Fl Oz" or "11.15 fl oz" in product title.
-  // Used to convert ct-unit items to fl oz in liquid-dominant categories.
   function extractFlOzFromTitle(title) {
     var m = title.match(/(\d+(?:\.\d+)?)\s*(?:fl\.?\s*oz|fluid\s*ounces?)/i);
     if (m) return parseFloat(m[1]);
@@ -167,7 +155,6 @@ const ITEM_UNITS = [
       var u = r.unit.toLowerCase();
       unitCounts[u] = (unitCounts[u]||0)+1;
     });
-
     var pills = [];
     var hasLiquidUnit = Object.keys(unitCounts).some(function(u){
       return LIQUID_UNITS.indexOf(u)!==-1 || (isLiqDom && u==='oz');
@@ -177,9 +164,7 @@ const ITEM_UNITS = [
     });
     var COUNT_UNIT_KEYS = ['ct','count','each','pc','piece','pieces','pcs','unit','units','pad','pads','sheet','sheets','wipe','wipes','tablet','tablets','capsule','cap'];
     var hasCountUnit = Object.keys(unitCounts).some(function(u){ return COUNT_UNIT_KEYS.indexOf(u)!==-1; });
-    // Also show per-item pill when any items have derived per-item prices
     var hasAltPPU = data.some(function(r){ return r.altPPU!=null; });
-
     if (hasLiquidUnit) {
       pills.push({ unit:'fl oz', label:'fl oz', isRecommended: isLiqDom });
       pills.push({ unit:'ml',    label:'ml',    isRecommended: false });
@@ -188,24 +173,19 @@ const ITEM_UNITS = [
       pills.push({ unit:'oz', label:'oz (weight)', isRecommended: false });
       pills.push({ unit:'g',  label:'g',  isRecommended: false });
     }
-    // Show per-item pill when count units exist alongside weight/liquid units,
-    // OR when derived per-item prices are available
-    // Suppress in liquid-dominant mode (where ct items may be convertible to fl oz)
     if ((hasCountUnit || hasAltPPU) && (hasLiquidUnit || hasWeightUnit) && !isLiqDom) {
       pills.push({ unit:'ct', label:'per item', isRecommended: false });
     }
-
     var convertibleCount = Object.keys(unitCounts).filter(function(u){
       return LIQUID_UNITS.indexOf(u)!==-1 || WEIGHT_UNITS.indexOf(u)!==-1 || (isLiqDom && u==='oz');
     }).length;
     var hasMinorityUnits = Object.keys(unitCounts).length > 1;
     if (convertibleCount < 2 && !isLiqDom && !hasMinorityUnits) pills = [];
-
     pills.push({ unit: null, label:'As listed', isRecommended: false });
     return pills;
   }
 
-  // ── Dimension normalisation & keyword helpers ─────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
   function normalizeDimensions(str) {
     var s = str.replace(/["\u2018\u2019\u201c\u201d\u2033\u2032]/g,'');
     return s.replace(/(\d+(?:\.\d+)?)\s*[xX\u00d7]\s*(\d+(?:\.\d+)?)/g,'$1x$2');
@@ -216,72 +196,34 @@ const ITEM_UNITS = [
   }
 
   // ── Card text scraping ────────────────────────────────────────────────────
-  // Captures additional card text beyond the title for keyword matching.
-  // Includes deal/promo badges, discount labels, delivery window strings,
-  // plus synthetic tokens from structured data: 'coupon', 'prime', 'today', 'tomorrow'.
-  // Deliberately excludes: title (already in r.title), price strings,
-  // review counts, image alt text, hidden/offscreen elements.
   function scrapeCardText(el, hasCoupon, freeDate, fastDate) {
     var parts = [];
-
-    // Deal and promo badge text (e.g. "Limited time deal", "10% off")
-    var badgeSelectors = [
-      '.s-badge-text',
-      '[data-component-type="s-status-badge-component"]',
-      '.a-badge-text',
-      '.s-coupon-highlight-color',
-      '.s-promotional-deal-badge',
-    ];
+    var badgeSelectors = ['.s-badge-text','[data-component-type="s-status-badge-component"]','.a-badge-text','.s-coupon-highlight-color','.s-promotional-deal-badge'];
     badgeSelectors.forEach(function(sel){
       el.querySelectorAll(sel).forEach(function(node){
         var t = (node.textContent||'').trim();
         if (t && t.length < 200) parts.push(t);
       });
     });
-
-    // Discount/subscribe rows (e.g. "10% off on any 4 qualifying items")
-    var discountSelectors = [
-      '.s-coupon-unclipped',
-      '.s-coupon-clipped',
-      '[data-component-type="s-coupon-component"]',
-      '.a-color-success',
-    ];
+    var discountSelectors = ['.s-coupon-unclipped','.s-coupon-clipped','[data-component-type="s-coupon-component"]','.a-color-success'];
     discountSelectors.forEach(function(sel){
       el.querySelectorAll(sel).forEach(function(node){
-        if (node.closest('.a-price')) return; // skip price elements
+        if (node.closest('.a-price')) return;
         var t = (node.textContent||'').trim();
         if (t && t.length < 200) parts.push(t);
       });
     });
-
-    // Delivery window text — cutoff times like "10 AM - 3 PM", "in 3 hours"
-    // udm-primary-delivery-message: "FREE delivery Overnight 4 AM - 8 AM on $25 of qualifying items"
-    // udm-secondary-delivery-message: "Or $4.99 delivery in 3 hours"
-    // udm-badge-block: Prime badge label e.g. "Overnight"
-    var deliverySelectors = [
-      '.udm-primary-delivery-message',
-      '.udm-secondary-delivery-message',
-      '.udm-badge-block',
-      '[data-component-type="s-delivery-component"] .a-color-base',
-    ];
+    var deliverySelectors = ['.udm-primary-delivery-message','.udm-secondary-delivery-message','.udm-badge-block','[data-component-type="s-delivery-component"] .a-color-base'];
     deliverySelectors.forEach(function(sel){
       el.querySelectorAll(sel).forEach(function(node){
         if (node.closest('.a-price')) return;
-        if (node.closest('h2')) return; // skip title area
+        if (node.closest('h2')) return;
         var t = (node.textContent||'').trim();
         if (t && t.length < 150) parts.push(t);
       });
     });
-
-    // Synthetic tokens from structured data
     if (hasCoupon) parts.push('coupon');
-
-    // Prime badge detection
-    if (el.querySelector('.a-icon-prime,[aria-label="Amazon Prime"],[data-component-type*="prime"]')) {
-      parts.push('prime');
-    }
-
-    // Today / tomorrow derived from parsed delivery dates
+    if (el.querySelector('.a-icon-prime,[aria-label="Amazon Prime"],[data-component-type*="prime"]')) parts.push('prime');
     var now = new Date();
     var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     var tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
@@ -290,16 +232,10 @@ const ITEM_UNITS = [
       if (deliveryDate.toDateString() === today.toDateString())    parts.push('today');
       if (deliveryDate.toDateString() === tomorrow.toDateString()) parts.push('tomorrow');
     }
-
     return parts.join(' ').toLowerCase();
   }
 
-  // ── Keyword parsing — supports OR / | syntax ──────────────────────────────
-  // OR keyword filtering. Pipe (|) and uppercase OR (space-bounded) are
-  // branch separators. Exclusions (-term) are global. A title passes if it
-  // satisfies ANY branch AND none of the global exclusions.
-  // Split happens BEFORE lowercasing so ' OR ' is always recognised and never
-  // accidentally becomes a search term.
+  // ── Keyword parsing ───────────────────────────────────────────────────────
   function parseKeywords(kwRaw) {
     var segments = kwRaw.trim().split(/\s+OR\s+|\|/i);
     var exclusions = [];
@@ -309,37 +245,25 @@ const ITEM_UNITS = [
       var terms = nk.split(/\s+/).filter(Boolean);
       var positive = [];
       terms.forEach(function(t) {
-        if (t.startsWith('-') && t.length > 1) {
-          exclusions.push(t.slice(1));
-        } else if (!t.startsWith('-')) {
-          positive.push(t);
-        }
+        if (t.startsWith('-') && t.length > 1) { exclusions.push(t.slice(1)); }
+        else if (!t.startsWith('-')) { positive.push(t); }
       });
       if (positive.length > 0) branches.push(positive);
     });
-    // If only exclusions were typed, single empty branch means "all pass unless excluded"
     if (branches.length === 0) branches.push([]);
     return { branches: branches, exclusions: exclusions };
   }
 
-  // ── Keyword matching ──────────────────────────────────────────────────────
-  // Searches both title and cardText.
-  // Inclusion terms: substring match against title OR cardText.
-  // Exclusion terms: word-boundary match against title only — we don't want
-  // "-free" to suppress a card because "free delivery" is in cardText.
   function titleMatchesKeywords(title, cardText, kwRaw) {
     var nt = normalizeDimensions(title.toLowerCase());
     var nc = cardText || '';
     var parsed = parseKeywords(kwRaw);
-    // Exclusions against title (word-boundary) AND cardText (substring).
-    // Note: cardText now includes delivery info, so e.g. "-free" will suppress free-delivery cards.
     for (var i=0; i<parsed.exclusions.length; i++) {
       var word = parsed.exclusions[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       var re = new RegExp('\\b' + word + '\\b', 'i');
       if (re.test(nt)) return false;
       if (nc.toLowerCase().includes(parsed.exclusions[i])) return false;
     }
-    // Branches: pass if ANY branch fully matches (title OR cardText)
     for (var b=0; b<parsed.branches.length; b++) {
       var branch = parsed.branches[b];
       var branchMatch = true;
@@ -352,26 +276,21 @@ const ITEM_UNITS = [
     return false;
   }
 
-  // ── Keyword highlighting — highlights terms from matching branch only ──────
-  // Title-only: cardText matches are silent (nothing to mark in the title).
   function highlightKeywords(title, cardText, kwRaw) {
     if (!kwRaw||!kwRaw.trim()) return escapeHtml(title);
     var normTitle = normalizeDimensions(title.toLowerCase());
     var nc = cardText || '';
     var parsed = parseKeywords(kwRaw);
-    // Find the first branch that matched
     var matchingBranch = null;
     for (var b=0; b<parsed.branches.length; b++) {
       var branch = parsed.branches[b];
       var branchMatch = branch.length > 0;
       for (var j=0; j<branch.length; j++) {
-        var term = branch[j];
-        if (!normTitle.includes(term) && !nc.includes(term)) { branchMatch = false; break; }
+        if (!normTitle.includes(branch[j]) && !nc.includes(branch[j])) { branchMatch = false; break; }
       }
       if (branchMatch) { matchingBranch = branch; break; }
     }
     if (!matchingBranch || matchingBranch.length === 0) return escapeHtml(title);
-    // Only highlight terms that actually appear in the title
     var titleTerms = matchingBranch.filter(function(t){ return normTitle.includes(t); });
     if (!titleTerms.length) return escapeHtml(title);
     var ranges = [];
@@ -426,29 +345,18 @@ const ITEM_UNITS = [
     return result;
   }
 
-  // ── Delivery window start time ────────────────────────────────────────────
-  // Parses the start time from a primary delivery message window like
-  // "FREE delivery Today 10 AM - 3 PM" → 600 (minutes since midnight).
-  // Used as a tiebreaker when two cards share the same delivery date.
-  // Only reads .udm-primary-delivery-message to avoid the paid secondary option.
-  // Returns Infinity if no window found (sorts to bottom within same date).
   function parseDeliveryWindowMinutes(el) {
     var msgEl = el.querySelector('.udm-primary-delivery-message');
     if (!msgEl) return Infinity;
     var text = msgEl.textContent || '';
-    // Match "10 AM - 3 PM" or "5 PM - 10 PM" — capture start hour and meridiem
     var m = text.match(/(\d{1,2})\s*(AM|PM)\s*[-–]\s*\d{1,2}\s*(?:AM|PM)/i);
     if (!m) return Infinity;
     var hour = parseInt(m[1], 10);
     var meridiem = m[2].toUpperCase();
-    if (meridiem === 'AM') {
-      return hour === 12 ? 0 : hour * 60;
-    } else {
-      return hour === 12 ? 720 : (hour + 12) * 60;
-    }
+    if (meridiem === 'AM') { return hour === 12 ? 0 : hour * 60; }
+    else { return hour === 12 ? 720 : (hour + 12) * 60; }
   }
 
-  // Converts minutes-since-midnight back to a readable "by 10 AM" label
   function formatWindowMinutes(mins) {
     if (mins === Infinity || mins == null) return '';
     var h = Math.floor(mins / 60);
@@ -457,7 +365,6 @@ const ITEM_UNITS = [
     return 'by ' + display + ' ' + meridiem;
   }
 
-  // Extracts qualifying condition from primary delivery message, e.g. "on $25 of qualifying items"
   function parseDeliveryQualifier(el) {
     var msgEl = el.querySelector('.udm-primary-delivery-message');
     if (!msgEl) return null;
@@ -495,8 +402,6 @@ const ITEM_UNITS = [
   }
 
   // ── Known retailer partners ───────────────────────────────────────────────
-  // Maps img alt text to a stable key and display label.
-  // Any img.s-image-logo-alm not in this table is auto-detected from its alt text.
   var KNOWN_RETAILERS = {
     'Amazon Fresh':       { key: 'fresh',              label: 'Fresh' },
     'Whole Foods Market': { key: 'whole-foods',        label: 'Whole Foods' },
@@ -512,31 +417,24 @@ const ITEM_UNITS = [
     'Amazon Pharmacy':    { key: 'pharmacy',           label: 'Amazon Pharmacy' },
   };
 
-  // Converts an arbitrary retailer name to a URL-safe key
   function retailerNameToKey(name) {
     return name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   }
 
   function detectSource(el) {
-    // Amazon Pharmacy: identified by link domain, not logo class
-    if(el.querySelector('a[href*="pharmacy.amazon.com"]')) {
-      return { key: 'pharmacy', label: 'Amazon Pharmacy' };
-    }
-    // All grocery/retail partners: identified by logo class
+    if(el.querySelector('a[href*="pharmacy.amazon.com"]')) return { key: 'pharmacy', label: 'Amazon Pharmacy' };
     var logo = el.querySelector('img.s-image-logo-alm');
     if(logo) {
       var alt = (logo.getAttribute('alt') || '').trim();
       if(alt) {
         var known = KNOWN_RETAILERS[alt];
         if(known) return { key: known.key, label: known.label };
-        // Unknown partner — auto-label from alt text
         return { key: retailerNameToKey(alt), label: alt };
       }
     }
     return { key: 'standard', label: 'Amazon' };
   }
 
-  // ── Review count ──────────────────────────────────────────────────────────
   function parseReviewCount(el) {
     var countEl = el.querySelector('[aria-label*="ratings"],[aria-label*="reviews"]');
     if (countEl) {
@@ -559,7 +457,6 @@ const ITEM_UNITS = [
   }
 
   // ── Nudge ─────────────────────────────────────────────────────────────────
-  // Nudge — delegates directly to core.js callback-based functions.
   var nudgeTriggeredThisSession=false;
   function maybeShowNudge() {
     if(nudgeTriggeredThisSession) return;
@@ -589,7 +486,6 @@ const ITEM_UNITS = [
     });
   }
 
-
   function cleanHref(rawHref,card) {
     var asin=card&&card.getAttribute('data-asin');
     if(asin) return 'https://www.amazon.com/dp/'+asin;
@@ -606,8 +502,6 @@ const ITEM_UNITS = [
     return null;
   }
 
-  // Detects a coupon pill when no dollar amount can be extracted.
-  // Uses text matching only — CSS classes are shared with S&S and unreliable.
   function detectCouponPill(el) {
     var leaves=Array.from(el.querySelectorAll('*')).filter(function(e){return e.children.length===0;});
     for(var i=0;i<leaves.length;i++){
@@ -617,25 +511,16 @@ const ITEM_UNITS = [
     return false;
   }
 
-  // Extracts S&S discount amount from text like "Extra 5% off when you subscribe"
-  // or "Extra $5.00 off when you subscribe". Returns display string or null.
   function parseSnS(el) {
-    // Amazon renders "Extra 5% off" and "when you subscribe" in separate leaf nodes.
-    // So we check for subscribe presence on the card level, then hunt for the amount separately.
     var fullText=el.textContent||'';
     if(!/when you subscribe/i.test(fullText)) return null;
-    // Try percentage: "Extra 5% off"
     var mp=fullText.match(/extra\s+([\d.]+%)\s+off/i);
     if(mp) return mp[1]+' off';
-    // Try dollar: "Extra $5.00 off"
     var md=fullText.match(/extra\s+\$([\d.,]+)\s+off/i);
     if(md) return '$'+md[1]+' off';
-    // S&S confirmed but amount not parseable
     return 'unknown';
   }
 
-  // Detects promotional savings like "Get 2 for the price of 1".
-  // Returns display string or null.
   function parseSavings(el) {
     var leaves=Array.from(el.querySelectorAll('*')).filter(function(e){return e.children.length===0;});
     for(var i=0;i<leaves.length;i++){
@@ -673,14 +558,12 @@ const ITEM_UNITS = [
       /(\d[\d,]*)\s*-?\s*pieces?/i,/(\d[\d,]*)\s*-?\s*pack/i,/(\d[\d,]*)\s*-?\s*pk\b/i,/(\d[\d,]*)\s*-?\s*rolls?/i,
       /(\d[\d,]*)\s*-?\s*bars?\b/i,
       /pack\s+of\s+(\d[\d,]*)/i,/box\s+of\s+(\d[\d,]*)/i,
-      // Looser: number + up to 3 words + unit (e.g. "12 Individually Wrapped Bars")
       /(\d[\d,]*)\s+\w+\s+\w+\s+bars?\b/i,
     ];
     for(var i=0;i<pats.length;i++){var m=text.match(pats[i]);if(m){var n=parseInt(m[1].replace(/,/g,''),10);if(n>1&&n<10000)return n;}}
     return null;
   }
 
-  // ── guessCountUnit: always returns ct when item is a pack/count ───────────
   function guessCountUnit(text) {
     if(/\d[\d,]*\s*-?\s*rolls?/i.test(text))    return 'roll';
     if(/\d[\d,]*\s*-?\s*bags?/i.test(text))     return 'bag';
@@ -693,7 +576,6 @@ const ITEM_UNITS = [
     if(/\d[\d,]*\s*-?\s*pcs\.?/i.test(text))    return 'pc';
     if(/\d[\d,]*\s*-?\s*pieces?/i.test(text))   return 'piece';
     if(/\d[\d,]*\s*-?\s*bars?/i.test(text))     return 'ct';
-    // pack and count now both return 'ct' — per-item, not per-pack
     if(/\d[\d,]*\s*-?\s*pack/i.test(text))      return 'ct';
     if(/\d[\d,]*\s*-?\s*pk\b/i.test(text))      return 'ct';
     if(/pack\s+of\s+\d/i.test(text))            return 'ct';
@@ -769,22 +651,14 @@ const ITEM_UNITS = [
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff,
               freeWindowMinutes:freeWindowMinutes,freeQualifier:freeQualifier,imgUrl:imgUrl};
 
-    // ── Amazon reported a unit price ────────────────────────────────────────
     if(ap&&ITEM_UNITS.includes(ap.unit)) {
-      // If Amazon says ct but we have price and count, recalculate to
-      // confirm, and in liquid-dominant context attempt fl oz conversion
       if(ap.unit==='ct'&&count&&price) {
-        var perItem=price/count;
-        // Use Amazon's ct price as-is (it may reflect per-can, etc.)
         return Object.assign(base,{ppu:ap.ppu,unit:'ct',source:'amazon'});
       }
-      // When Amazon reports weight/liquid unit but title has count,
-      // derive per-item price so ct pill works for these items
       if(count&&price&&ap.unit!=='ct') {
         var altUnit=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
         return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon',altPPU:price/count,altUnit:altUnit});
       }
-      // Single item with liquid/weight unit — show full price as per-item so ct pill works
       if(!count&&price&&(LIQUID_UNITS.includes(ap.unit)||WEIGHT_UNITS.includes(ap.unit))) {
         return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon',altPPU:price,altUnit:'ct'});
       }
@@ -801,36 +675,23 @@ const ITEM_UNITS = [
     }
     if(ap&&CONTAINER_UNITS.includes(ap.unit)) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon-container',note:'Per '+ap.unit+', not per item'});
     if(ap) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'});
-
-    // ── No Amazon unit price — calculate from count ─────────────────────────
     if(count&&price){
       var unit2=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
       return Object.assign(base,{ppu:price/count,unit:unit2,source:'calc'});
     }
-
-    // This allows single-item listings to be compared against multipacks.
-    // Only applies when there is no count in the title and no Amazon unit price.
-    if(price) {
-      return Object.assign(base,{ppu:price,unit:'ct',source:'calc-single'});
-    }
-
+    if(price) return Object.assign(base,{ppu:price,unit:'ct',source:'calc-single'});
     if(!price) return Object.assign(base,{ppu:null,unit:null,source:'unavailable'});
     return Object.assign(base,{ppu:null,unit:null,source:'none'});
   }
 
   // ── Liquid-dominant ct→fl oz conversion ──────────────────────────────────
-  // After scraping, in liquid-dominant mode, attempt to convert ct
-  // items to fl oz using per-item volume stated in title.
-  // e.g. "La Croix 12 Fl Oz (Pack of 8)" reported as ct → convert to fl oz.
   function applyLiquidCtConversion(data) {
     data.forEach(function(r) {
       if (!r.unit || r.unit !== 'ct') return;
       if (!r.price || !r.ppu) return;
       var perItemFlOz = extractFlOzFromTitle(r.title);
       if (!perItemFlOz) return;
-      // ppu is currently price-per-can (ct). Convert to price-per-fl-oz.
-      var newPPU = r.ppu / perItemFlOz;
-      r.ppu = newPPU;
+      r.ppu = r.ppu / perItemFlOz;
       r.unit = 'fl oz';
       r.source = 'calc-liquid';
       r.note = 'converted from per-can price';
@@ -863,7 +724,7 @@ const ITEM_UNITS = [
   }
 
   // ── State ─────────────────────────────────────────────────────────────────
-  var sponsoredMode    = 'show'; // 'show' | 'demote' | 'hide'
+  var sponsoredMode    = 'show';
   var isCollapsed      = false;
   var keyword          = '';
   var selectedUnit     = null;
@@ -896,12 +757,8 @@ const ITEM_UNITS = [
       var unitCounts={};
       withUnit.forEach(function(r){if(r.unit)unitCounts[r.unit]=(unitCounts[r.unit]||0)+1;});
       var unitsFound=Object.keys(unitCounts).sort(function(a,b){return unitCounts[b]-unitCounts[a];}).map(function(u){return u+'('+unitCounts[u]+')';}).join(', ');
-      // Dynamic source tally
       var sourceCounts={};
-      allData.forEach(function(r){
-        var k=r.retailer?r.retailer.key:'standard';
-        sourceCounts[k]=(sourceCounts[k]||0)+1;
-      });
+      allData.forEach(function(r){var k=r.retailer?r.retailer.key:'standard';sourceCounts[k]=(sourceCounts[k]||0)+1;});
       var countStandard=sourceCounts['standard']||0;
       var countFresh=sourceCounts['fresh']||0;
       var countWF=sourceCounts['whole-foods']||0;
@@ -933,7 +790,6 @@ const ITEM_UNITS = [
     } catch(e){}
   }
 
-  // ── Demote ads button state helper ───────────────────────────────────────
   function updateSponsoredBtn(btn, mode) {
     btn.classList.remove('mode-demote','mode-hide');
     if (mode === 'show')        { btn.textContent = 'Move ads to end of results'; }
@@ -941,7 +797,6 @@ const ITEM_UNITS = [
     else                        { btn.textContent = '\u2713 Hidden \u00b7 Show ads'; btn.classList.add('mode-hide'); }
   }
 
-  // Updates bottom load-more row and pages slider after any page load
   function updateLoadMoreRow() {
     var lmRow = document.getElementById('ppu-load-more-row');
     var lmBtn = document.getElementById('ppu-btn-load-more');
@@ -952,7 +807,6 @@ const ITEM_UNITS = [
     } else {
       lmRow.style.display = 'none';
     }
-    // Sync pages slider to current loadedPages
     var pagesSlider = document.getElementById('ppu-pages-slider');
     if (pagesSlider) {
       pagesSlider.value = loadedPages;
@@ -984,65 +838,33 @@ const ITEM_UNITS = [
     },[]);
     loadedPages=1; nextPageUrl=getNextPageUrl(); needsResort=false;
 
-    // v6.0.0: Save search context to background service worker so product.js
-    // knows what search we came from when the user clicks through to a product page.
-    // Passes full item objects (asin, title, price, ppu, ppuUnit) so the product
-    // page can display a real titled list in from-search mode.
     var searchTerm=(new URLSearchParams(window.location.search).get('k')||'').trim();
     saveSearchContext(searchTerm, window.location.href, allData.map(function(r){
-      return {
-        asin: r.asin,
-        title: r.title,
-        price: r.price ? '$'+r.price.toFixed(2) : '',
-        ppu: r.ppu ? formatPPU(r.ppu) : '',
-        ppuUnit: r.unit || ''
-      };
+      return {asin:r.asin,title:r.title,price:r.price?'$'+r.price.toFixed(2):'',ppu:r.ppu?formatPPU(r.ppu):'',ppuUnit:r.unit||''};
     }));
 
-    // Liquid inference first pass (before ct conversion)
     isLiquidDominant=inferLiquidDominant(allData);
-
-    // In liquid-dominant mode, convert ct items to fl oz where possible
     if(isLiquidDominant) applyLiquidCtConversion(allData);
-
-    // Regenerate liquid dominance after conversion (unit distribution may have changed)
     isLiquidDominant=inferLiquidDominant(allData);
     unitPills=generateUnitPills(allData,isLiquidDominant);
 
-    // v6.0.3: Detect all retailer sources dynamically
-    // Build srcFilter from whatever retailers actually appear in results.
-    // Preserve any existing filter state for sources already seen this session.
     var detectedRetailers = {};
     allData.forEach(function(r) {
       var k = r.retailer ? r.retailer.key : 'standard';
       var l = r.retailer ? r.retailer.label : 'Amazon';
       if(!detectedRetailers[k]) detectedRetailers[k] = l;
     });
-    // Add any new sources to srcFilter (default on); preserve existing state
-    Object.keys(detectedRetailers).forEach(function(k) {
-      if(!(k in srcFilter)) srcFilter[k] = true;
-    });
-    // Remove keys no longer present in results
-    Object.keys(srcFilter).forEach(function(k) {
-      if(!(k in detectedRetailers)) delete srcFilter[k];
-    });
+    Object.keys(detectedRetailers).forEach(function(k) { if(!(k in srcFilter)) srcFilter[k] = true; });
+    Object.keys(srcFilter).forEach(function(k) { if(!(k in detectedRetailers)) delete srcFilter[k]; });
 
     var hasNonStandard = Object.keys(detectedRetailers).some(function(k){ return k !== 'standard'; });
-    var hasDelivery=allData.some(function(r){return r.freeDate||r.fastDate;});
     var hasWholeFoods=allData.some(function(r){return r.retailer&&r.retailer.key==='whole-foods';});
     var hasSponsored=allData.some(function(r){return r.isSponsored;});
     var hasPills=unitPills.length>1;
 
-    // sessionSource: determined by whether the user navigated here from a product page.
-    // background.js stores context when search.js saves it; product.js reads it.
-    // If context exists AND has items (populated by a prior search → product → back flow),
-    // this is a 'from-product' session. Otherwise 'search-only'.
-    // We reset to 'search-only' each buildPanel call so Refresh gives a clean reading.
     sessionSource = 'search-only';
     chrome.runtime.sendMessage({type:'AU_GET_SEARCH_CONTEXT'}, function(ctx) {
-      if(ctx && ctx.payload && ctx.payload.items && ctx.payload.items.length > 0) {
-        sessionSource = 'from-product';
-      }
+      if(ctx && ctx.payload && ctx.payload.items && ctx.payload.items.length > 0) sessionSource = 'from-product';
     });
 
     if(selectedUnit!==null&&!unitPills.some(function(p){return p.unit===selectedUnit;})) selectedUnit=null;
@@ -1114,16 +936,9 @@ const ITEM_UNITS = [
                 '<div class="ppu-slider-track-wrap">'+
                   '<input id="ppu-pages-slider" type="range" class="ppu-slider" min="1" max="10" step="1" value="1">'+
                   '<div class="ppu-slider-ticks">'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
+                    '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="minor"></span>'+
+                    '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="minor"></span>'+
+                    '<span class="minor"></span><span class="major"></span>'+
                   '</div>'+
                 '</div>'+
                 '<span class="ppu-slider-endlabel">10</span>'+
@@ -1145,17 +960,8 @@ const ITEM_UNITS = [
                 '<div class="ppu-slider-track-wrap">'+
                   '<input id="ppu-min-reviews-slider" type="range" class="ppu-slider" min="0" max="1000" step="100" value="'+(minReviews||0)+'">'+
                   '<div class="ppu-slider-ticks">'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
+                    '<span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
+                    '<span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
                   '</div>'+
                 '</div>'+
                 '<span class="ppu-slider-endlabel">1000</span>'+
@@ -1168,17 +974,8 @@ const ITEM_UNITS = [
                 '<div class="ppu-slider-track-wrap">'+
                   '<input id="ppu-min-rating-slider" type="range" class="ppu-slider" min="0" max="5" step="0.5" value="'+(minRating||0)+'">'+
                   '<div class="ppu-slider-ticks">'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
-                    '<span class="minor"></span>'+
-                    '<span class="major"></span>'+
+                    '<span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
+                    '<span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
                   '</div>'+
                 '</div>'+
                 '<span class="ppu-slider-endlabel">5\u2605</span>'+
@@ -1221,9 +1018,6 @@ const ITEM_UNITS = [
     document.body.appendChild(panel);
 
     // ── Position panel ────────────────────────────────────────────────────
-    // JS owns position entirely. CSS has no top/left/right/width defaults.
-    // Always use top+left. Never set right — avoids browser stretching the
-    // panel to satisfy both left and right simultaneously.
     var DEFAULT_WIDTH = 390;
     var DEFAULT_TOP   = 80;
 
@@ -1233,9 +1027,7 @@ const ITEM_UNITS = [
       panel.style.width = width + 'px';
     }
 
-    function defaultLeft() {
-      return window.innerWidth - DEFAULT_WIDTH - 16;
-    }
+    function defaultLeft() { return window.innerWidth - DEFAULT_WIDTH - 16; }
 
     chrome.storage.local.get('au_search_panel_pos', function(result) {
       var pos = result['au_search_panel_pos'];
@@ -1254,35 +1046,26 @@ const ITEM_UNITS = [
         if (e.target.closest('button,a')) return;
         isDragMove = true;
         var rect = panel.getBoundingClientRect();
-        moveStartX    = e.clientX;
-        moveStartY    = e.clientY;
-        moveStartLeft = rect.left;
-        moveStartTop  = rect.top;
+        moveStartX=e.clientX; moveStartY=e.clientY; moveStartLeft=rect.left; moveStartTop=rect.top;
         document.body.style.userSelect = 'none';
         e.preventDefault();
       });
       document.addEventListener('mousemove', function(e) {
         if (!isDragMove) return;
-        var newLeft = moveStartLeft + (e.clientX - moveStartX);
-        var newTop  = moveStartTop  + (e.clientY - moveStartY);
-        newLeft = Math.max(-panel.offsetWidth + 60, Math.min(newLeft, window.innerWidth - 60));
-        newTop  = Math.max(0, Math.min(newTop, window.innerHeight - 40));
+        var newLeft = Math.max(-panel.offsetWidth + 60, Math.min(moveStartLeft + (e.clientX - moveStartX), window.innerWidth - 60));
+        var newTop  = Math.max(0, Math.min(moveStartTop + (e.clientY - moveStartY), window.innerHeight - 40));
         panel.style.left = newLeft + 'px';
         panel.style.top  = newTop  + 'px';
       });
       document.addEventListener('mouseup', function(e) {
         if (!isDragMove) return;
-        isDragMove = false;
-        panelMoved = true;
-        document.body.style.userSelect = '';
+        isDragMove = false; panelMoved = true; document.body.style.userSelect = '';
         var rect = panel.getBoundingClientRect();
         chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth } });
       });
     }
 
     // ── Drag to resize (left edge handle) ────────────────────────────────
-    // Captures the right edge position once at mousedown. During drag, width
-    // is computed as (fixedRight - mouseX) so the right edge never moves.
     var dh = document.getElementById('ppu-drag-handle');
     if (dh) {
       var isDragResize = false, fixedRight;
@@ -1295,15 +1078,12 @@ const ITEM_UNITS = [
       document.addEventListener('mousemove', function(e) {
         if (!isDragResize) return;
         var newWidth = Math.min(900, Math.max(280, fixedRight - e.clientX));
-        // Adjust left to keep right edge fixed: left = fixedRight - newWidth
         panel.style.width = newWidth + 'px';
         panel.style.left  = (fixedRight - newWidth) + 'px';
       });
       document.addEventListener('mouseup', function() {
         if (!isDragResize) return;
-        isDragResize = false;
-        document.body.style.userSelect = '';
-        // Save new width and position
+        isDragResize = false; document.body.style.userSelect = '';
         var rect = panel.getBoundingClientRect();
         chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth } });
       });
@@ -1340,19 +1120,18 @@ const ITEM_UNITS = [
       showChkBtn.style.display=cc>0?'block':'none';
       clearChkBtn.style.display=cc>0?'block':'none';
       showChkBtn.textContent=showCheckedOnly?'Show all ('+cc+' selected)':'Show selected ('+cc+')';
-      // Shortlist bar
       if(shortlistBar) shortlistBar.style.display=cc>0?'flex':'none';
       if(openTabsBtn) openTabsBtn.textContent='Open selected listings in new tabs ('+cc+')';
       if(selectAllChk) {
         var allAsins=allData.map(function(r){return r.asin;});
         var checkedCount=allAsins.filter(function(a){return checkedAsins[a];}).length;
-        selectAllChk.indeterminate=checkedCount>0&&checkedCount<allAsins.length;
-        selectAllChk.checked=checkedCount===allAsins.length&&allAsins.length>0;
+        // Simple checked/unchecked — no indeterminate state needed with the new toggle model
+        selectAllChk.indeterminate = false;
+        selectAllChk.checked = checkedCount === allAsins.length && allAsins.length > 0;
       }
       var sortLabels={'ppu-asc':'best value','price-asc':'price','delivery-free':'soonest free delivery','delivery-any':'soonest delivery','default':'Amazon order'};
-      var resortLabel='Re-sort all by '+( sortLabels[sortVal]||'current sort')+' \u21c5';
       resortBtn.style.display=(needsResort&&!showCheckedOnly)?'block':'none';
-      resortBtn.textContent=resortLabel;
+      resortBtn.textContent='Re-sort all by '+(sortLabels[sortVal]||'current sort')+' \u21c5';
 
       var anyFilterActive = keyword.trim().length>0 || minReviews>0 || minRating>0 ||
         Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; }) ||
@@ -1391,7 +1170,6 @@ const ITEM_UNITS = [
           var db=b.freeDate&&b.fastDate?new Date(Math.min(b.freeDate,b.fastDate)):b.freeDate||b.fastDate||FAR;
           var dateDiffAny=da-db;
           if(dateDiffAny!==0) return dateDiffAny;
-          // Tiebreaker: earlier delivery window start time wins
           return (a.freeWindowMinutes||Infinity)-(b.freeWindowMinutes||Infinity);
         }
         if(effectiveSort==='default') return a.originalIndex-b.originalIndex;
@@ -1448,10 +1226,7 @@ const ITEM_UNITS = [
       function getCompPPU(r) {
         if(r.ppu==null) return null;
         if(selectedUnit){
-          // If user selected a count-type pill and item has a derived per-item price, use it
-          if(r.altPPU!=null && COUNT_PILL_UNITS.indexOf(selectedUnit)!==-1) {
-            return r.altPPU;
-          }
+          if(r.altPPU!=null && COUNT_PILL_UNITS.indexOf(selectedUnit)!==-1) return r.altPPU;
           var from=(isLiquidDominant&&r.unit==='oz')?'fl oz':r.unit;
           return convertPPU(r.ppu,from,selectedUnit);
         }
@@ -1499,10 +1274,8 @@ const ITEM_UNITS = [
             compPPU!=null&&Math.abs(compPPU-bestPPU)<0.000001;
           var isCont=r.source==='amazon-container';
           var warn=isCont?' <span style="font-size:10px;color:#aaa;" title="Amazon is reporting the price per container (box/pack), not per item \u2014 actual per-item cost may differ">\u26a0\ufe0f price is per pack, not per item</span>':'';
-
           var dPPU=r.ppu,dUnit=r.unit,convNote='';
           if(selectedUnit){
-            // Use derived per-item price when count pill selected
             if(r.altPPU!=null && COUNT_PILL_UNITS.indexOf(selectedUnit)!==-1) {
               dPPU=r.altPPU;dUnit=r.altUnit||'ct';
               convNote='<span class="ppu-converted">('+formatPPU(r.ppu)+'/'+r.unit+')</span>';
@@ -1517,14 +1290,11 @@ const ITEM_UNITS = [
               }
             }
           }
-
           var uDisp=dUnit?'/'+dUnit:'';
           badge='<span class="ppu-badge'+(isBest?' best':'')+(isCont?' container':'')+'"'+(isBest?' title="Best value among comparable results"':'')+'>'+formatPPU(dPPU)+uDisp+(isBest?' \u2605':'')+' </span>'+warn+convNote;
           if(r.note&&(r.source==='calc'||r.source==='calc-liquid')) noteStr='<div class="ppu-note">was: '+r.note+'</div>';
         } else {
-          badge = r.source==='unavailable'
-            ? '<span class="ppu-nodata">unavailable</span>'
-            : '<span class="ppu-nodata">no unit data</span>';
+          badge = r.source==='unavailable' ? '<span class="ppu-nodata">unavailable</span>' : '<span class="ppu-nodata">no unit data</span>';
         }
 
         if(r.hasCoupon) noteStr+='<div class="ppu-note-deal">\uD83C\uDFF7\uFE0F $'+r.price.toFixed(2)+' with coupon <span class="ppu-note-was">(was $'+r.listPrice.toFixed(2)+')</span></div>';
@@ -1622,8 +1392,7 @@ const ITEM_UNITS = [
       if(needsResort)needsResort=false;
       render();
     });
-    function doResort(){needsResort=false;render();}
-    resortBtn.addEventListener('click',doResort);
+    resortBtn.addEventListener('click',function(){needsResort=false;render();});
 
     resetFiltersBtn.addEventListener('click',function(){
       if(!this.classList.contains('btn-danger')) return;
@@ -1649,23 +1418,17 @@ const ITEM_UNITS = [
     clearChkBtn.addEventListener('click',function(){checkedAsins={};showCheckedOnly=false;render();});
 
     // ── Shortlist bar: select-all ─────────────────────────────────────────
+    // Simple toggle: nothing checked → check all; anything checked → uncheck all.
     if(selectAllChk){
       selectAllChk.addEventListener('click',function(){
         var allAsins=allData.map(function(r){return r.asin;});
         var checkedCount=allAsins.filter(function(a){return checkedAsins[a];}).length;
         if(checkedCount===0){
-          // None checked → check all
+          // Nothing checked → check all
           allAsins.forEach(function(a){checkedAsins[a]=true;});
-        } else if(checkedCount===allAsins.length){
-          // All checked → uncheck all
-          checkedAsins={};
         } else {
-          // Some checked → confirm then check all
-          if(confirm('Check all '+allAsins.length+' results?')){
-            allAsins.forEach(function(a){checkedAsins[a]=true;});
-          } else {
-            // User cancelled — leave state as-is, but we need to restore checkbox appearance
-          }
+          // Anything checked (some or all) → uncheck all
+          checkedAsins={};
         }
         render();
       });
@@ -1710,7 +1473,6 @@ const ITEM_UNITS = [
       });
     });
 
-    // Min reviews slider
     if(minReviewsSlider){
       minReviewsSlider.addEventListener('input',function(){
         minReviews=parseInt(this.value,10)||0;
@@ -1721,7 +1483,6 @@ const ITEM_UNITS = [
       });
     }
 
-    // Min rating slider
     if(minRatingSlider){
       minRatingSlider.addEventListener('input',function(){
         minRating=parseFloat(this.value)||0;
@@ -1754,7 +1515,6 @@ const ITEM_UNITS = [
       var toggle  = document.getElementById(toggleId);
       var section = document.getElementById(sectionId);
       if (!toggle || !section) return;
-      // Set initial height for smooth animation
       section.style.maxHeight = section.scrollHeight + 'px';
       toggle.addEventListener('click', function() {
         openFlag = !openFlag;
@@ -1768,7 +1528,6 @@ const ITEM_UNITS = [
           if (chevron) chevron.style.transform = 'rotate(-90deg)';
           toggle.classList.add('collapsed');
         }
-        // Update the outer flag variable
         if (toggleId === 'ppu-sort-toggle')    sortOpen    = openFlag;
         if (toggleId === 'ppu-filters-toggle') filtersOpen = openFlag;
       });
@@ -1787,10 +1546,7 @@ const ITEM_UNITS = [
     if(pagesSlider){
       updatePagesSliderFill(pagesSlider);
       updatePagesLabel();
-      pagesSlider.addEventListener('input',function(){
-        updatePagesSliderFill(this);
-        updatePagesLabel();
-      });
+      pagesSlider.addEventListener('input',function(){ updatePagesSliderFill(this); updatePagesLabel(); });
       pagesSlider.addEventListener('change',function(){
         var target=parseInt(this.value,10);
         if(target<=loadedPages||!nextPageUrl) return;
@@ -1801,9 +1557,7 @@ const ITEM_UNITS = [
           if(remaining===0||!nextPageUrl){
             pagesSlider.disabled=false;
             if(statusEl) statusEl.style.display='none';
-            needsResort=true;
-            updateLoadMoreRow();
-            maybeShowNudge();render();return;
+            needsResort=true; updateLoadMoreRow(); maybeShowNudge(); render(); return;
           }
           var fp=loadedPages+1,si=allData.length;
           if(statusEl) statusEl.textContent='Loading page '+fp+'\u2026';
@@ -1824,7 +1578,7 @@ const ITEM_UNITS = [
       });
     }
 
-    // ── Bottom load-more button (for pages beyond slider) ────────────────
+    // ── Bottom load-more button ───────────────────────────────────────────
     var lmBtn=document.getElementById('ppu-btn-load-more');
     if(lmBtn){
       lmBtn.addEventListener('click',function(){
@@ -1837,9 +1591,7 @@ const ITEM_UNITS = [
           if(isLiquidDominant) applyLiquidCtConversion(result.rows);
           isLiquidDominant=inferLiquidDominant(allData);
           unitPills=generateUnitPills(allData,isLiquidDominant);
-          btn.disabled=false;
-          updateLoadMoreRow();
-          maybeShowNudge();render();
+          btn.disabled=false; updateLoadMoreRow(); maybeShowNudge(); render();
         }).catch(function(err){console.log('[PPU] Load more failed:',err);btn.textContent='Load failed \u2014 try Refresh';btn.disabled=false;});
       });
     }
