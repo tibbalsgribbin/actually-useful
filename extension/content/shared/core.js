@@ -3,7 +3,7 @@
 // Provides: shortlist storage, nudge state, affiliate tag, shared constants.
 
 // ── Version ───────────────────────────────────────────────────────────────
-const AU_VERSION = '6.1.1';
+const AU_VERSION = '6.1.2';
 
 // ── Storage keys ──────────────────────────────────────────────────────────
 const AU_SHORTLIST_KEY      = 'au_shortlist';       // chrome.storage.local — persists across sessions
