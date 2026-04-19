@@ -1,34 +1,23 @@
-# Session Handover — April 19, 2026 (Chat 10)
+# Session Handover — April 19, 2026 (Chat 12)
 
 ## What we did this session
 
-Planning only — no code changed, no GitHub push needed.
+1. **Collapse/minimize bug fixed** — when the panel had been resized, the ⇕ button was toggling between the resized height and the CSS collapsed height instead of collapsing to just the header. Root cause: inline `style.height` and `style.maxHeight` were overriding the CSS `.collapsed` rule. Fix: collapse button now clears inline height styles when collapsing, and restores them from saved storage when expanding. Change is in `search.js`.
 
-1. **Gemini near-term list audited** — 4 done, 1 partial (FR badge bold but not red), 5 still outstanding including the important affiliate tag removal.
+2. **Version strings aligned** — all four files brought to the new sub-1.0 numbering scheme: `manifest.json` → `0.6.1`, `core.js` / `search.js` / `styles.css` → `0.6.1.3`. Done as direct editor changes by Melissa.
 
-2. **Feedback form** — needs manual check to verify Gemini's three questions are present. Do this outside a session at https://forms.gle/J3AECVTDHWKDZZKE7.
+3. **`docs/` folder created in GitHub** — all ten project documents moved into `C:\Users\tibba\GitHub\actually-useful\docs\`. GitHub is now the single source of truth for project documents.
 
-3. **Website architecture decided** — GitHub Pages + Supabase. Replaces Carrd plan entirely. Full details in Roadmap and Briefing.
-
-4. **Shareable links confirmed as essential** — implemented via Supabase short IDs. Not a nice-to-have.
-
-5. **Price history approach decided** — Keepa links per item, not CamelCamelCamel (CCC injects their own affiliate tags; Keepa doesn't).
-
-6. **Review integrity approach decided** — mild caution signal for improbable ratings + contextual nudge to Fakespot/ReviewMeta. No API available.
-
-7. **Hidden data capture batch added to roadmap** — SNAP, Small Business badge, Condition, Amazon's Choice (with transparency note), Best Seller.
-
-8. **Version numbering decided** — shifted to sub-1.0. v6.1.3 → v0.6.1.3. v1.0 = Web Store public launch, something to earn.
-
-9. **Visual checklist format added to Handover** — see below.
+4. **Process reminder** — confirmed the rule: confirm scope before coding, not mid-diagnosis.
 
 ---
 
 ## ⚠️ Start of next session
 
-1. Melissa uploads `search.js`, `styles.css`, `core.js` fresh from GitHub as file uploads (not document blocks)
-2. Claude confirms version strings match v0.6.1 / v0.6.1.3 before any edits
-3. Ask Melissa if she has any fresh testing observations
+1. Melissa uploads `search.js`, `core.js`, `manifest.json` fresh from GitHub as actual file uploads (not document blocks)
+2. Claude confirms version strings match `0.6.1` (manifest) / `0.6.1.3` (core.js, search.js) before any edits
+3. Claude confirms scope of session before touching any files
+4. Ask Melissa if she has any fresh testing observations
 
 ---
 
@@ -44,18 +33,23 @@ Planning only — no code changed, no GitHub push needed.
 - Keyword debouncing (250ms)
 - Empty state message when filters clear everything
 - Frequently Returned badge — bold (red still needed)
+- Collapse/minimize bug fixed (Chat 12)
+- Version strings aligned to sub-1.0 numbering (Chat 12)
+- docs/ folder created in GitHub (Chat 12)
 
-### 🔜 Next up (short term)
-- Show Selected / Clear Selection rework (wording, behavior, location)
-- Frequently Returned badge — make it red
-- Remove affiliate tag from core.js ⚠️ must happen before public release
-- GitHub Pages setup (actuallyuseful.net)
-- Supabase setup (shareable links)
-- Page-fetch throttling (500ms delay between fetches)
-- Move auSendLog to background.js
-- Telemetry opt-out toggle
+### 🔜 Next up (short term) — in order
+1. Fix minimum rating filter — add `parseRating()` and set `r.rating` in `scrapeCard()` ⚠️ red flag
+2. Disable `product.js` in manifest — comment out second `content_scripts` entry ⚠️ red flag
+3. Remove `AU_AFFILIATE_TAG` and `auTagUrl` from `core.js` ⚠️ must happen before public release
+4. Show Selected / Clear Selection rework — wording, behavior, location (shortlist bar)
+5. Frequently Returned badge — make it red (bold done, red still needed)
+6. Page-fetch throttling (500ms delay between fetches)
+7. Move `auSendLog` to background.js
+8. Telemetry opt-out toggle
 
 ### 🔭 Further out (post-alpha)
+- GitHub Pages setup (actuallyuseful.net)
+- Supabase setup (shareable links)
 - Marketing/landing page built and published
 - Comparison page with sort/filter + shareable links
 - Power search form (Jungle Search model)
@@ -74,7 +68,7 @@ Planning only — no code changed, no GitHub push needed.
 ## Key reminders
 
 - `core.js` uses callback pattern, not Promises
-- Always confirm with Melissa before making file changes
+- Always confirm scope with Melissa before touching any files
 - Code files are NOT in the Claude Project — upload fresh from GitHub each session
 - Files must be actual file uploads, not document blocks
 - Use AskUserQuestion widget for clarifying questions
@@ -85,15 +79,19 @@ Planning only — no code changed, no GitHub push needed.
 - Always provide a suggested GitHub commit message at end of session
 - Bundle small changes together rather than shipping each one separately
 - Always include Project_Briefing.md in end-of-session documents — do not skip it
+- Project documents now live in `docs/` folder in GitHub — update them there after each session
 
 ---
 
 ## Suggested next commit message
-*(No code changed this session — no commit needed)*
+`v0.6.1.3 — fix rating filter, disable product.js, remove affiliate tag, rework Show Selected`
+*(update this at end of next session based on what actually landed)*
 
 ## End-of-session checklist
-- [x] Project_Briefing.md — updated
+- [x] Handover.md — written
 - [x] Changelog.md — updated
 - [x] Roadmap.md — updated
-- [x] Handover.md — written
-- [ ] Melissa to update all four Project files in Claude after reviewing
+- [x] Project_Briefing.md — updated
+- [ ] Melissa downloads all four documents and puts them in `docs/` in GitHub
+- [ ] Melissa commits and pushes via GitHub Desktop
+- [ ] Melissa updates project files in Claude Project (upload new versions)

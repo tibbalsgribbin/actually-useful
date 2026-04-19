@@ -14,7 +14,6 @@
 - Minimum rating filter does nothing — `r.rating` is never set in `scrapeCard()`, no `parseRating()` function exists (red flag, fix before alpha)
 - product.js is still registered in manifest on every `/dp/*` visit despite being "deferred" — needs to be commented out in manifest.json
 - Ko-fi link in nudge (`ko-fi.com/tibbalsgribbin`) may differ from footer link (`ko-fi.com/butactuallyuseful`) — verify which is correct
-- Version strings inconsistent across four files — to be reconciled and sub-1.0 renumbering applied in next coding session
 
 ---
 
@@ -54,6 +53,11 @@ Pause between "files produced" and "push to GitHub." Test first, commit after. C
 - v1.0 = Web Store public launch — something to earn, not arbitrarily assign
 - Chrome manifests support three-part version numbers only; internal AU_VERSION can carry a fourth segment
 
+**Project documents (from Chat 12):**
+- All project documents now live in `docs/` folder in GitHub repo
+- After each session, download updated docs and put them in `docs/` before committing
+- Also update the Claude Project files (upload new versions) so Claude reads current docs
+
 **How to know this session is going wrong:**
 - Melissa is being asked to hold multiple things in her head at once
 - Same ground is being covered twice
@@ -64,20 +68,18 @@ Two of these = stop and wrap up.
 **End of every session:**
 1. Present all changed files for download
 2. Give Melissa a suggested GitHub commit message
-3. Remind Melissa to push to GitHub
-4. Update project documents (Briefing, Changelog, Roadmap, Handover)
+3. Remind Melissa to push to GitHub (pull → stage → commit → push)
+4. Update project documents (Briefing, Changelog, Roadmap, Handover) — download and put in `docs/`
 5. Remind Melissa to update project files in Claude after the push
 
 ---
 
 ## Next session priorities (in order)
 
-1. **Move project docs into `docs/` folder in GitHub repo** — Briefing, Roadmap, Changelog, Handover alongside `extension/`
-2. **Fix minimum rating filter** — add `parseRating()` and set `r.rating` in `scrapeCard()`
-3. **Disable product.js in manifest** — comment out second `content_scripts` entry until tested against current Amazon
-4. **Remove affiliate tag machinery from core.js** — remove `AU_AFFILIATE_TAG` and `auTagUrl` entirely
-5. **Align and renumber version strings** — manifest, core.js, search.js, styles.css all to v0.6.1.3
-6. **Show Selected / Clear Selection rework** — wording, behavior, location (shortlist bar)
+1. **Fix minimum rating filter** — add `parseRating()` and set `r.rating` in `scrapeCard()` ⚠️ red flag
+2. **Disable product.js in manifest** — comment out second `content_scripts` entry until tested against current Amazon ⚠️ red flag
+3. **Remove affiliate tag machinery from core.js** — remove `AU_AFFILIATE_TAG` and `auTagUrl` entirely ⚠️ must happen before public release
+4. **Show Selected / Clear Selection rework** — wording, behavior, location (shortlist bar)
 
 ---
 
@@ -94,10 +96,12 @@ Two of these = stop and wrap up.
 - [x] Panel height resize via bottom edge handle (Chat 9)
 - [x] Persistent filter settings per search term (Chat 9)
 - [x] Refresh → Re-scan page (Chat 9)
+- [x] Collapse/minimize bug fixed — inline height styles cleared on collapse (Chat 12)
+- [x] Version strings aligned to sub-1.0 across all four files (Chat 12)
+- [x] docs/ folder created in GitHub — all project documents moved there (Chat 12)
 - [ ] Fix minimum rating filter — `parseRating()` + `r.rating` in `scrapeCard()` ⚠️ red flag
 - [ ] Disable product.js in manifest ⚠️ red flag
 - [ ] Remove `AU_AFFILIATE_TAG` and `auTagUrl` from `core.js` ⚠️ must happen before any public release
-- [ ] Align version strings across all four files + apply sub-1.0 renumbering
 - [ ] Show Selected / Clear Selection rework
 - [ ] Frequently Returned badge — make it red (bold done Chat 7, red still needed)
 - [ ] Fix Ko-fi link inconsistency (nudge vs footer) — verify correct URL
@@ -124,7 +128,7 @@ Two of these = stop and wrap up.
 - [ ] Test extension on a different setup (Mac, or Chrome vs Edge) via a tester
 
 ### Infrastructure — pending
-- [ ] Move project docs into `docs/` folder in GitHub repo
+- [x] docs/ folder in GitHub repo — done Chat 12
 - [ ] GitHub Pages enabled on existing repo
 - [ ] Supabase account + one table set up (shareable comparison links)
 - [ ] Create Amazon account (prerequisite for Associates)

@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.3 (extension) · Userscript frozen at v5.19.0 · Updated April 19, 2026*
+*Current version: v0.6.1.3 (extension) · Userscript frozen at v5.19.0 · Updated April 19, 2026 (Chat 12)*
 
 ---
 
@@ -186,6 +186,7 @@ Top to bottom:
 | Item | Detail |
 |---|---|
 | GitHub | github.com/tibbalsgribbin/actually-useful |
+| Project docs | `docs/` folder in GitHub repo — Briefing, Changelog, Roadmap, Handover, and all reference documents |
 | Greasy Fork | v5.19.0 — frozen, no further updates |
 | Usage log | Google Sheet — linked in core.js Apps Script URL |
 | Feedback form | https://forms.gle/J3AECVTDHWKDZZKE7 |
@@ -216,6 +217,7 @@ Top to bottom:
 - **Always confirm with Melissa before executing any file changes**
 - Use targeted `str_replace` edits — not full rewrites unless unavoidable
 - **Code files are NOT in the Claude Project** — Melissa uploads current versions fresh from GitHub at session start
+- **Project documents live in `docs/` folder in GitHub** — download updated docs at end of session, put in `docs/`, commit with the code changes
 - Mid-session: work from outputs folder once edits have started — never re-read from Project mid-session
 - **Token efficiency rule:** Stop and explain if repeating an operation, producing output longer than the task warrants, or struggling with something normally straightforward
 - **Context rot warning:** Long sessions degrade quality. Stop and wrap up rather than pushing through.

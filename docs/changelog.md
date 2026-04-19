@@ -4,6 +4,30 @@
 
 ---
 
+## **v0.6.1.3 — April 19, 2026 (Chat 12)**
+
+### Collapse/minimize bug fix (search.js)
+- When the panel had been resized via the drag handle, clicking ⇕ was toggling between the resized height and whatever the CSS could manage — never collapsing to just the header
+- Root cause: `applyPosition()` sets inline `style.height` and `style.maxHeight` when restoring a saved size; inline styles override CSS class rules, so the `.collapsed` rule (`max-height: 41px`) was losing
+- Fix: collapse button now clears both inline height properties when collapsing, so the CSS rule takes effect; restores them from `au_search_panel_pos` in storage when expanding
+
+### Version strings aligned (all four files)
+- All version strings brought to the new sub-1.0 numbering scheme
+- `manifest.json`: `6.1.2` → `0.6.1`
+- `core.js` AU_VERSION: `6.1.2` → `0.6.1.3`
+- `search.js` header comment: `v6.1.3` → `v0.6.1.3`
+- `styles.css` header comment: `v6.1.0` → `v0.6.1.3`
+
+### docs/ folder added to GitHub
+- All ten project documents moved into `C:\Users\tibba\GitHub\actually-useful\docs\`
+- GitHub is now the single source of truth for project documents
+- Files: Project_Briefing.md, Changelog.md, Roadmap.md, Handover.md, About_Me.md, ActuallyUsefulLogger.gs, competitive-research-2026-04-14.md, gemini-ideas-synthesis.md, Session_Summary_2026-04-19.md, Session_Summary_Addendum_ClaudePro.md
+
+### Process
+- Confirmed session rule: confirm scope before coding, not mid-diagnosis
+
+---
+
 ## **v0.6.1.3 — April 19, 2026 (Chat 10)** *(planning session — no code changes)*
 
 ### Version numbering decision
@@ -186,7 +210,7 @@
 
 ### Folder path reconciled
 - Extension now loads from `C:\Users\tibba\GitHub\actually-useful\extension` (no space) — the GitHub Desktop folder
-- Old `GitHub actually-useful` (with space) folder no longer used
+- Old `GitHub actually-similar` (with space) folder no longer used
 - v6.1.1 pushed to GitHub for the first time
 
 ---
