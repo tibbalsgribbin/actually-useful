@@ -1,7 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v6.1.3)
-
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.3)
 'use strict';
 
 const PANEL_ID = 'ppu-sorter-panel';
@@ -1647,7 +1646,25 @@ const ITEM_UNITS = [
     setupCollapsible('ppu-sort-toggle',    'ppu-sort-collapsible',    sortOpen);
     setupCollapsible('ppu-filters-toggle', 'ppu-filters-collapsible', filtersOpen);
 
-    document.getElementById('ppu-collapse').addEventListener('click',function(e){e.stopPropagation();isCollapsed=!isCollapsed;panel.classList.toggle('collapsed',isCollapsed);});
+    document.getElementById('ppu-collapse').addEventListener('click',function(e){
+      e.stopPropagation();
+      isCollapsed = !isCollapsed;
+      panel.classList.toggle('collapsed', isCollapsed);
+      if (isCollapsed) {
+        // Clear inline height so the CSS collapsed rule (max-height:41px) can take effect
+        panel.style.height    = '';
+        panel.style.maxHeight = '';
+      } else {
+        // Restore saved height if one exists
+        chrome.storage.local.get('au_search_panel_pos', function(r) {
+          var pos = r['au_search_panel_pos'];
+          if (pos && pos.height) {
+            panel.style.height    = pos.height + 'px';
+            panel.style.maxHeight = pos.height + 'px';
+          }
+        });
+      }
+    });
     document.getElementById('ppu-close').addEventListener('click',function(e){e.stopPropagation();panel.remove();});
     document.getElementById('ppu-btn-refresh').addEventListener('click',function(){
       this.textContent='Re-scanning\u2026';this.disabled=true;
