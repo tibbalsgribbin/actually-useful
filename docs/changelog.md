@@ -4,6 +4,37 @@
 
 ---
 
+## **v0.6.1.8 — April 20, 2026 (Chat 17)**
+
+### Compare button (search.js)
+- Added "Compare selected items in new tab" button to shortlist bar
+- Replaces "Open in new tabs" entirely — compare page is the better version of that feature
+- Hidden until ≥1 item is checked; encodes shortlist as Base64 JSON and opens compare.html
+- Item object sent: `{ asin, title, price (raw number), ppu (raw number), ppuUnit, delivery, rating, reviewCount, coupon }`
+- Coupon field: "Coupon" / "Coupon (check Amazon)" / "Subscribe & Save" / savings string
+
+### Gmail-style select-all dropdown (search.js, styles.css)
+- Replaced checkbox + "Select all" label with visual checkbox span + `▾` dropdown arrow
+- Dropdown options: All · None
+- Checkbox reflects state: empty / `–` indeterminate / `✓` filled orange
+- Clicking the box: none→all, any→none
+- "Clear selection" button removed — "None" in dropdown replaces it
+- "Show selected only" button removed — Compare page replaces that workflow
+- `showCheckedOnly` variable and all dependent logic removed
+
+### Shortlist bar visual hierarchy (styles.css)
+- "Select items to compare them." hint: 13px, black, bold — dominant element
+- Select-all control: smaller, grey — secondary
+- All action buttons use base `.ppu-btn` — consistent plain appearance
+- Removed custom `#ppu-btn-compare` ID style (redundant with `.ppu-btn`)
+
+### compare.html price/PPU NaN fix (search.js, compare.html)
+- Root cause: search.js was sending pre-formatted strings ("$12.99"); compare.html expected raw numbers
+- Fix: search.js now sends raw floats; compare.html has null/NaN guard on price cell
+- PPU formatting in compare.html now matches extension precision (3 decimal places for values < $0.10)
+
+---
+
 ## **v0.6.1.7 — April 20, 2026 (Chat 16)**
 
 ### compare.html — Actually Useful Comparisons page (phase 1)
@@ -49,20 +80,10 @@
 ## **v0.6.1.5 — April 19, 2026 (Chat 14)**
 
 ### Ko-fi link fixed (search.js)
-- Nudge was pointing to `ko-fi.com/tibbalsgribbin`; corrected to `ko-fi.com/butactuallyuseful`
-
 ### Page-fetch throttling (search.js)
-- Added 750ms delay between sequential page fetches
-
 ### `auSendLog` moved to background.js (core.js, background.js, search.js)
-- Bypasses Amazon's CSP; logging now fires from service worker context
-
 ### Telemetry opt-out toggle (popup.html, popup.js, background.js, manifest.json)
-- New popup.html — extension icon is now clickable
-- Toggle persists to `chrome.storage.local` under `au_telemetry_enabled`
-
 ### Frequently Returned badge — deferred indefinitely
-- Only appears in product.js panel; deferred until product.js re-enabled post-alpha
 
 ---
 

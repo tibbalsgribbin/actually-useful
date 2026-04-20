@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.7 (overall) · v0.6.1 (manifest) · v0.6.1.5 (AU_VERSION) · Updated April 20, 2026 (Chat 16)*
+*Current version: v0.6.1.8 (overall) · v0.6.1 (manifest) · v0.6.1.8 (AU_VERSION/search.js) · Updated April 20, 2026 (Chat 17)*
 
 ---
 
@@ -50,11 +50,12 @@ Everything in the companion connects through the **persistent shortlist** — th
 
 Each shortlisted item captures: title, ASIN, price at capture, PPU, PPU unit, ships from/sold by, return policy, Prime eligibility, delivery date, rating and review count, coupon/promotion, user note, timestamp, search term, affiliate-tagged link.
 
-**Shortlist item object shape** (for compare.html URL bridge):
+**Shortlist item object shape sent to compare.html (URL bridge):**
 ```
-{ asin, title, price, ppu, ppuUnit, delivery, rating, reviewCount,
-  prime, coupon, soldBy, shipsFrom, returnPolicy, note }
+{ asin, title, price (raw float), ppu (raw float), ppuUnit,
+  delivery, rating, reviewCount, coupon }
 ```
+Note: price and ppu are raw numbers — compare.html handles all formatting. soldBy, shipsFrom, returnPolicy, prime are not yet available from the search results page (product.js deferred).
 
 ---
 
@@ -74,12 +75,12 @@ Associates application deferred until real user base established. Melissa needs 
 
 **Decided Chat 10:** Version numbers shifted to sub-1.0 to reflect that the product is not yet at full public release.
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.5** (internal AU_VERSION) / **v0.6.1.7** (overall release)
+- Current: **v0.6.1** (manifest) / **v0.6.1.8** (internal / search.js header)
 - Increments normally: v0.6.2, v0.7, etc.
 - A polished, stable product earns **v0.9**
 - Web Store public launch = **v1.0**
 
-Chrome manifests support three-part version numbers only — manifest uses `0.6.1`, internal AU_VERSION can carry the fourth segment.
+Chrome manifests support three-part version numbers only — manifest uses `0.6.1`, internal version can carry the fourth segment.
 
 ---
 
@@ -101,7 +102,7 @@ Chrome manifests support three-part version numbers only — manifest uses `0.6.
 
 **URL bridge format (phase 1):**
 ```js
-const encoded = encodeURIComponent(btoa(JSON.stringify({ items: shortlistArray, searchTerm: "..." })));
+const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify({ items: shortlistArray, searchTerm: "..." })))));
 const url = `https://tibbalsgribbin.github.io/actually-useful/compare.html?data=${encoded}`;
 ```
 
@@ -142,7 +143,7 @@ Top to bottom:
    - Minimum reviews + Minimum rating sliders (side by side)
    - Source pills (when non-standard retailers detected)
 7. **Scroll area**
-   - Shortlist bar *(always visible, sticky at top)* — Select all · Show selected only (N) · Clear selection · Open in new tabs (N)
+   - Shortlist bar *(always visible, sticky at top)* — Gmail-style `☐ ▾` dropdown (All/None) · *Select items to compare them.* hint → **Compare selected items in new tab** button
    - Result rows + load more
 8. **Footer** *(always visible, pinned at bottom)*
    - Sort note (sparse data warning, when active)
@@ -174,12 +175,12 @@ Top to bottom:
 
 ### Pages to load
 - Slider (1–10 pages); loads additional pages via `fetch()` with 750ms throttle between fetches
-- Warning at ≥7 pages
+- Warning at ≥7 pages; confirmed practical limit appears to be 7 pages (needs research)
 
 ### Shortlist (session)
 - Checkbox on each row; checked items persist within session
-- Shortlist bar always visible: Select all · Show selected only (N) · Clear selection · Open in new tabs (N)
-- Select all: nothing checked → check all; anything checked → uncheck all
+- Shortlist bar always visible: Gmail-style select-all `☐ ▾` · *Select items to compare them.* → **Compare selected items in new tab**
+- Select-all box: none→all, any→none; dropdown: All · None
 
 ### Delivery sorting
 - Parses free delivery date, fastest delivery date, delivery window, cutoff times
@@ -195,12 +196,14 @@ Top to bottom:
 ## 10. Known Issues / Deferred
 
 - **Product page panel** — deferred until after alpha launch (product.js disabled in manifest)
+- **Best-value star on compare.html** — shows on only one item when PPU values are tied; should show on all tied items (fix next session)
+- **Page limit** — 7 pages confirmed in practice but not definitively researched
 - **Thumbnail images on load-more pages** — not available (fetched via `fetch()`, not live DOM)
 - **Scrollbar track** — click/drag doesn't work; scroll wheel does. Minor, deferred.
 - **Amazon unit price math unreliable** for multi-pack listings — do not attempt to fix without `diagnostic-prices.js` data
-- **Shortlist bar show/hide jank** — "Show selected only" and "Clear selection" appear/disappear when items are checked; slightly jarring. Not worth fixing before shortlist bar gets rethought for website integration.
 - **Frequently Returned badge** — bold only; red deferred until product.js is re-enabled post-alpha
 - **actuallyuseful.net** — domain not yet pointed at GitHub Pages
+- **compare.html** — soldBy, shipsFrom, returnPolicy, prime columns blank until product.js re-enabled
 
 ---
 
@@ -235,6 +238,7 @@ Top to bottom:
 - **Disclaimer placement** — global disclaimers at the bottom; row-level disclaimers inline; only when condition is active
 - **The website must work for users who arrive without the extension** — don't strangle the shared-link growth vector
 - **Amazon Associates disclaimer on every page** — whether or not affiliate links are live
+- **search.js sends raw numbers to compare.html** — compare.html handles all formatting
 
 ---
 

@@ -4,14 +4,16 @@
 
 ---
 
-## Current version: v0.6.1.7
+## Current version: v0.6.1.8
 
 ---
 
 ## Known issues / needs testing
 
-- Shortlist bar show/hide of "Show selected only" and "Clear selection" is slightly jarring — not worth fixing before website integration rethinks the whole bar
-- Verify logging still reaching Google Sheet after background.js move (confirmed working Chat 15)
+- **Best-value star shows on only one item when PPU values are tied** — should show on all tied items. Fix in compare.html.
+- **Page limit** — 7 pages confirmed in practice but not definitively. Research whether limit varies by category/result count before committing to a higher UI cap.
+- Shortlist bar show/hide jank is resolved — replaced by Gmail-style dropdown
+- Verify logging still reaching Google Sheet (confirmed working Chat 15)
 - actuallyuseful.net not yet pointed at GitHub Pages — currently resolves to tibbalsgribbin.github.io/actually-useful/
 
 ---
@@ -35,7 +37,7 @@
 
 **Stale file prevention — start of every session:**
 1. Melissa uploads current code files from GitHub
-2. Claude confirms version string (core.js AU_VERSION, search.js header comment)
+2. Claude confirms version string (search.js header comment)
 3. Only then do edits begin
 
 **File attachment rule (added Chat 9):**
@@ -48,10 +50,10 @@ When removing JS visibility toggling from an element, always check and update th
 Pause between "files produced" and "push to GitHub." Test first, commit after.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.5 (internal AU_VERSION) / v0.6.1.7 (overall release including website)
+- Current: v0.6.1 (manifest) / v0.6.1.8 (internal AU_VERSION / search.js header)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
-- Chrome manifests support three-part version numbers only; internal AU_VERSION can carry a fourth segment
+- Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
 
 **Project documents (from Chat 12):**
 - All project documents now live in `docs/` folder in GitHub repo
@@ -65,6 +67,10 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 **Amazon Associates disclaimer (from Chat 16):**
 - Every page gets this disclaimer at the bottom, whether or not affiliate links are live:
 - "As an Amazon Associate I earn from qualifying purchases. Links on this page support Actually Useful — and don't cost you anything extra."
+
+**Data format between extension and compare.html:**
+- search.js sends raw numbers for price and ppu (not formatted strings)
+- compare.html handles all formatting
 
 **How to know this session is going wrong:**
 - Melissa is being asked to hold multiple things in her head at once
@@ -84,11 +90,8 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **Add "Compare side by side (N)" button to shortlist bar (search.js)**
-   - Encodes shortlist as Base64 JSON: `{ items: [...], searchTerm: "..." }`
-   - Opens `https://tibbalsgribbin.github.io/actually-useful/compare.html?data=[encoded]`
-   - Button only visible when ≥1 item is shortlisted
-   - Each item object: `{ asin, title, price, ppu, ppuUnit, delivery, rating, reviewCount, prime, coupon, soldBy, shipsFrom, returnPolicy, note }`
+1. **Fix best-value tie handling in compare.html** — star should show on all items with equal lowest PPU, not just the first one
+2. **Supabase setup + shareable links** (may be its own session)
 
 ---
 
@@ -110,10 +113,14 @@ Two of these = stop and wrap up.
 - [x] Landing page live (Chat 15)
 - [x] compare.html built (Chat 16)
 - [x] Affiliate disclaimer corrected to Amazon Associates required wording (Chat 16)
+- [x] Compare button added to shortlist bar; open-in-tabs removed (Chat 17)
+- [x] Gmail-style select-all dropdown (Chat 17)
+- [x] Price/PPU NaN bug fixed in compare.html (Chat 17)
+- [ ] Best-value tie handling in compare.html
 - [ ] Amazon unit price flagging — deferred, needs diagnostic first
 
 ### Alpha release — blockers
-- [ ] "Compare side by side (N)" button in shortlist bar
+- [ ] Best-value tie fix (compare.html)
 - [ ] Supabase setup + shareable links
 - [ ] Test extension on a different setup (Mac or Chrome vs Edge)
 - [ ] Decide: Chrome Web Store submission before or after alpha?
@@ -136,13 +143,12 @@ Two of these = stop and wrap up.
 - [ ] Product page re-enabled (tested against current Amazon first)
 - [ ] Cross-page shortlist state persistence (chrome.storage.local)
 - [ ] Two-way extension ↔ website connection
-- [ ] Shortlist bar rethought for website integration
 - [ ] Frequently Returned badge — make it red (deferred until product.js re-enabled)
 - [ ] Derive per-item price from total ÷ count when Amazon reports wrong unit
 - [ ] Keyword length expression normalization ("6ft" vs "6 feet")
 - [ ] Exclusion possessives (`-men` not matching "men's")
 - [ ] Fix nudge firing on hyphenated keywords (e.g. "t-shirt")
-- [ ] "Start over" button — reset `selectedUnit` and `showCheckedOnly`
+- [ ] "Start over" button — reset `selectedUnit`
 - [ ] Re-scan: preserve shortlist on same-term re-scans
 - [ ] Contribution nudge (30-day floor, usage trigger, permanent dismiss)
 - [ ] Walmart version
@@ -150,14 +156,18 @@ Two of these = stop and wrap up.
 - [ ] IIFE wrapping of scripts (pre-Web Store submission)
 - [ ] Replace `.innerHTML` row template with `document.createElement` (pre-Web Store submission)
 - [ ] Badge text on toolbar icon — shortlist count via `chrome.action.setBadgeText`
+- [ ] Research and confirm page limit (7 pages — needs verification)
 
 **Website — Actually Useful Comparisons**
 - [x] Basic comparison table (Chat 16)
 - [x] Sortable columns (Chat 16)
 - [x] Works for users who arrive via shared link without the extension (Chat 16)
+- [x] Price/PPU formatting fixed (Chat 17)
+- [ ] Best-value star on all tied items (next session)
 - [ ] Per-item notes persisted to URL
 - [ ] Shareable permanent links via Supabase (`actuallyuseful.net/c/x7k2m`)
 - [ ] Keepa price history link per item
+- [ ] soldBy / shipsFrom / returnPolicy / prime — populate when product.js re-enabled
 
 **Website — Actually Useful Searches**
 - [ ] Build forms for queries Amazon makes hard
@@ -214,3 +224,4 @@ Two of these = stop and wrap up.
 - The website must work for users who arrive without the extension
 - Affiliate tags on website only — never in extension
 - Amazon Associates disclaimer on every page — whether or not affiliate links are live
+- search.js sends raw numbers to compare.html — compare.html handles all formatting
