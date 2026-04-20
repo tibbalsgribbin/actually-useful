@@ -4,15 +4,14 @@
 
 ---
 
-## Current version: v0.6.1.8
+## Current version: v0.6.1.9
 
 ---
 
 ## Known issues / needs testing
 
-- **Best-value star shows on only one item when PPU values are tied** — should show on all tied items. Fix in compare.html.
+- **Best-value star tie handling** — appears to be working with test data; keep an eye on with more varied PPU values
 - **Page limit** — 7 pages confirmed in practice but not definitively. Research whether limit varies by category/result count before committing to a higher UI cap.
-- Shortlist bar show/hide jank is resolved — replaced by Gmail-style dropdown
 - Verify logging still reaching Google Sheet (confirmed working Chat 15)
 - actuallyuseful.net not yet pointed at GitHub Pages — currently resolves to tibbalsgribbin.github.io/actually-useful/
 
@@ -50,7 +49,7 @@ When removing JS visibility toggling from an element, always check and update th
 Pause between "files produced" and "push to GitHub." Test first, commit after.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.8 (internal AU_VERSION / search.js header)
+- Current: v0.6.1 (manifest) / v0.6.1.9 (internal AU_VERSION / search.js header)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
@@ -72,6 +71,12 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 - search.js sends raw numbers for price and ppu (not formatted strings)
 - compare.html handles all formatting
 
+**Supabase (from Chat 18):**
+- Project: Actually Useful / actually-useful, free tier
+- Table: `comparisons` — id (int8), created_at (timestamptz), data (text), RLS disabled
+- Publishable key and URL are in compare.html config constants
+- Never use the secret key in browser code
+
 **How to know this session is going wrong:**
 - Melissa is being asked to hold multiple things in her head at once
 - Same ground is being covered twice
@@ -90,8 +95,9 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **Fix best-value tie handling in compare.html** — star should show on all items with equal lowest PPU, not just the first one
-2. **Supabase setup + shareable links** (may be its own session)
+1. **Affiliate note position** — move it below the Share button (minor CSS tweak, bundle with next change)
+2. **Pre-fill feedback form with browser/version info** — extension opens form URL with query params pre-filling version + browser fields
+3. **Alpha tester recruitment** — decide timing and approach
 
 ---
 
@@ -116,12 +122,13 @@ Two of these = stop and wrap up.
 - [x] Compare button added to shortlist bar; open-in-tabs removed (Chat 17)
 - [x] Gmail-style select-all dropdown (Chat 17)
 - [x] Price/PPU NaN bug fixed in compare.html (Chat 17)
-- [ ] Best-value tie handling in compare.html
+- [x] Best-value tie handling in compare.html (Chat 18)
+- [x] Supabase setup + shareable links (Chat 18)
+- [ ] Affiliate note position — below Share button (minor, bundle with next change)
+- [ ] Pre-fill feedback form with browser/version info
 - [ ] Amazon unit price flagging — deferred, needs diagnostic first
 
 ### Alpha release — blockers
-- [ ] Best-value tie fix (compare.html)
-- [ ] Supabase setup + shareable links
 - [ ] Test extension on a different setup (Mac or Chrome vs Edge)
 - [ ] Decide: Chrome Web Store submission before or after alpha?
 - [ ] Alpha tester recruitment
@@ -131,8 +138,8 @@ Two of these = stop and wrap up.
 - [x] GitHub Pages enabled
 - [x] Landing page live
 - [x] compare.html live
+- [x] Supabase account + comparisons table
 - [ ] actuallyuseful.net pointed at GitHub Pages
-- [ ] Supabase account + one table (shareable comparison links)
 - [ ] Create Amazon account (prerequisite for Associates)
 - [ ] Apply for Amazon Associates
 - [ ] Create Chrome Web Store developer account ($5)
@@ -151,7 +158,7 @@ Two of these = stop and wrap up.
 - [ ] "Start over" button — reset `selectedUnit`
 - [ ] Re-scan: preserve shortlist on same-term re-scans
 - [ ] Contribution nudge (30-day floor, usage trigger, permanent dismiss)
-- [ ] Walmart version
+- [ ] Wallet version
 - [ ] Settings/onboarding page
 - [ ] IIFE wrapping of scripts (pre-Web Store submission)
 - [ ] Replace `.innerHTML` row template with `document.createElement` (pre-Web Store submission)
@@ -163,9 +170,10 @@ Two of these = stop and wrap up.
 - [x] Sortable columns (Chat 16)
 - [x] Works for users who arrive via shared link without the extension (Chat 16)
 - [x] Price/PPU formatting fixed (Chat 17)
-- [ ] Best-value star on all tied items (next session)
+- [x] Best-value star on all tied items (Chat 18)
+- [x] Shareable permanent links via Supabase (Chat 18)
+- [ ] Affiliate note position — below Share button
 - [ ] Per-item notes persisted to URL
-- [ ] Shareable permanent links via Supabase (`actuallyuseful.net/c/x7k2m`)
 - [ ] Keepa price history link per item
 - [ ] soldBy / shipsFrom / returnPolicy / prime — populate when product.js re-enabled
 
@@ -200,12 +208,12 @@ Two of these = stop and wrap up.
 
 **Three website components:**
 - `index.html` — marketing/landing page ✅ live
-- `compare.html` — Actually Useful Comparisons ✅ live
+- `compare.html` — Actually Useful Comparisons ✅ live with shareable links
 - `search.html` — Actually Useful Searches
 
 **Sequencing:**
 1. Comparisons page first — closes monetization loop, drives share-induced installs ✅
-2. Supabase shareable links second
+2. Supabase shareable links ✅
 3. Searches page third — validate with real users before building
 
 ---

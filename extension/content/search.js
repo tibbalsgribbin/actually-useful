@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.8)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.9)
 'use strict';
 
 const PANEL_ID = 'ppu-sorter-panel';

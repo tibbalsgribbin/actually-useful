@@ -4,6 +4,33 @@
 
 ---
 
+## **v0.6.1.9 — April 20, 2026 (Chat 18)**
+
+### Supabase shareable links (compare.html)
+- Supabase project created (Actually Useful / actually-useful), free tier
+- `comparisons` table: `id` (int8), `created_at` (timestamptz), `data` (text)
+- `saveComparison()` — POSTs items + searchTerm to Supabase, returns row id
+- `loadComparison()` — fetches by id, parses and returns stored comparison
+- `init()` now checks for `?id=` param first; loads from Supabase if present, falls back to `?data=` decode
+- Share button added to meta bar (top) and below affiliate note (bottom)
+- First click: saves to Supabase, updates URL to `?id=xxx`, copies link to clipboard
+- Subsequent clicks: reuses existing id, copies link again — no duplicate Supabase writes
+- Button text: "Saving…" → "Link copied!" → resets to "Share this comparison" after 2.5s
+- Duplicate event listener bug fixed — `data-share-attached` attribute prevents multiple handlers on re-render
+- `cursor: pointer` added to `.btn` so share button always looks clickable
+- `.btn:active` press effect added (translateY + opacity)
+
+### Best-value tie handling (compare.html)
+- `findBestPpuIndex` replaced with `findBestPpuIndices` returning a Set of all tied indices
+- Floating-point safe: rounds to 6 decimal places before comparison
+- All items sharing the lowest PPU now show the gold ★
+
+### Deferred this session
+- Affiliate note position (below Share button) — minor CSS tweak, next convenient session
+- Pre-fill feedback form with browser/version info — added to roadmap
+
+---
+
 ## **v0.6.1.8 — April 20, 2026 (Chat 17)**
 
 ### Compare button (search.js)
@@ -58,22 +85,8 @@
 ## **v0.6.1.6 — April 20, 2026 (Chat 15)**
 
 ### Manifest warning fixed (manifest.json)
-- Deleted `_content_scripts_product_disabled` block entirely
-- Eliminates the "Unrecognized manifest key" warning in Edge
-- product.js remains disabled — the entry is simply gone rather than renamed
-
-### Landing page (index.html)
-- Full landing page built and deployed to GitHub Pages
-- Live at `https://tibbalsgribbin.github.io/actually-useful/`
-- Sections: hero, four pillars, Why it exists, feature grid (9 features), Ko-fi support, footer
-- Design: cream/navy/teal palette, DM Serif Display + DM Sans, responsive down to mobile
-- Nav links: How it works, Support, GitHub
-- Footer links: GitHub, Give feedback, Ko-fi
-- Copy uses Melissa's exact wording for the four pillars and tagline
-- "Currently in alpha testing." note in hero
-
+### Landing page (index.html) — live at tibbalsgribbin.github.io/actually-useful/
 ### Feedback form verified
-- All three required alpha questions confirmed present
 
 ---
 
@@ -83,7 +96,6 @@
 ### Page-fetch throttling (search.js)
 ### `auSendLog` moved to background.js (core.js, background.js, search.js)
 ### Telemetry opt-out toggle (popup.html, popup.js, background.js, manifest.json)
-### Frequently Returned badge — deferred indefinitely
 
 ---
 

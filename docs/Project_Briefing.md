@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.8 (overall) · v0.6.1 (manifest) · v0.6.1.8 (AU_VERSION/search.js) · Updated April 20, 2026 (Chat 17)*
+*Current version: v0.6.1.9 (overall) · v0.6.1 (manifest) · v0.6.1.8 (search.js) · v0.6.1.9 (compare.html) · Updated April 20, 2026 (Chat 18)*
 
 ---
 
@@ -21,6 +21,7 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 | Email | amazon.butactuallyuseful@gmail.com |
 | Google account | butactuallyuseful@gmail.com (InPrivate Edge only) |
 | Feedback form | https://forms.gle/J3AECVTDHWKDZZKE7 |
+| Supabase | Actually Useful / actually-useful project, free tier |
 
 ---
 
@@ -48,9 +49,7 @@ Pillar four is the most distinctive and most personal. Never name the problem �
 
 Everything in the companion connects through the **persistent shortlist** — the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-Each shortlisted item captures: title, ASIN, price at capture, PPU, PPU unit, ships from/sold by, return policy, Prime eligibility, delivery date, rating and review count, coupon/promotion, user note, timestamp, search term, affiliate-tagged link.
-
-**Shortlist item object shape sent to compare.html (URL bridge):**
+**Shortlist item object shape sent to compare.html:**
 ```
 { asin, title, price (raw float), ppu (raw float), ppuUnit,
   delivery, rating, reviewCount, coupon }
@@ -63,44 +62,46 @@ Note: price and ppu are raw numbers — compare.html handles all formatting. sol
 
 Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. No paywalls ever.
 
-**Affiliate link policy:** Affiliate tags are applied on the website only — never in the extension. `AU_AFFILIATE_TAG` and `auTagUrl` have been removed from `core.js`. Amazon's policy explicitly forbids affiliate tags in browser extensions.
+**Affiliate link policy:** Affiliate tags are applied on the website only — never in the extension. Amazon's policy explicitly forbids affiliate tags in browser extensions.
 
-**Amazon Associates disclosure:** Every page must display clearly and prominently: *"As an Amazon Associate I earn from qualifying purchases."* This is a hard requirement from the Associates Operating Agreement. Standing rule: this disclaimer goes on every page, whether or not affiliate links are live at the time.
+**Amazon Associates disclosure:** Every page must display: *"As an Amazon Associate I earn from qualifying purchases. Links on this page support Actually Useful — and don't cost you anything extra."* Standing rule: this disclaimer goes on every page, whether or not affiliate links are live.
 
-Associates application deferred until real user base established. Melissa needs her own Amazon account (separate from family member's) for Associates eligibility.
+Associates application deferred until real user base established.
 
 ---
 
 ## 5. Version Numbering
 
-**Decided Chat 10:** Version numbers shifted to sub-1.0 to reflect that the product is not yet at full public release.
-
-- Current: **v0.6.1** (manifest) / **v0.6.1.8** (internal / search.js header)
+- Current: **v0.6.1** (manifest) / **v0.6.1.8** (search.js) / **v0.6.1.9** (compare.html)
 - Increments normally: v0.6.2, v0.7, etc.
-- A polished, stable product earns **v0.9**
 - Web Store public launch = **v1.0**
-
-Chrome manifests support three-part version numbers only — manifest uses `0.6.1`, internal version can carry the fourth segment.
+- Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
 
 ---
 
 ## 6. Website Architecture
 
-**Platform:** GitHub Pages (static, free, uses existing repo) + Supabase (free database for shareable links).
+**Platform:** GitHub Pages + Supabase (free tier).
 
 **Pages:**
-- `index.html` — marketing/landing page ✅ **live at tibbalsgribbin.github.io/actually-useful/**
-- `compare.html` — Actually Useful Comparisons ✅ **live** — receives shortlist data from extension, renders comparison table, applies affiliate tags, supports shareable permanent links (Supabase — phase 2)
-- `search.html` — Actually Useful Searches — standalone advanced search tool (post-alpha)
+- `index.html` — marketing/landing page ✅ live
+- `compare.html` — Actually Useful Comparisons ✅ live — comparison table, sortable columns, shareable links via Supabase (`?id=xxx`)
+- `search.html` — Actually Useful Searches (post-alpha)
+
+**Supabase:**
+- Project: Actually Useful / actually-useful, free tier
+- Table: `comparisons` — id (int8), created_at (timestamptz), data (text), RLS disabled
+- Publishable key and project URL stored in compare.html config constants
+- Secret key: never goes in browser code
+- Save: POST to `/rest/v1/comparisons`, returns row id
+- Load: GET `/rest/v1/comparisons?id=eq.{id}&select=data`
 
 **Key decisions:**
-- Shareable links are essential — implemented via Supabase (`actuallyuseful.net/compare?id=x7k2m`) — phase 2
-- Price history: link to Keepa per item — Keepa doesn't inject affiliate tags; CamelCamelCamel does
-- Website cannot fetch Amazon results independently — extension remains the Amazon-facing piece
-- Two-way extension ↔ website connection is post-alpha
 - The Comparisons page must work for users who arrive via shared link without the extension
+- Two-way extension ↔ website connection is post-alpha
+- Affiliate tags on website only — never in extension
 
-**URL bridge format (phase 1):**
+**URL bridge format (entry point from extension):**
 ```js
 const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify({ items: shortlistArray, searchTerm: "..." })))));
 const url = `https://tibbalsgribbin.github.io/actually-useful/compare.html?data=${encoded}`;
@@ -134,76 +135,70 @@ const url = `https://tibbalsgribbin.github.io/actually-useful/compare.html?data=
 Top to bottom:
 1. **Header** — "Actually Useful" + help (?), collapse (⇕), close (×)
 2. **Keyword row** — input + clear button + Start over button
-3. **Keyword hint** — "Actually Useful works best in conjunction with Amazon's existing filters…"
+3. **Keyword hint**
 4. **Display as pills** — unit conversion (when applicable)
-5. **Sort divider** *(clickable — collapses/expands Sort section)*
-   - Sort dropdown, Re-scan page, Re-sort, Move ads button
-   - Pages to load slider (when next page exists)
-6. **Filters divider** *(clickable — collapses/expands Filters section)*
-   - Minimum reviews + Minimum rating sliders (side by side)
-   - Source pills (when non-standard retailers detected)
-7. **Scroll area**
-   - Shortlist bar *(always visible, sticky at top)* — Gmail-style `☐ ▾` dropdown (All/None) · *Select items to compare them.* hint → **Compare selected items in new tab** button
-   - Result rows + load more
-8. **Footer** *(always visible, pinned at bottom)*
-   - Sort note (sparse data warning, when active)
-   - Info bar (result count, active filters summary)
-   - Give feedback · Buy me a coffee
+5. **Sort divider** *(collapsible)* — sort dropdown, Re-scan, Re-sort, Move ads, pages slider
+6. **Filters divider** *(collapsible)* — min reviews + min rating sliders, source pills
+7. **Scroll area** — shortlist bar (always visible) + result rows + load more
+8. **Footer** *(always visible)* — sort note, info bar, feedback + Ko-fi links
+
+**Shortlist bar:** Gmail-style `☐ ▾` dropdown (All/None) · *Select items to compare them.* → **Compare selected items in new tab**
 
 ---
 
 ## 9. Key Features
 
 ### Price-per-unit (PPU)
-- Scraped from Amazon's reported unit price when available; calculated from price ÷ count when not
-- Liquid-dominant inference: in liquid categories, oz treated as fl oz for sorting
-- Best value star (★) on lowest PPU item among visible, comparable results
-- Conversion between units via unit pills (fl oz, ml, oz weight, g, per item)
+- Scraped from Amazon's reported unit price; calculated from price ÷ count when not available
+- Liquid-dominant inference: oz treated as fl oz in liquid categories
+- Best value star (★) on all items sharing the lowest PPU (floating-point safe, rounds to 6dp)
+- Unit conversion via pills (fl oz, ml, oz weight, g, per item)
 
 ### Keyword filtering
-- Supports inclusion terms, exclusion terms (`-word`), OR branches (`word1 OR word2` or `|`)
-- Searches title + card text (badges, delivery info, promo text)
-- Mismatches dimmed to bottom rather than hidden
-- 250ms debounce on input
+- Inclusion, exclusion (`-word`), OR branches (`word1 OR word2` or `|`)
+- Mismatches dimmed to bottom — never hidden
+- 250ms debounce
 
 ### Sponsored button — three-state cycle
-- Move ads to end of results → ✓ Moved · Hide ads → ✓ Hidden · Show ads
+Move ads to end → Hide ads → Show ads
 
 ### Source filtering
-- Detects Amazon, Fresh, Whole Foods, Amazon Pharmacy, and partner retailers dynamically
-- Toggle pills per source; off = hidden
+Detects Amazon, Fresh, Whole Foods, Pharmacy, partner retailers. Toggle pills per source.
 
 ### Pages to load
-- Slider (1–10 pages); loads additional pages via `fetch()` with 750ms throttle between fetches
-- Warning at ≥7 pages; confirmed practical limit appears to be 7 pages (needs research)
+Slider (1–10); 750ms throttle between fetches. Practical limit ~7 pages.
 
-### Shortlist (session)
-- Checkbox on each row; checked items persist within session
-- Shortlist bar always visible: Gmail-style select-all `☐ ▾` · *Select items to compare them.* → **Compare selected items in new tab**
-- Select-all box: none→all, any→none; dropdown: All · None
+### Shortlist (session-scoped)
+Checkbox per row. Shortlist bar always visible. Compare button opens compare.html.
 
 ### Delivery sorting
-- Parses free delivery date, fastest delivery date, delivery window, cutoff times
-- Whole Foods free delivery excluded from "Soonest FREE delivery" sort
+Parses free/fastest delivery, windows, cutoff times. WF free delivery excluded from soonest-free sort.
 
 ### Telemetry
-- Usage data sent via background.js (bypasses Amazon's CSP)
-- User can opt out via the extension popup
-- Preference stored in `chrome.storage.local` under `au_telemetry_enabled`; default on
+Sent via background.js (bypasses CSP). User can opt out via popup. Default on.
+
+### Shareable comparison links
+- Share button in meta bar and below table
+- First click: saves to Supabase, updates URL to `?id=xxx`, copies link
+- Subsequent clicks: reuses existing id, re-copies
+- Button resets to "Share this comparison" after 2.5s
+- Works for users arriving without the extension
 
 ---
 
 ## 10. Known Issues / Deferred
 
-- **Product page panel** — deferred until after alpha launch (product.js disabled in manifest)
-- **Best-value star on compare.html** — shows on only one item when PPU values are tied; should show on all tied items (fix next session)
-- **Page limit** — 7 pages confirmed in practice but not definitively researched
-- **Thumbnail images on load-more pages** — not available (fetched via `fetch()`, not live DOM)
-- **Scrollbar track** — click/drag doesn't work; scroll wheel does. Minor, deferred.
-- **Amazon unit price math unreliable** for multi-pack listings — do not attempt to fix without `diagnostic-prices.js` data
-- **Frequently Returned badge** — bold only; red deferred until product.js is re-enabled post-alpha
-- **actuallyuseful.net** — domain not yet pointed at GitHub Pages
-- **compare.html** — soldBy, shipsFrom, returnPolicy, prime columns blank until product.js re-enabled
+- **Product page panel** — disabled in manifest, deferred until post-alpha
+- **Best-value star ties** — appears to be working; keep an eye on with varied PPU data
+- **Page limit** — 7 pages in practice; not definitively researched
+- **Thumbnail images on load-more pages** — not available via fetch()
+- **Scrollbar track** — scroll wheel works; click/drag doesn't. Minor, deferred.
+- **Amazon unit price math unreliable** for multi-pack listings — needs diagnostic-prices.js data first
+- **Frequently Returned badge** — bold only; red deferred until product.js re-enabled
+- **actuallyuseful.net** — not yet pointed at GitHub Pages
+- **compare.html soldBy/shipsFrom/returnPolicy/prime** — blank until product.js re-enabled
+- **Affiliate note position** — currently above Share button; should be below. Minor CSS, deferred.
+- **Feedback form pre-fill** — browser/version info not yet captured automatically
 
 ---
 
@@ -214,10 +209,10 @@ Top to bottom:
 | GitHub | github.com/tibbalsgribbin/actually-useful |
 | GitHub Pages | tibbalsgribbin.github.io/actually-useful/ (live) |
 | Project docs | `docs/` folder in GitHub repo |
+| Supabase | Actually Useful / actually-useful, free tier |
 | Greasy Fork | v5.19.0 — frozen, no further updates |
 | Usage log | Google Sheet — payload relayed via background.js |
 | Feedback form | https://forms.gle/J3AECVTDHWKDZZKE7 |
-| Website | index.html and compare.html live; search.html pending |
 | Ko-fi | ko-fi.com/butactuallyuseful |
 | Contact | amazon.butactuallyuseful@gmail.com |
 
@@ -225,45 +220,36 @@ Top to bottom:
 
 ## 12. Design Principles
 
-- **Fill gaps in Amazon's interface** — don't duplicate what Amazon already does well
-- **Don't duplicate what established tools do well** — surface them instead
-- **Wrong numbers are worse than no numbers**
-- **Never drop results** — sort what is rendered
-- **User intent matters more than physical precision**
-- **Pillar four by design** — features reduce friction and cognitive load; described through benefits only
-- **One continuous app** — panel feels seamless across all page types
-- **Consistent UI chrome** — every panel shares the same header
-- **Use Melissa's exact wording** — for UI messages, disclaimers, and copy
-- **Copy and tone** — "doesn't" not "won't"; warm, direct, personal
-- **Disclaimer placement** — global disclaimers at the bottom; row-level disclaimers inline; only when condition is active
-- **The website must work for users who arrive without the extension** — don't strangle the shared-link growth vector
-- **Amazon Associates disclaimer on every page** — whether or not affiliate links are live
-- **search.js sends raw numbers to compare.html** — compare.html handles all formatting
+- Fill gaps in Amazon's interface — don't duplicate what Amazon already does well
+- Wrong numbers are worse than no numbers
+- Never drop results — sort what is rendered
+- User intent matters more than physical precision
+- One continuous app — state flows naturally between pages
+- Use Melissa's exact wording for UI copy
+- Copy tone: warm, direct, personal. "doesn't" not "won't"
+- The website must work for users who arrive without the extension
+- Affiliate tags on website only — never in extension
+- Amazon Associates disclaimer on every page — whether or not affiliate links are live
+- search.js sends raw numbers to compare.html — compare.html handles all formatting
 
 ---
 
 ## 13. Working With Melissa
 
-- **Always confirm with Melissa before executing any file changes**
+- Always confirm before executing any file changes
 - Use targeted `str_replace` edits — not full rewrites unless unavoidable
-- **Code files are NOT in the Claude Project** — Melissa uploads current versions fresh from GitHub at session start
-- **Project documents live in `docs/` folder in GitHub** — download updated docs at end of session, put in `docs/`, commit with the code changes
-- Mid-session: work from outputs folder once edits have started — never re-read from Project mid-session
-- **Token efficiency rule:** Stop and explain if repeating an operation, producing output longer than the task warrants, or struggling with something normally straightforward
-- **Context rot warning:** Long sessions degrade quality. Stop and wrap up rather than pushing through.
-- **Session discipline:** One major task per session. Ship, test, document, then start fresh.
-- **Bundle small changes** — don't ship a one-line fix alone; hold it for the next logical batch
-- Has fibromyalgia causing brain fog and reduced memory — be patient, thorough, never ask her to hold multiple things in her head at once
-- Many Google accounts — InPrivate Edge + butactuallyuseful@gmail.com only for all Google tasks
-- **Use the AskUserQuestion widget** for clarifying questions — Melissa strongly prefers it over prose questions
-- **Melissa handles simple file operations herself** — folder creation, file deletion, clicks
-- **Always include context/token status** when asking "continue or wrap up?"
-- **CSS/JS rule:** when removing JS visibility toggling, always check and update the CSS baseline too
-- **End-of-session checklist — do not present files until all are complete:**
-  1. Project_Briefing.md — updated if anything changed
-  2. Changelog.md — new session appended
-  3. Roadmap.md — version, known issues, next priorities updated
-  4. Handover.md — written for next session
-  5. All code files that changed
-  6. GitHub push reminder given to Melissa
+- Code files are NOT in the Claude Project — upload fresh from GitHub each session
+- Project documents live in `docs/` folder in GitHub
+- Use the AskUserQuestion widget for clarifying questions — Melissa strongly prefers it
+- Has fibromyalgia — never ask her to hold multiple things in her head at once
+- Many Google accounts — InPrivate Edge + butactuallyuseful@gmail.com only
+- Always include context/token status when asking "continue or wrap up?"
+- Bundle small changes — don't ship a one-line fix alone
+- **End-of-session checklist:**
+  1. Project_Briefing.md updated
+  2. Changelog.md appended
+  3. Roadmap.md updated
+  4. Handover.md written
+  5. All changed code files presented
+  6. GitHub push reminder given
   7. Remind Melissa to update Project files in Claude after the push
