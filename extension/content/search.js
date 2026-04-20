@@ -1,7 +1,15 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.9)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.8)
 'use strict';
+
+function auFeedbackUrl() {
+  const base = 'https://forms.gle/XU8RpYM3cGFTwQQ86';
+  const version = (typeof AU_VERSION !== 'undefined') ? AU_VERSION : 'unknown';
+  const ua = navigator.userAgent;
+  const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Other';
+  return base + '?usp=pp_url&entry.1362282898=' + encodeURIComponent(version) + '&entry.1312500883=' + encodeURIComponent(browser);
+}
 
 const PANEL_ID = 'ppu-sorter-panel';
 const AU_FILTERS_KEY = 'au_search_filters'; // persists filter state per search term within session
@@ -1105,7 +1113,7 @@ const ITEM_UNITS = [
         '<div id="ppu-sort-note"></div>'+
         '<div id="ppu-info"></div>'+
         '<div id="ppu-footer-links">'+
-          '<a id="ppu-feedback" href="https://forms.gle/J3AECVTDHWKDZZKE7" target="_blank">\ud83d\udcac Give feedback</a>'+
+          '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">\ud83d\udcac Give feedback</a>'+
           '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">\u2615 Buy me a coffee</a>'+
         '</div>'+
       '</div>';
