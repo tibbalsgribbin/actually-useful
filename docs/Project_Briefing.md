@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.4 (extension) · Userscript frozen at v5.19.0 · Updated April 19, 2026 (Chat 13)*
+*Current version: v0.6.1.5 (extension) · Userscript frozen at v5.19.0 · Updated April 19, 2026 (Chat 14)*
 
 ---
 
@@ -55,7 +55,7 @@ Each shortlisted item captures: title, ASIN, price at capture, PPU, ships from/s
 
 Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. No paywalls ever.
 
-**Affiliate link policy:** Affiliate tags are applied on the website only — never in the extension. The `AU_AFFILIATE_TAG` constant and `auTagUrl` function in `core.js` must be removed before any public release. Amazon's policy explicitly forbids affiliate tags in browser extensions.
+**Affiliate link policy:** Affiliate tags are applied on the website only — never in the extension. `AU_AFFILIATE_TAG` and `auTagUrl` have been removed from `core.js`. Amazon's policy explicitly forbids affiliate tags in browser extensions.
 
 Associates application deferred until real user base established. Melissa needs her own Amazon account (separate from family member's) for Associates eligibility.
 
@@ -63,9 +63,9 @@ Associates application deferred until real user base established. Melissa needs 
 
 ## 5. Version Numbering
 
-**Decided Chat 10:** Version numbers shifted to sub-1.0 to reflect that the product is not yet at full public release. History is preserved in the numbers.
+**Decided Chat 10:** Version numbers shifted to sub-1.0 to reflect that the product is not yet at full public release.
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.3** (internal AU_VERSION)
+- Current: **v0.6.1** (manifest) / **v0.6.1.5** (internal AU_VERSION)
 - Increments normally: v0.6.2, v0.7, etc.
 - A polished, stable product earns **v0.9**
 - Web Store public launch = **v1.0**
@@ -76,33 +76,34 @@ Chrome manifests support three-part version numbers only — manifest uses `0.6.
 
 ## 6. Website Architecture
 
-**Platform:** GitHub Pages (static, free, uses existing repo) + Supabase (free database for shareable links). Visitors never interact with GitHub — the website looks and works like any normal site.
+**Platform:** GitHub Pages (static, free, uses existing repo) + Supabase (free database for shareable links).
 
 **Pages planned:**
 - `index.html` — marketing/landing page
-- `compare.html` — comparison table; receives shortlist data from extension, renders results, applies affiliate tags to all outbound Amazon links, supports shareable permanent links
-- `search.html` — power search form (Jungle Search model); constructs advanced Amazon search URL with affiliate tag
+- `compare.html` — comparison table; receives shortlist data from extension, renders results, applies affiliate tags, supports shareable permanent links
+- `search.html` — power search form (Jungle Search model)
 
 **Key decisions:**
 - Shareable links are essential — implemented via Supabase (`actuallyuseful.net/compare?id=x7k2m`)
-- Price history: link to Keepa per item (`keepa.com/product/[ASIN]`) — Keepa doesn't inject affiliate tags; CamelCamelCamel does and would redirect commissions away from AU
-- Website cannot fetch Amazon results independently — Amazon blocks external scrapers; extension remains the Amazon-facing piece
-- Two-way extension ↔ website connection (send refined shortlist back to extension) is post-alpha
+- Price history: link to Keepa per item — Keepa doesn't inject affiliate tags; CamelCamelCamel does
+- Website cannot fetch Amazon results independently — extension remains the Amazon-facing piece
+- Two-way extension ↔ website connection is post-alpha
 
 ---
 
 ## 7. Extension File Structure
 
 **Extension folder:** `C:\Users\tibba\GitHub\actually-useful\extension\`
-*(Note: a second folder `GitHub actually-useful` with a space existed previously — it is no longer used. GitHub Desktop and Edge now both point at the no-space folder.)*
 
 | File | Purpose |
 |---|---|
 | `manifest.json` | Extension manifest (MV3) |
-| `background.js` | Service worker — search context relay |
+| `background.js` | Service worker — search context relay + usage logging |
+| `popup.html` | Extension popup — telemetry toggle + links |
+| `popup.js` | Popup logic — loads/saves telemetry preference, shows version |
 | `content/search.js` | Search results page panel |
 | `content/product.js` | Product page panel (disabled during alpha) |
-| `content/shared/core.js` | Shared: shortlist, nudge, affiliate tag, version |
+| `content/shared/core.js` | Shared: shortlist, nudge, shared constants |
 | `content/shared/styles.css` | Shared styles for all panels |
 
 `core.js` uses a **callback pattern** (not Promises).
@@ -119,13 +120,13 @@ Top to bottom:
 3. **Keyword hint** — "Actually Useful works best in conjunction with Amazon's existing filters…"
 4. **Display as pills** — unit conversion (when applicable)
 5. **Sort divider** *(clickable — collapses/expands Sort section)*
-   - Sort dropdown, Re-scan page, Re-sort, Move ads button, Show selected, Clear selection
+   - Sort dropdown, Re-scan page, Re-sort, Move ads button
    - Pages to load slider (when next page exists)
 6. **Filters divider** *(clickable — collapses/expands Filters section)*
    - Minimum reviews + Minimum rating sliders (side by side)
    - Source pills (when non-standard retailers detected)
 7. **Scroll area**
-   - Shortlist bar *(always visible, sticky at top)* — Select all checkbox + Open in tabs button
+   - Shortlist bar *(always visible, sticky at top)* — Select all · Show selected only (N) · Clear selection · Open in new tabs (N)
    - Result rows + load more
 8. **Footer** *(always visible, pinned at bottom)*
    - Sort note (sparse data warning, when active)
@@ -146,7 +147,7 @@ Top to bottom:
 - Supports inclusion terms, exclusion terms (`-word`), OR branches (`word1 OR word2` or `|`)
 - Searches title + card text (badges, delivery info, promo text)
 - Mismatches dimmed to bottom rather than hidden
-- 250ms debounce on input — does not re-render on every keystroke
+- 250ms debounce on input
 
 ### Sponsored button — three-state cycle
 - Move ads to end of results → ✓ Moved · Hide ads → ✓ Hidden · Show ads
@@ -156,28 +157,34 @@ Top to bottom:
 - Toggle pills per source; off = hidden
 
 ### Pages to load
-- Slider (1–10 pages); loads additional pages via `fetch()`
-- Warning at ≥7 pages: Amazon sometimes limits results and those pages may be less relevant
+- Slider (1–10 pages); loads additional pages via `fetch()` with 750ms throttle between fetches
+- Warning at ≥7 pages
 
 ### Shortlist (session)
 - Checkbox on each row; checked items persist within session
-- Shortlist bar always visible at top of scroll area: Select all (simple toggle) + Open in tabs button
-- Select all: nothing checked → check all; anything checked → uncheck all. No confirm dialog.
-- Show selected / Clear selection buttons in Sort section (rework deferred)
+- Shortlist bar always visible: Select all · Show selected only (N) · Clear selection · Open in new tabs (N)
+- Select all: nothing checked → check all; anything checked → uncheck all
 
 ### Delivery sorting
 - Parses free delivery date, fastest delivery date, delivery window, cutoff times
-- Whole Foods free delivery excluded from "Soonest FREE delivery" sort (not included in Prime)
+- Whole Foods free delivery excluded from "Soonest FREE delivery" sort
+
+### Telemetry
+- Usage data sent via background.js (bypasses Amazon's CSP)
+- User can opt out via the extension popup
+- Preference stored in `chrome.storage.local` under `au_telemetry_enabled`; default on
 
 ---
 
 ## 10. Known Issues / Deferred
 
-- **Product page panel** — deferred until after alpha launch (product.js disabled in manifest as of Chat 13)
+- **Product page panel** — deferred until after alpha launch (product.js disabled in manifest)
+- **Manifest warning** — `_content_scripts_product_disabled` key causes cosmetic warning in Edge; harmless; fix before Web Store submission
 - **Thumbnail images on load-more pages** — not available (fetched via `fetch()`, not live DOM)
 - **Scrollbar track** — click/drag doesn't work; scroll wheel does. Minor, deferred.
-- **Amazon unit price math unreliable** for multi-pack listings — Amazon uses per-unit weight as divisor instead of total weight. Do not attempt to fix without `diagnostic-prices.js` data.
+- **Amazon unit price math unreliable** for multi-pack listings — do not attempt to fix without `diagnostic-prices.js` data
 - **Shortlist bar show/hide jank** — "Show selected only" and "Clear selection" appear/disappear when items are checked; slightly jarring. Not worth fixing before shortlist bar gets rethought for website integration.
+- **Logging verification needed** — verify rows still reaching Google Sheet after background.js move
 
 ---
 
@@ -186,9 +193,9 @@ Top to bottom:
 | Item | Detail |
 |---|---|
 | GitHub | github.com/tibbalsgribbin/actually-useful |
-| Project docs | `docs/` folder in GitHub repo — Briefing, Changelog, Roadmap, Handover, and all reference documents |
+| Project docs | `docs/` folder in GitHub repo |
 | Greasy Fork | v5.19.0 — frozen, no further updates |
-| Usage log | Google Sheet — linked in core.js Apps Script URL |
+| Usage log | Google Sheet — payload relayed via background.js |
 | Feedback form | https://forms.gle/J3AECVTDHWKDZZKE7 |
 | Website | actuallyuseful.net — GitHub Pages + Supabase (setup pending) |
 | Ko-fi | ko-fi.com/butactuallyuseful |
@@ -199,15 +206,15 @@ Top to bottom:
 ## 12. Design Principles
 
 - **Fill gaps in Amazon's interface** — don't duplicate what Amazon already does well
-- **Don't duplicate what established tools do well** — surface them instead (Keepa for price history, Fakespot/ReviewMeta for review integrity)
-- **Wrong numbers are worse than no numbers** — data integrity over convenience
+- **Don't duplicate what established tools do well** — surface them instead
+- **Wrong numbers are worse than no numbers**
 - **Never drop results** — sort what is rendered
-- **User intent matters more than physical precision** — liquid-dominant inference reflects shopper intent
+- **User intent matters more than physical precision**
 - **Pillar four by design** — features reduce friction and cognitive load; described through benefits only
-- **One continuous app** — panel feels seamless across all page types; state flows naturally between pages
-- **Consistent UI chrome** — every panel shares the same header; positioning and drag behavior system-wide
-- **Use Melissa's exact wording** — for UI messages, disclaimers, and copy; suggestions welcome, changes require conversation
-- **Copy and tone** — "doesn't" not "won't"; confrontational framing avoided; voice is warm, direct, personal
+- **One continuous app** — panel feels seamless across all page types
+- **Consistent UI chrome** — every panel shares the same header
+- **Use Melissa's exact wording** — for UI messages, disclaimers, and copy
+- **Copy and tone** — "doesn't" not "won't"; warm, direct, personal
 - **Disclaimer placement** — global disclaimers at the bottom; row-level disclaimers inline; only when condition is active
 
 ---
@@ -227,7 +234,7 @@ Top to bottom:
 - Many Google accounts — InPrivate Edge + butactuallyuseful@gmail.com only for all Google tasks
 - **Use the AskUserQuestion widget** for clarifying questions — Melissa strongly prefers it over prose questions
 - **Melissa handles simple file operations herself** — folder creation, file deletion, clicks
-- **Always include context/token status** when asking "continue or wrap up?" — Melissa wants to know if another task would jeopardize quality before deciding
+- **Always include context/token status** when asking "continue or wrap up?"
 - **CSS/JS rule:** when removing JS visibility toggling, always check and update the CSS baseline too
 - **End-of-session checklist — do not present files until all are complete:**
   1. Project_Briefing.md — updated if anything changed

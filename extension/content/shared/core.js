@@ -3,7 +3,7 @@
 // Provides: shortlist storage, nudge state, affiliate tag, shared constants.
 
 // ── Version ───────────────────────────────────────────────────────────────
-const AU_VERSION = '0.6.1.4';
+const AU_VERSION = '0.6.1.5';
 
 // ── Storage keys ──────────────────────────────────────────────────────────
 const AU_SHORTLIST_KEY      = 'au_shortlist';       // chrome.storage.local — persists across sessions
@@ -71,25 +71,10 @@ function auNudgeDismissPermanently() {
   chrome.storage.local.set({ [AU_NUDGE_DISMISSED]: true });
 }
 
-// ── Logging ───────────────────────────────────────────────────────────────
-const AU_LOG_URL = 'https://script.google.com/macros/s/AKfycby0y2gsDtOKxNLXXsOoSVVx_82QYb8wKESx847_ExIBNW6_XW72CfBR4-bQnCx9V1bn/exec';
+// ── Logging ────────────────────────────────────────────────────────────────
+// auSendLog removed from content script — logging is now handled by background.js
+// via chrome.runtime.sendMessage({ type: 'AU_LOG', payload: {...} })
 
-function auSendLog(data) {
-  try {
-    var payload = Object.assign({
-      timestamp:     new Date().toISOString(),
-      scriptVersion: AU_VERSION,
-      searchUrl:     window.location.href,
-      searchTerm:    (new URLSearchParams(window.location.search).get('k') || '').trim(),
-    }, data);
-    fetch(AU_LOG_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      mode: 'no-cors'
-    }).catch(function () {});
-  } catch (e) {}
-}
 
 // ── Shared utility: inject styles ─────────────────────────────────────────
 // styles.css is injected automatically by the manifest (content_scripts.css).

@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.4)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.5)
 'use strict';
 
 const PANEL_ID = 'ppu-sorter-panel';
@@ -50,10 +50,13 @@ const ITEM_UNITS = [
 
   function sendLog(data) {
     try {
-      auSendLog(Object.assign({
-        searchUrl: window.location.href,
-        searchTerm: (new URLSearchParams(window.location.search).get('k')||'').trim(),
-      }, data));
+      var payload = Object.assign({
+        timestamp:     new Date().toISOString(),
+        scriptVersion: AU_VERSION,
+        searchUrl:     window.location.href,
+        searchTerm:    (new URLSearchParams(window.location.search).get('k')||'').trim(),
+      }, data);
+      chrome.runtime.sendMessage({ type: 'AU_LOG', payload: payload });
     } catch(e) {}
   }
 
@@ -523,7 +526,7 @@ const ITEM_UNITS = [
           '<button id="ppu-nudge-close" title="Dismiss for now">\u00d7</button>'+
           '<div id="ppu-nudge-msg">\u2615 Actually Useful is free \u2014 but it takes real time to build and maintain. If it\'s saving you money, a small tip means a lot.</div>'+
           '<div id="ppu-nudge-btns">'+
-            '<a id="ppu-nudge-yes" href="https://ko-fi.com/tibbalsgribbin" target="_blank">Contribute \u2665</a>'+
+            '<a id="ppu-nudge-yes" href="https://ko-fi.com/butactuallyuseful" target="_blank">Contribute \u2665</a>'+
             '<button id="ppu-nudge-did">I already did \u2713</button>'+
             '<button id="ppu-nudge-no">Don\'t ask again</button>'+
           '</div>'+
@@ -1711,7 +1714,11 @@ const ITEM_UNITS = [
             if(isLiquidDominant) applyLiquidCtConversion(result.rows);
             isLiquidDominant=inferLiquidDominant(allData);
             unitPills=generateUnitPills(allData,isLiquidDominant);
-            loadNext(result.nextUrl?remaining-1:0);
+            if(result.nextUrl&&remaining>1){
+              setTimeout(function(){loadNext(remaining-1);},750);
+            } else {
+              loadNext(result.nextUrl?remaining-1:0);
+            }
           }).catch(function(err){
             console.log('[PPU] Pages slider load failed:',err);
             pagesSlider.disabled=false;

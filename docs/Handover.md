@@ -1,25 +1,27 @@
-# Session Handover — April 19, 2026 (Chat 13)
+# Session Handover — April 19, 2026 (Chat 14)
 
 ## What we did this session
 
-1. **Minimum rating filter fixed (search.js)** — `r.rating` was never being set. Added `parseRating(el)` (scrapes `aria-label="X out of 5 stars"`) and wired it into `scrapeCard()`. Slider now filters correctly; tested and confirmed working.
+1. **Ko-fi link fixed (search.js)** — nudge was pointing to `ko-fi.com/tibbalsgribbin`; corrected to `ko-fi.com/butactuallyuseful`. Footer link was already correct.
 
-2. **product.js disabled in manifest (manifest.json)** — Second `content_scripts` entry moved to `_content_scripts_product_disabled`. Product page no longer runs on `/dp/*` visits.
+2. **Page-fetch throttling (search.js)** — added 750ms delay between sequential page fetches in the pages slider `loadNext` loop. Reduces bot-detection risk. Single-page load-more button unaffected.
 
-3. **Affiliate tag machinery removed (core.js)** — `AU_AFFILIATE_TAG` and `auTagUrl()` removed entirely. No callers existed. Policy-violation risk eliminated.
+3. **`auSendLog` moved to background.js (core.js, background.js, search.js)** — `AU_LOG_URL` and `auSendLog()` removed from `core.js`. `sendLog()` in `search.js` now assembles the payload and relays via `chrome.runtime.sendMessage({ type: 'AU_LOG', payload })`. `background.js` fires the fetch from the service worker, bypassing Amazon's CSP.
 
-4. **Show Selected / Clear Selection reworked (search.js)** — Both buttons moved from Sort section to shortlist bar. New bar order: Select all · Show selected only (N) · Clear selection · Open in new tabs (N). Two-state label: "Show selected only (N)" / "Show all". Buttons hidden when nothing is checked.
+4. **Telemetry opt-out toggle (popup.html, popup.js, background.js, manifest.json)** — new `popup.html` and `popup.js` created. Extension icon is now clickable. Popup contains: telemetry toggle (default on), Give feedback link, Buy me a coffee link, version number. Toggle persists to `chrome.storage.local` under `au_telemetry_enabled`. `AU_LOG` handler in background.js checks preference before firing fetch. Manifest updated with `"action": { "default_popup": "popup.html" }`.
 
-5. **Process improvement** — Melissa asked for context/token status to be included whenever the "continue or wrap up?" question is asked. Done from this session forward.
+5. **FR badge deferred indefinitely** — confirmed badge only appears in product page panel (disabled). Removed from next-up list.
+
+6. **Known manifest warning noted** — `_content_scripts_product_disabled` key causes a cosmetic "Unrecognized manifest key" warning in Edge. Pre-existing from Chat 13, harmless, extension loads correctly. Fix before Web Store submission by deleting the block entirely.
 
 ---
 
 ## ⚠️ Start of next session
 
-1. Melissa uploads `search.js`, `core.js`, `manifest.json` fresh from GitHub as actual file uploads
-2. Claude confirms version strings: `0.6.1` (manifest) / `0.6.1.4` (core.js, search.js) before any edits
+1. Melissa uploads fresh files from GitHub as actual file uploads
+2. Claude confirms version strings: `0.6.1` (manifest) / `0.6.1.5` (core.js, search.js)
 3. Confirm scope before touching any files
-4. Ask Melissa if she has any fresh testing observations
+4. Ask Melissa if she has fresh testing observations
 
 ---
 
@@ -34,29 +36,35 @@
 - System font stack
 - Keyword debouncing (250ms)
 - Empty state message when filters clear everything
-- Frequently Returned badge — bold (red still needed)
 - Collapse/minimize bug fixed (Chat 12)
 - Version strings aligned to sub-1.0 numbering (Chat 12)
 - docs/ folder created in GitHub (Chat 12)
-- Minimum rating filter fixed — parseRating() + r.rating (Chat 13) ✅ was red flag
-- product.js disabled in manifest (Chat 13) ✅ was red flag
-- Affiliate tag machinery removed from core.js (Chat 13) ✅ was must-do
+- Minimum rating filter fixed — parseRating() + r.rating (Chat 13)
+- product.js disabled in manifest (Chat 13)
+- Affiliate tag machinery removed from core.js (Chat 13)
 - Show Selected / Clear Selection reworked — moved to shortlist bar (Chat 13)
+- Ko-fi link fixed in nudge (Chat 14)
+- Page-fetch throttling — 750ms between sequential fetches (Chat 14)
+- auSendLog moved to background.js (Chat 14)
+- Telemetry opt-out toggle + popup (Chat 14)
 
 ### 🔜 Next up (short term) — in order
-1. Frequently Returned badge — make it red (bold done, red still needed)
-2. Page-fetch throttling (500ms delay between fetches)
-3. Move `auSendLog` to background.js
-4. Telemetry opt-out toggle
-5. Fix Ko-fi link inconsistency (nudge vs footer) — verify correct URL
+1. Verify logging still reaches Google Sheet (do a search, check Sheet for new row)
+2. Fix manifest warning — delete `_content_scripts_product_disabled` block entirely (can just comment out instead, or delete; either way cleaner than renamed key)
+3. *(No other short-term items — roadmap items below are all pre-alpha or post-alpha)*
 
-### 🔭 Further out (post-alpha)
+### 🔭 Further out (pre-alpha)
 - GitHub Pages setup (actuallyuseful.net)
 - Supabase setup (shareable links)
 - Marketing/landing page built and published
-- Comparison page with sort/filter + shareable links — "Open in new tabs" becomes "Compare on website"
+- Comparison page with sort/filter + shareable links
+- Feedback form verified (three required questions)
+- Test extension on a different setup (Mac, or Chrome vs Edge)
+- Decide: Chrome Web Store submission before or after alpha?
+
+### 🔭 Further out (post-alpha)
+- Comparison page "Open in new tabs" becomes "Compare on website"
 - Power search form (Jungle Search model)
-- "Export to website" button in shortlist bar
 - Product page re-enabled
 - Cross-page shortlist persistence (chrome.storage.local)
 - Two-way extension ↔ website connection
@@ -78,25 +86,27 @@
 - All Google tasks: InPrivate Edge + butactuallyuseful@gmail.com
 - Context rot: stop and wrap up rather than pushing through
 - CSS/JS rule: removing JS visibility toggle → check and fix CSS baseline too
-- Version: manifest uses three-part `0.6.1`; AU_VERSION in core.js is `0.6.1.4`
+- Version: manifest uses three-part `0.6.1`; AU_VERSION in core.js is `0.6.1.5`
 - Always provide a suggested GitHub commit message at end of session
 - Always include context/token status when asking "continue or wrap up?"
 - Bundle small changes together rather than shipping each one separately
 - Always include Project_Briefing.md in end-of-session documents — do not skip it
 - Project documents now live in `docs/` folder in GitHub — update them there after each session
 - Shortlist bar show/hide jank is known and noted — not worth fixing before website integration rethinks the whole bar
+- `_content_scripts_product_disabled` manifest warning is cosmetic/pre-existing — fix before Web Store submission by deleting the block
 
 ---
 
 ## Suggested commit message
-`v0.6.1.4 — fix rating filter, disable product.js, remove affiliate tag, rework Show Selected`
+`v0.6.1.5 — fix Ko-fi link, add fetch throttling, move logging to background, add popup + telemetry toggle`
 
 ## End-of-session checklist
 - [x] Handover.md — written
 - [x] Changelog.md — updated
 - [x] Roadmap.md — updated
 - [x] Project_Briefing.md — updated
-- [ ] Melissa downloads all four documents and puts them in `docs/` in GitHub
-- [ ] Melissa downloads search.js, core.js, manifest.json and replaces files in extension folder
+- [ ] Melissa downloads all six output files and places them in the extension folder
+- [ ] Melissa reloads extension in Edge and tests popup + search panel
 - [ ] Melissa commits and pushes via GitHub Desktop
+- [ ] Melissa downloads all four docs and puts them in `docs/` in GitHub
 - [ ] Melissa updates project files in Claude Project (upload new versions)

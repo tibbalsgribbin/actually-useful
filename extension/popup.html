@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Actually Useful</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 260px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      font-size: 13px;
+      color: #0f1111;
+      background: #fff;
+    }
+    #au-popup-header {
+      background: #1a2a3d;
+      color: #fff;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #au-popup-header h1 {
+      font-size: 14px;
+      font-weight: 700;
+    }
+    #au-popup-header span {
+      font-size: 11px;
+      color: rgba(255,255,255,0.6);
+    }
+    #au-popup-body {
+      padding: 12px 14px;
+    }
+    .au-section {
+      margin-bottom: 14px;
+    }
+    .au-section:last-child {
+      margin-bottom: 0;
+    }
+    .au-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8a9199;
+      margin-bottom: 8px;
+    }
+    /* Toggle row */
+    .au-toggle-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .au-toggle-row input[type="checkbox"] {
+      margin-top: 2px;
+      flex-shrink: 0;
+      cursor: pointer;
+      width: 14px;
+      height: 14px;
+      accent-color: #007185;
+    }
+    .au-toggle-label {
+      font-size: 12px;
+      color: #333;
+      line-height: 1.4;
+      cursor: pointer;
+    }
+    .au-toggle-sub {
+      font-size: 11px;
+      color: #888;
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+    /* Links */
+    .au-links {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .au-links a {
+      font-size: 12px;
+      color: #007185;
+      text-decoration: none;
+    }
+    .au-links a:hover {
+      text-decoration: underline;
+    }
+    /* Divider */
+    .au-divider {
+      height: 1px;
+      background: #e8eced;
+      margin: 12px 0;
+    }
+    /* Status message */
+    #au-status {
+      font-size: 11px;
+      color: #007600;
+      min-height: 14px;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="au-popup-header">
+    <h1>Actually Useful</h1>
+    <span id="au-version"></span>
+  </div>
+
+  <div id="au-popup-body">
+
+    <div class="au-section">
+      <div class="au-section-label">Settings</div>
+      <label class="au-toggle-row">
+        <input type="checkbox" id="au-telemetry-toggle">
+        <div>
+          <div class="au-toggle-label">Share anonymous usage data</div>
+          <div class="au-toggle-sub">Helps improve the extension. No personal information is collected.</div>
+        </div>
+      </label>
+      <div id="au-status"></div>
+    </div>
+
+    <div class="au-divider"></div>
+
+    <div class="au-section">
+      <div class="au-section-label">Links</div>
+      <div class="au-links">
+        <a href="https://forms.gle/J3AECVTDHWKDZZKE7" target="_blank">Give feedback</a>
+        <a href="https://ko-fi.com/butactuallyuseful" target="_blank">Buy me a coffee ☕</a>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

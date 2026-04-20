@@ -4,14 +4,15 @@
 
 ---
 
-## Current version: v0.6.1.4
+## Current version: v0.6.1.5
 
 ---
 
 ## Known issues / needs testing
 
-- Shortlist bar show/hide of "Show selected only" and "Clear selection" is slightly jarring — noted, not worth fixing before website integration rethinks the whole bar
-- Ko-fi link in nudge (`ko-fi.com/tibbalsgribbin`) may differ from footer link (`ko-fi.com/butactuallyuseful`) — verify which is correct
+- Shortlist bar show/hide of "Show selected only" and "Clear selection" is slightly jarring — not worth fixing before website integration rethinks the whole bar
+- `_content_scripts_product_disabled` manifest key causes a cosmetic "Unrecognized manifest key" warning in Edge — harmless, pre-existing from Chat 13. Fix before Web Store submission by deleting the block entirely.
+- Verify logging still reaching Google Sheet after background.js move (do a search, check Sheet for a new row)
 
 ---
 
@@ -25,13 +26,12 @@
 
 **Context rot warning.** Long sessions degrade quality. Stop and wrap up rather than pushing through.
 
-**Always include context/token status** when asking "continue or wrap up?" — added Chat 13.
+**Always include context/token status** when asking "continue or wrap up?"
 
 **Code files — new protocol (from Chat 7):**
 - Code files are NOT stored in the Claude Project
 - At the start of each session, Melissa uploads the current versions fresh from GitHub
 - Claude works only from those uploaded files
-- This eliminates the stale-file problem that caused two reverts
 
 **Stale file prevention — start of every session:**
 1. Melissa uploads current code files from GitHub
@@ -42,21 +42,21 @@
 If files come through as document blocks rather than actual file uploads, stop and ask Melissa to re-attach as uploads. Never reconstruct or infer from document blocks.
 
 **CSS/JS consistency rule (added Chat 8):**
-When removing JS visibility toggling from an element, always check and update the CSS baseline too. If JS was controlling `display`, the CSS default is probably `display:none` and needs to change.
+When removing JS visibility toggling from an element, always check and update the CSS baseline too.
 
 **Confirm before committing (added Chat 11):**
-Pause between "files produced" and "push to GitHub." Test first, commit after. Catches bugs before they live on main.
+Pause between "files produced" and "push to GitHub." Test first, commit after.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.4 (internal AU_VERSION)
+- Current: v0.6.1 (manifest) / v0.6.1.5 (internal AU_VERSION)
 - Increments normally through v0.7, v0.8, v0.9
-- v1.0 = Web Store public launch — something to earn, not arbitrarily assign
+- v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal AU_VERSION can carry a fourth segment
 
 **Project documents (from Chat 12):**
 - All project documents now live in `docs/` folder in GitHub repo
 - After each session, download updated docs and put them in `docs/` before committing
-- Also update the Claude Project files (upload new versions) so Claude reads current docs
+- Also update the Claude Project files (upload new versions)
 
 **How to know this session is going wrong:**
 - Melissa is being asked to hold multiple things in her head at once
@@ -76,11 +76,8 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **Frequently Returned badge — make it red** (bold done Chat 7, red still needed)
-2. **Page-fetch throttling** — 500ms delay between fetches (bot-detection risk)
-3. **Move `auSendLog` to background.js** (CSP reliability)
-4. **Telemetry opt-out toggle** (required before public release)
-5. **Fix Ko-fi link inconsistency** — verify correct URL (nudge vs footer)
+1. **Verify logging** — do a search, check the Google Sheet for a new row
+2. **Fix manifest warning** — delete `_content_scripts_product_disabled` block from manifest.json (or convert to a comment); eliminates the Edge warning before Web Store submission
 
 ---
 
@@ -97,22 +94,19 @@ Two of these = stop and wrap up.
 - [x] Panel height resize via bottom edge handle (Chat 9)
 - [x] Persistent filter settings per search term (Chat 9)
 - [x] Refresh → Re-scan page (Chat 9)
-- [x] Collapse/minimize bug fixed — inline height styles cleared on collapse (Chat 12)
+- [x] Collapse/minimize bug fixed (Chat 12)
 - [x] Version strings aligned to sub-1.0 across all four files (Chat 12)
-- [x] docs/ folder created in GitHub — all project documents moved there (Chat 12)
+- [x] docs/ folder created in GitHub (Chat 12)
 - [x] Minimum rating filter fixed — `parseRating()` + `r.rating` in `scrapeCard()` (Chat 13)
-- [x] product.js disabled in manifest — moved to `_content_scripts_product_disabled` (Chat 13)
+- [x] product.js disabled in manifest (Chat 13)
 - [x] `AU_AFFILIATE_TAG` and `auTagUrl` removed from `core.js` (Chat 13)
 - [x] Show Selected / Clear Selection moved to shortlist bar, wording reworked (Chat 13)
-- [ ] Frequently Returned badge — make it red (bold done Chat 7, red still needed)
-- [ ] Fix Ko-fi link inconsistency (nudge vs footer) — verify correct URL
+- [x] Ko-fi link fixed in nudge (Chat 14)
+- [x] Page-fetch throttling — 750ms between sequential fetches (Chat 14)
+- [x] `auSendLog` moved to background.js (Chat 14)
+- [x] Telemetry opt-out toggle + popup.html/popup.js (Chat 14)
+- [ ] Fix manifest warning — delete `_content_scripts_product_disabled` block
 - [ ] Amazon unit price flagging — deferred, needs diagnostic first
-
-### Gemini near-term list — remaining
-- [ ] Page-fetch throttling — 500ms–1000ms delay between fetches (bot-detection risk)
-- [ ] Move `auSendLog` to background.js (reliability + CSP safety)
-- [ ] Telemetry opt-out toggle in popup (required before public release)
-- [ ] Badge text on toolbar icon — shortlist count via `chrome.action.setBadgeText`
 
 ### Alpha release — blockers
 - [ ] Feedback form verified — these three questions must be present:
@@ -123,12 +117,11 @@ Two of these = stop and wrap up.
 - [ ] Marketing/landing page published
 - [ ] Actually Useful Comparisons page with shareable links working
 - [ ] "Compare side by side (N)" button in shortlist bar → opens Comparisons page
-- [ ] Telemetry opt-out toggle in popup
-- [ ] Decide: Chrome Web Store submission before or after alpha?
 - [ ] Test extension on a different setup (Mac, or Chrome vs Edge) via a tester
+- [ ] Decide: Chrome Web Store submission before or after alpha?
 
 ### Infrastructure — pending
-- [x] docs/ folder in GitHub repo — done Chat 12
+- [x] docs/ folder in GitHub repo
 - [ ] GitHub Pages enabled on existing repo
 - [ ] Supabase account + one table set up (shareable comparison links)
 - [ ] Create Amazon account (prerequisite for Associates)
@@ -142,7 +135,7 @@ Two of these = stop and wrap up.
 - [ ] Cross-page shortlist state persistence (chrome.storage.local)
 - [ ] "Compare side by side (N)" button → Actually Useful Comparisons page
 - [ ] Two-way extension ↔ website connection (refined shortlist back to extension)
-- [ ] Shortlist bar rethought for website integration — "Open in new tabs" → "Compare on website"
+- [ ] Shortlist bar rethought for website integration
 - [ ] Derive per-item price from total ÷ count when Amazon reports wrong unit
 - [ ] Keyword length expression normalization ("6ft" vs "6 feet")
 - [ ] Exclusion possessives (`-men` not matching "men's")
@@ -150,10 +143,11 @@ Two of these = stop and wrap up.
 - [ ] "Start over" button — reset `selectedUnit` and `showCheckedOnly`
 - [ ] Re-scan: preserve shortlist on same-term re-scans
 - [ ] Contribution nudge (30-day floor, usage trigger, permanent dismiss)
-- [ ] Walmart version (prioritized among future platforms)
+- [ ] Walmart version
 - [ ] Settings/onboarding page
 - [ ] IIFE wrapping of scripts (pre-Web Store submission)
 - [ ] Replace `.innerHTML` row template with `document.createElement` (pre-Web Store submission)
+- [ ] Badge text on toolbar icon — shortlist count via `chrome.action.setBadgeText`
 
 **Website — Actually Useful Comparisons**
 - [ ] Comparison table: title, price, PPU, delivery, rating, sold by, ships from, coupon — side by side
@@ -171,37 +165,12 @@ Two of these = stop and wrap up.
 
 ---
 
-## Website — architecture (decided Chat 10, updated Chat 11)
-
-**Platform:** GitHub Pages (static, free, uses existing repo) + Supabase (free database tier).
-
-**Three website components:**
-- `index.html` — marketing/landing page
-- `compare.html` — **Actually Useful Comparisons** — receives shortlisted items from extension, renders side-by-side comparison table, applies affiliate tags, supports shareable permanent links via Supabase. Must work for users who arrive via shared link without the extension.
-- `search.html` — **Actually Useful Searches** — standalone advanced search tool; builds queries Amazon makes hard; bookmarkable/shareable URLs.
-
-**Sequencing:**
-1. Comparisons page first — closes monetization loop, gives shortlist a destination, drives share-induced installs
-2. Supabase shareable links second
-3. Searches page third — validate which queries users actually want before building
-
-**Key decisions:**
-- Shareable links essential — `actuallyuseful.net/c/x7k2m` via Supabase
-- Price history → Keepa links per item (not CamelCamelCamel — they inject their own affiliate tags)
-- Website cannot fetch Amazon results independently — extension is the Amazon-facing piece
-- Two-way extension ↔ website connection is post-alpha
-- Affiliate tags on website only — never in extension
-
----
-
 ## Post-alpha feature batch: hidden data capture
-
-Fields present in Amazon card HTML but not yet captured. To be added in one code session.
 
 - [ ] SNAP eligible flag
 - [ ] Small Business badge
 - [ ] Condition (New / Used / Renewed)
-- [ ] "Amazon's Choice" label — with transparency note (paid placement, not editorial)
+- [ ] "Amazon's Choice" label — with transparency note
 - [ ] Best Seller badge + category
 
 ---
@@ -210,8 +179,28 @@ Fields present in Amazon card HTML but not yet captured. To be added in one code
 
 - [ ] Mild caution signal for statistically improbable ratings (high stars, very low review count)
 - [ ] Contextual nudge to Fakespot / ReviewMeta on flagged items
-- [ ] "📈 Price history" link per card → Keepa (`keepa.com/product/[ASIN]`)
-- *Note: building our own price history is not viable — Keepa has years of data we can't replicate*
+- [ ] "📈 Price history" link per card → Keepa
+
+---
+
+## Website — architecture (decided Chat 10, updated Chat 11)
+
+**Platform:** GitHub Pages (static, free, uses existing repo) + Supabase (free database tier).
+
+**Three website components:**
+- `index.html` — marketing/landing page
+- `compare.html` — **Actually Useful Comparisons** — receives shortlisted items from extension, renders side-by-side comparison table, applies affiliate tags, supports shareable permanent links via Supabase. Must work for users who arrive via shared link without the extension.
+- `search.html` — **Actually Useful Searches** — standalone advanced search tool; bookmarkable/shareable URLs.
+
+**Sequencing:**
+1. Comparisons page first — closes monetization loop, gives shortlist a destination, drives share-induced installs
+2. Supabase shareable links second
+3. Searches page third — validate which queries users actually want before building
+
+**Key decisions:**
+- Price history → Keepa links per item (not CamelCamelCamel)
+- Affiliate tags on website only — never in extension
+- Two-way extension ↔ website connection is post-alpha
 
 ---
 
@@ -226,4 +215,4 @@ Fields present in Amazon card HTML but not yet captured. To be added in one code
 - Consistent UI chrome — same header on every panel
 - Use Melissa's exact wording for UI copy
 - Copy tone: warm, direct, personal. "doesn't" not "won't"
-- The website must work for users who arrive without the extension — don't strangle that growth vector
+- The website must work for users who arrive without the extension
