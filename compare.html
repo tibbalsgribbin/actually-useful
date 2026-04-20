@@ -276,6 +276,7 @@
     }
 
     .btn:hover { opacity: 0.85; }
+    .btn:active { transform: translateY(1px); opacity: 0.75; }
 
     .btn-primary { background: var(--teal); color: #fff; }
     .btn-ghost   { background: transparent; color: var(--teal); border: 1.5px solid var(--teal); margin-left: 0.75rem; }
@@ -619,14 +620,16 @@
           window.history.replaceState(null, '', shareUrl.toString());
         }
         await navigator.clipboard.writeText(shareUrl.toString());
-        // Update all share buttons — re-enable after brief confirmation
+        // Update all share buttons — reset after 2.5s
         document.querySelectorAll('.share-btn').forEach(b => {
           b.textContent = 'Link copied!';
           b.disabled = false;
+          setTimeout(() => { b.textContent = 'Share this comparison'; }, 2500);
         });
       } catch (e) {
         btn.textContent = 'Share failed — try again';
         btn.disabled = false;
+        setTimeout(() => { btn.textContent = 'Share this comparison'; }, 2500);
       }
     });
   }
