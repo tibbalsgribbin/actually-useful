@@ -603,19 +603,26 @@
     if (!btn) return;
     btn.addEventListener('click', async () => {
       btn.textContent = 'Saving…';
-      btn.disabled = true;
       try {
-        const id = await saveComparison(currentItems, currentSearchTerm);
-        const url = new URL(window.location.href);
-        url.search = '';
-        url.searchParams.set('id', id);
-        window.history.replaceState(null, '', url.toString());
-        await navigator.clipboard.writeText(url.toString());
-        btn.textContent = 'Link copied!';
-        // Update all share buttons on the page
+        // Only save to Supabase once — reuse the id if already in the URL
+        let shareUrl;
+        const existing = new URLSearchParams(window.location.search).get('id');
+        if (existing) {
+          shareUrl = new URL(window.location.href);
+          shareUrl.search = '';
+          shareUrl.searchParams.set('id', existing);
+        } else {
+          const id = await saveComparison(currentItems, currentSearchTerm);
+          shareUrl = new URL(window.location.href);
+          shareUrl.search = '';
+          shareUrl.searchParams.set('id', id);
+          window.history.replaceState(null, '', shareUrl.toString());
+        }
+        await navigator.clipboard.writeText(shareUrl.toString());
+        // Update all share buttons — re-enable after brief confirmation
         document.querySelectorAll('.share-btn').forEach(b => {
           b.textContent = 'Link copied!';
-          b.disabled = true;
+          b.disabled = false;
         });
       } catch (e) {
         btn.textContent = 'Share failed — try again';
