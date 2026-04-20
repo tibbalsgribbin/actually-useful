@@ -32,18 +32,6 @@
     }
   ],
 
-  "_content_scripts_product_disabled": [
-    {
-      "matches": ["https://www.amazon.com/dp/*"],
-      "js": [
-        "content/shared/core.js",
-        "content/product.js"
-      ],
-      "css": ["content/shared/styles.css"],
-      "run_at": "document_idle"
-    }
-  ],
-
   "permissions": [
     "storage"
   ],
