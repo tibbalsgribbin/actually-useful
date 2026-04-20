@@ -1,22 +1,20 @@
-# Session Handover — April 20, 2026 (Chat 15)
+# Session Handover — April 20, 2026 (Chat 16)
 
 ## What we did this session
 
-1. **Feedback form verified** — all three required questions confirmed present. Done.
+1. **compare.html built** — Actually Useful Comparisons page, phase 1. Full comparison table with all shortlist fields. Sortable columns. Best-value star on lowest PPU. Affiliate links with correct Amazon Associates disclosure. Empty/error state. Matches landing page style. No Supabase yet — URL bridge only.
 
-2. **Manifest warning fixed (manifest.json)** — deleted `_content_scripts_product_disabled` block entirely. Edge warning is gone. Extension loads cleanly.
+2. **Affiliate disclaimer updated** — changed from informal copy to the required Amazon Associates wording: "As an Amazon Associate I earn from qualifying purchases. Links on this page support Actually Useful — and don't cost you anything extra."
 
-3. **Landing page built and deployed (index.html)** — full `index.html` created and pushed to repo root. GitHub Pages deployed automatically. Live at `https://tibbalsgribbin.github.io/actually-useful/`. Design: cream/navy/teal palette, DM Serif Display + DM Sans, four pillars, Why it exists section, feature grid, Ko-fi support section, footer.
+3. **Standing rule established** — the Amazon Associates disclaimer goes on the bottom of every page going forward, whether or not there are live affiliate links at the time.
 
-4. **Task Overview updated** — all completed items struck through, manifest warning added and struck, FR badge correctly noted as deferred (not done), new items current as of this session.
-
-5. **Committed and pushed as v0.6.1.6.**
+4. **Committed and pushed as v0.6.1.7.**
 
 ---
 
 ## ⚠️ Start of next session
 
-1. Melissa uploads fresh files from GitHub as actual file uploads
+1. Melissa uploads fresh code files from GitHub as actual file uploads
 2. Claude confirms version strings: `0.6.1` (manifest) / `0.6.1.5` (core.js, search.js)
 3. Confirm scope before touching any files
 4. Ask Melissa if she has fresh testing observations
@@ -26,26 +24,25 @@
 ## Progress snapshot
 
 ### ✅ Recently done
-- Ko-fi link fixed in nudge (Chat 14)
-- Page-fetch throttling — 750ms between sequential fetches (Chat 14)
-- auSendLog moved to background.js (Chat 14)
-- Telemetry opt-out toggle + popup (Chat 14)
-- Feedback form verified — all three questions present (Chat 15)
-- Manifest warning fixed — `_content_scripts_product_disabled` block deleted (Chat 15)
+- Feedback form verified (Chat 15)
+- Manifest warning fixed (Chat 15)
 - Landing page live at tibbalsgribbin.github.io/actually-useful/ (Chat 15)
-- Task Overview updated and current (Chat 15)
+- compare.html built and pushed (Chat 16)
+- Affiliate disclaimer corrected to required Amazon Associates wording (Chat 16)
 
-### 🔜 Next up — Chat 16
-1. Build `compare.html` — Actually Useful Comparisons page (phase 1)
-   - Basic comparison table structure
-   - Decode shortlist data from URL parameter
-   - Affiliate tag application
-   - Must work for users who arrive via shared link without the extension
-   - No Supabase yet — URL bridge only for phase 1
+### 🔜 Next up — Chat 17
+1. Add "Compare side by side (N)" button to shortlist bar in search.js
+   - Encodes shortlist as Base64 JSON: `{ items: [...], searchTerm: "..." }`
+   - Opens `https://tibbalsgribbin.github.io/actually-useful/compare.html?data=[encoded]`
+   - Button only visible when ≥1 item is shortlisted
+   - Each item object shape (confirmed this session):
+     ```
+     { asin, title, price, ppu, ppuUnit, delivery, rating, reviewCount,
+       prime, coupon, soldBy, shipsFrom, returnPolicy, note }
+     ```
+2. Supabase setup + shareable links (may be a separate session)
 
 ### 🔭 Further out (pre-alpha)
-- "Compare side by side (N)" button in shortlist bar → opens Comparisons page (Chat 17)
-- Supabase setup + shareable links (Chat 17)
 - Test extension on a different setup (Mac or Chrome vs Edge)
 - Decide: Chrome Web Store submission before or after alpha?
 - Alpha tester recruitment
@@ -73,7 +70,7 @@
 - All Google tasks: InPrivate Edge + butactuallyuseful@gmail.com
 - Context rot: stop and wrap up rather than pushing through
 - CSS/JS rule: removing JS visibility toggle → check and fix CSS baseline too
-- Version: manifest uses three-part `0.6.1`; AU_VERSION in core.js is `0.6.1.5`; landing page does not carry a version string
+- Version: manifest uses three-part `0.6.1`; AU_VERSION in core.js is `0.6.1.5`
 - Always provide a suggested GitHub commit message at end of session
 - Always include context/token status when asking "continue or wrap up?"
 - Bundle small changes together rather than shipping each one separately
@@ -81,21 +78,21 @@
 - Project documents now live in `docs/` folder in GitHub — update them there after each session
 - Shortlist bar show/hide jank is known and noted — not worth fixing before website integration rethinks the whole bar
 - Affiliate tags go on the website only — never in the extension
-- The Comparisons page must work for users who arrive via shared link without the extension installed — don't strangle that growth vector
+- The Comparisons page must work for users who arrive via shared link without the extension installed
 - actuallyuseful.net is not yet pointed at GitHub Pages — still resolving to tibbalsgribbin.github.io/actually-useful/
+- Amazon Associates disclaimer ("As an Amazon Associate I earn from qualifying purchases...") goes on every page — standing rule from Chat 16
 
 ---
 
 ## Suggested commit message
-*(Already committed this session as: `v0.6.1.6 — fix manifest warning, add landing page`)*
+`v0.6.1.7 — add compare.html, fix affiliate disclaimer`
 
 ## End-of-session checklist
 - [x] Handover.md — written
 - [x] Changelog.md — updated
 - [x] Roadmap.md — updated
 - [x] Project_Briefing.md — updated
-- [x] manifest.json — downloaded and placed
-- [x] index.html — downloaded and placed
-- [x] Committed and pushed via GitHub Desktop
-- [ ] Melissa downloads all four docs and puts them in `docs/` in GitHub
+- [x] compare.html — downloaded and placed in repo root
+- [ ] Melissa puts updated docs in `docs/` folder in GitHub
+- [ ] Melissa commits and pushes via GitHub Desktop (pull → stage → commit → push)
 - [ ] Melissa updates project files in Claude Project (upload new versions)

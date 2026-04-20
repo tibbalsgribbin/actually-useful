@@ -4,7 +4,7 @@
 
 ---
 
-## Current version: v0.6.1.6
+## Current version: v0.6.1.7
 
 ---
 
@@ -48,7 +48,7 @@ When removing JS visibility toggling from an element, always check and update th
 Pause between "files produced" and "push to GitHub." Test first, commit after.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.5 (internal AU_VERSION) / v0.6.1.6 (overall release including website)
+- Current: v0.6.1 (manifest) / v0.6.1.5 (internal AU_VERSION) / v0.6.1.7 (overall release including website)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal AU_VERSION can carry a fourth segment
@@ -61,6 +61,10 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 **Affiliate tags:**
 - Website only — never in the extension
 - Amazon policy explicitly forbids affiliate tags in browser extensions
+
+**Amazon Associates disclaimer (from Chat 16):**
+- Every page gets this disclaimer at the bottom, whether or not affiliate links are live:
+- "As an Amazon Associate I earn from qualifying purchases. Links on this page support Actually Useful — and don't cost you anything extra."
 
 **How to know this session is going wrong:**
 - Melissa is being asked to hold multiple things in her head at once
@@ -80,12 +84,11 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **Build compare.html — Actually Useful Comparisons page (phase 1)**
-   - Basic comparison table: title, price, PPU, delivery, rating, sold by, ships from, coupon
-   - Decode shortlist data from URL parameter (Base64)
-   - Affiliate tags applied on this page
-   - Must work for users who arrive via shared link without the extension
-   - No Supabase yet — URL bridge only for phase 1
+1. **Add "Compare side by side (N)" button to shortlist bar (search.js)**
+   - Encodes shortlist as Base64 JSON: `{ items: [...], searchTerm: "..." }`
+   - Opens `https://tibbalsgribbin.github.io/actually-useful/compare.html?data=[encoded]`
+   - Button only visible when ≥1 item is shortlisted
+   - Each item object: `{ asin, title, price, ppu, ppuUnit, delivery, rating, reviewCount, prime, coupon, soldBy, shipsFrom, returnPolicy, note }`
 
 ---
 
@@ -105,10 +108,11 @@ Two of these = stop and wrap up.
 - [x] Feedback form verified (Chat 15)
 - [x] Manifest warning fixed (Chat 15)
 - [x] Landing page live (Chat 15)
+- [x] compare.html built (Chat 16)
+- [x] Affiliate disclaimer corrected to Amazon Associates required wording (Chat 16)
 - [ ] Amazon unit price flagging — deferred, needs diagnostic first
 
 ### Alpha release — blockers
-- [ ] Actually Useful Comparisons page — basic version working
 - [ ] "Compare side by side (N)" button in shortlist bar
 - [ ] Supabase setup + shareable links
 - [ ] Test extension on a different setup (Mac or Chrome vs Edge)
@@ -119,6 +123,7 @@ Two of these = stop and wrap up.
 - [x] docs/ folder in GitHub repo
 - [x] GitHub Pages enabled
 - [x] Landing page live
+- [x] compare.html live
 - [ ] actuallyuseful.net pointed at GitHub Pages
 - [ ] Supabase account + one table (shareable comparison links)
 - [ ] Create Amazon account (prerequisite for Associates)
@@ -130,7 +135,6 @@ Two of these = stop and wrap up.
 **Extension**
 - [ ] Product page re-enabled (tested against current Amazon first)
 - [ ] Cross-page shortlist state persistence (chrome.storage.local)
-- [ ] "Compare side by side (N)" button → Actually Useful Comparisons page
 - [ ] Two-way extension ↔ website connection
 - [ ] Shortlist bar rethought for website integration
 - [ ] Frequently Returned badge — make it red (deferred until product.js re-enabled)
@@ -148,10 +152,11 @@ Two of these = stop and wrap up.
 - [ ] Badge text on toolbar icon — shortlist count via `chrome.action.setBadgeText`
 
 **Website — Actually Useful Comparisons**
-- [ ] Re-sort by any column
+- [x] Basic comparison table (Chat 16)
+- [x] Sortable columns (Chat 16)
+- [x] Works for users who arrive via shared link without the extension (Chat 16)
 - [ ] Per-item notes persisted to URL
 - [ ] Shareable permanent links via Supabase (`actuallyuseful.net/c/x7k2m`)
-- [ ] Works for users who arrive via shared link without the extension
 - [ ] Keepa price history link per item
 
 **Website — Actually Useful Searches**
@@ -185,11 +190,11 @@ Two of these = stop and wrap up.
 
 **Three website components:**
 - `index.html` — marketing/landing page ✅ live
-- `compare.html` — Actually Useful Comparisons
+- `compare.html` — Actually Useful Comparisons ✅ live
 - `search.html` — Actually Useful Searches
 
 **Sequencing:**
-1. Comparisons page first — closes monetization loop, drives share-induced installs
+1. Comparisons page first — closes monetization loop, drives share-induced installs ✅
 2. Supabase shareable links second
 3. Searches page third — validate with real users before building
 
@@ -208,3 +213,4 @@ Two of these = stop and wrap up.
 - Copy tone: warm, direct, personal. "doesn't" not "won't"
 - The website must work for users who arrive without the extension
 - Affiliate tags on website only — never in extension
+- Amazon Associates disclaimer on every page — whether or not affiliate links are live

@@ -4,6 +4,26 @@
 
 ---
 
+## **v0.6.1.7 — April 20, 2026 (Chat 16)**
+
+### compare.html — Actually Useful Comparisons page (phase 1)
+- New file, placed in repo root alongside index.html
+- Reads shortlist data from `?data=` URL parameter (Base64-encoded JSON)
+- Accepts `{ items: [...], searchTerm: "..." }` or a bare array
+- Columns: Product · Price · Per unit · Delivery · Rating · Reviews · Prime · Coupon/promo · Sold by · Ships from · Returns · Your note
+- Best-value star (★) on lowest PPU item, matching extension behaviour
+- Every column header sortable ascending/descending
+- Each product title links to `amazon.com/dp/[ASIN]?tag=PLACEHOLDER-20`
+- Empty/error state (no data, bad data, or empty array): friendly explanation with links to landing page and GitHub
+- Matches landing page style: cream/navy/teal palette, DM Serif Display + DM Sans
+- Affiliate disclaimer: "As an Amazon Associate I earn from qualifying purchases. Links on this page support Actually Useful — and don't cost you anything extra."
+
+### Affiliate disclaimer wording
+- Corrected from informal copy to required Amazon Associates Operating Agreement wording
+- Standing rule established: this disclaimer goes on every page going forward
+
+---
+
 ## **v0.6.1.6 — April 20, 2026 (Chat 15)**
 
 ### Manifest warning fixed (manifest.json)
@@ -22,10 +42,7 @@
 - "Currently in alpha testing." note in hero
 
 ### Feedback form verified
-- All three required alpha questions confirmed present:
-  - "Was anything in the panel confusing or unclear?"
-  - "What would you like to see added or changed?"
-  - Third question added this session with text field for explanation
+- All three required alpha questions confirmed present
 
 ---
 
@@ -33,44 +50,28 @@
 
 ### Ko-fi link fixed (search.js)
 - Nudge was pointing to `ko-fi.com/tibbalsgribbin`; corrected to `ko-fi.com/butactuallyuseful`
-- Footer link was already correct; only the nudge was wrong
 
 ### Page-fetch throttling (search.js)
-- Added 750ms delay between sequential page fetches in the pages slider `loadNext` loop
-- Reduces risk of Amazon rate-limiting rapid credentialed requests
-- Single-page load-more button unaffected
+- Added 750ms delay between sequential page fetches
 
 ### `auSendLog` moved to background.js (core.js, background.js, search.js)
-- `AU_LOG_URL` and `auSendLog()` removed from `core.js`; replaced with explanatory comment
-- `sendLog()` in `search.js` now assembles the payload and sends via `chrome.runtime.sendMessage({ type: 'AU_LOG', payload })`
-- `background.js` handles `AU_LOG` messages and fires the fetch from the service worker context, bypassing Amazon's CSP
+- Bypasses Amazon's CSP; logging now fires from service worker context
 
 ### Telemetry opt-out toggle (popup.html, popup.js, background.js, manifest.json)
-- New `popup.html` and `popup.js` — extension icon is now clickable
-- Popup contains: telemetry toggle (default on), Give feedback link, Buy me a coffee link, version number
-- Toggle persists preference to `chrome.storage.local` under key `au_telemetry_enabled`
-- `AU_LOG` handler in `background.js` checks preference before firing fetch
-- `manifest.json` updated with `"action": { "default_popup": "popup.html", "default_title": "Actually Useful" }`
+- New popup.html — extension icon is now clickable
+- Toggle persists to `chrome.storage.local` under `au_telemetry_enabled`
 
 ### Frequently Returned badge — deferred indefinitely
-- Badge only appears in the product page panel (product.js disabled during alpha)
-- Moved to post-alpha list; no action needed until product.js is re-enabled
+- Only appears in product.js panel; deferred until product.js re-enabled post-alpha
 
 ---
 
 ## **v0.6.1.4 — April 19, 2026 (Chat 13)**
 
 ### Minimum rating filter fixed (search.js)
-- Added `parseRating(el)` and `r.rating` in `scrapeCard()` — rating filter now works correctly
-
 ### product.js disabled in manifest (manifest.json)
-- Second `content_scripts` entry moved to `_content_scripts_product_disabled` (now deleted in v0.6.1.6)
-
 ### Affiliate tag machinery removed (core.js)
-- `AU_AFFILIATE_TAG` and `auTagUrl()` removed entirely — no callers, eliminates policy-violation risk
-
 ### Show Selected / Clear Selection rework (search.js)
-- Both buttons moved to shortlist bar; wording and behavior reworked
 
 ---
 

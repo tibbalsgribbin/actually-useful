@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.6 (overall) · v0.6.1 (manifest) · v0.6.1.5 (AU_VERSION) · Updated April 20, 2026 (Chat 15)*
+*Current version: v0.6.1.7 (overall) · v0.6.1 (manifest) · v0.6.1.5 (AU_VERSION) · Updated April 20, 2026 (Chat 16)*
 
 ---
 
@@ -48,7 +48,13 @@ Pillar four is the most distinctive and most personal. Never name the problem �
 
 Everything in the companion connects through the **persistent shortlist** — the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-Each shortlisted item captures: title, ASIN, price at capture, PPU, ships from/sold by, return policy, Prime eligibility, delivery date, rating and review count, coupon/promotion, user note, timestamp, search term, affiliate-tagged link.
+Each shortlisted item captures: title, ASIN, price at capture, PPU, PPU unit, ships from/sold by, return policy, Prime eligibility, delivery date, rating and review count, coupon/promotion, user note, timestamp, search term, affiliate-tagged link.
+
+**Shortlist item object shape** (for compare.html URL bridge):
+```
+{ asin, title, price, ppu, ppuUnit, delivery, rating, reviewCount,
+  prime, coupon, soldBy, shipsFrom, returnPolicy, note }
+```
 
 ---
 
@@ -58,6 +64,8 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 **Affiliate link policy:** Affiliate tags are applied on the website only — never in the extension. `AU_AFFILIATE_TAG` and `auTagUrl` have been removed from `core.js`. Amazon's policy explicitly forbids affiliate tags in browser extensions.
 
+**Amazon Associates disclosure:** Every page must display clearly and prominently: *"As an Amazon Associate I earn from qualifying purchases."* This is a hard requirement from the Associates Operating Agreement. Standing rule: this disclaimer goes on every page, whether or not affiliate links are live at the time.
+
 Associates application deferred until real user base established. Melissa needs her own Amazon account (separate from family member's) for Associates eligibility.
 
 ---
@@ -66,7 +74,7 @@ Associates application deferred until real user base established. Melissa needs 
 
 **Decided Chat 10:** Version numbers shifted to sub-1.0 to reflect that the product is not yet at full public release.
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.5** (internal AU_VERSION) / **v0.6.1.6** (overall release)
+- Current: **v0.6.1** (manifest) / **v0.6.1.5** (internal AU_VERSION) / **v0.6.1.7** (overall release)
 - Increments normally: v0.6.2, v0.7, etc.
 - A polished, stable product earns **v0.9**
 - Web Store public launch = **v1.0**
@@ -81,15 +89,21 @@ Chrome manifests support three-part version numbers only — manifest uses `0.6.
 
 **Pages:**
 - `index.html` — marketing/landing page ✅ **live at tibbalsgribbin.github.io/actually-useful/**
-- `compare.html` — Actually Useful Comparisons — receives shortlist data from extension, renders results, applies affiliate tags, supports shareable permanent links
-- `search.html` — Actually Useful Searches — standalone advanced search tool
+- `compare.html` — Actually Useful Comparisons ✅ **live** — receives shortlist data from extension, renders comparison table, applies affiliate tags, supports shareable permanent links (Supabase — phase 2)
+- `search.html` — Actually Useful Searches — standalone advanced search tool (post-alpha)
 
 **Key decisions:**
-- Shareable links are essential — implemented via Supabase (`actuallyuseful.net/compare?id=x7k2m`)
+- Shareable links are essential — implemented via Supabase (`actuallyuseful.net/compare?id=x7k2m`) — phase 2
 - Price history: link to Keepa per item — Keepa doesn't inject affiliate tags; CamelCamelCamel does
 - Website cannot fetch Amazon results independently — extension remains the Amazon-facing piece
 - Two-way extension ↔ website connection is post-alpha
 - The Comparisons page must work for users who arrive via shared link without the extension
+
+**URL bridge format (phase 1):**
+```js
+const encoded = encodeURIComponent(btoa(JSON.stringify({ items: shortlistArray, searchTerm: "..." })));
+const url = `https://tibbalsgribbin.github.io/actually-useful/compare.html?data=${encoded}`;
+```
 
 ---
 
@@ -200,7 +214,7 @@ Top to bottom:
 | Greasy Fork | v5.19.0 — frozen, no further updates |
 | Usage log | Google Sheet — payload relayed via background.js |
 | Feedback form | https://forms.gle/J3AECVTDHWKDZZKE7 |
-| Website | index.html live; compare.html and search.html pending |
+| Website | index.html and compare.html live; search.html pending |
 | Ko-fi | ko-fi.com/butactuallyuseful |
 | Contact | amazon.butactuallyuseful@gmail.com |
 
@@ -220,6 +234,7 @@ Top to bottom:
 - **Copy and tone** — "doesn't" not "won't"; warm, direct, personal
 - **Disclaimer placement** — global disclaimers at the bottom; row-level disclaimers inline; only when condition is active
 - **The website must work for users who arrive without the extension** — don't strangle the shared-link growth vector
+- **Amazon Associates disclaimer on every page** — whether or not affiliate links are live
 
 ---
 
