@@ -273,6 +273,7 @@
       font-size: 0.875rem;
       text-decoration: none;
       transition: opacity 0.15s;
+      cursor: pointer;
     }
 
     .btn:hover { opacity: 0.85; }
@@ -601,7 +602,8 @@
 
   function attachShareHandler(btnId) {
     const btn = document.getElementById(btnId);
-    if (!btn) return;
+    if (!btn || btn.dataset.shareAttached) return;
+    btn.dataset.shareAttached = '1';
     btn.addEventListener('click', async () => {
       btn.textContent = 'Saving…';
       try {
