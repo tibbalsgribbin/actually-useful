@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.5)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.8)
 'use strict';
 
 const PANEL_ID = 'ppu-sorter-panel';
@@ -784,7 +784,6 @@ const ITEM_UNITS = [
   var selectedUnit     = null;
   var sortVal          = 'ppu-asc';
   var checkedAsins     = {};
-  var showCheckedOnly  = false;
   var allData          = [];
   var loadedPages      = 1;
   var nextPageUrl      = null;
@@ -1085,10 +1084,16 @@ const ITEM_UNITS = [
       '</div>'+
       '<div id="ppu-scroll-area">'+
         '<div id="ppu-shortlist-bar">'+
-          '<label id="ppu-select-all-wrap"><input type="checkbox" id="ppu-select-all"> Select all</label>'+
-          '<button id="ppu-btn-show-checked" class="ppu-btn btn-orange" style="display:none">Show selected only (0)</button>'+
-          '<button id="ppu-btn-clear-checked" class="ppu-btn" style="display:none">Clear selection</button>'+
-          '<button id="ppu-btn-open-tabs">Open selected listings in new tabs (0)</button>'+
+          '<div id="ppu-select-all-wrap">'+
+            '<span id="ppu-select-all-box"></span>'+
+            '<button id="ppu-select-all-arrow" title="Selection options">&#9660;</button>'+
+            '<div id="ppu-select-all-menu">'+
+              '<div class="ppu-select-menu-item" data-action="all">All</div>'+
+              '<div class="ppu-select-menu-item" data-action="none">None</div>'+
+            '</div>'+
+          '</div>'+
+          '<span id="ppu-compare-hint">Select items to compare them.</span>'+
+          '<button id="ppu-btn-compare" class="ppu-btn" style="display:none">Compare selected items in new tab</button>'+
         '</div>'+
         '<div id="ppu-list"></div>'+
         '<div id="ppu-load-more-row" style="'+(nextPageUrl?'':'display:none')+'">'+
@@ -1216,16 +1221,17 @@ const ITEM_UNITS = [
     var kwInput=document.getElementById('ppu-keyword');
     var clearKw=document.getElementById('ppu-btn-clear-kw');
     var resortBtn=document.getElementById('ppu-btn-resort');
-    var showChkBtn=document.getElementById('ppu-btn-show-checked');
-    var clearChkBtn=document.getElementById('ppu-btn-clear-checked');
     var hideSponsoredBtn=document.getElementById('ppu-btn-hide-sponsored');
     var resetFiltersBtn=document.getElementById('ppu-btn-reset-filters');
     var minReviewsSlider=document.getElementById('ppu-min-reviews-slider');
     var minRatingSlider=document.getElementById('ppu-min-rating-slider');
     var pagesSlider=document.getElementById('ppu-pages-slider');
     var shortlistBar=document.getElementById('ppu-shortlist-bar');
-    var selectAllChk=document.getElementById('ppu-select-all');
-    var openTabsBtn=document.getElementById('ppu-btn-open-tabs');
+    var selectAllBox=document.getElementById('ppu-select-all-box');
+    var selectAllArrow=document.getElementById('ppu-select-all-arrow');
+    var selectAllMenu=document.getElementById('ppu-select-all-menu');
+    var compareBtn=document.getElementById('ppu-btn-compare');
+    var compareHint=document.getElementById('ppu-compare-hint');
 
     if(keyword){kwInput.classList.add('active');clearKw.style.display='block';}
     updateSliderFill(minReviewsSlider,0,1000);
@@ -1245,19 +1251,17 @@ const ITEM_UNITS = [
       sortVal=sortEl.value;
       var kw=kwInput.value;
       var cc=Object.keys(checkedAsins).length;
-      showChkBtn.style.display=cc>0?'block':'none';
-      clearChkBtn.style.display=cc>0?'block':'none';
-      showChkBtn.textContent=showCheckedOnly?'Show all':'Show selected only ('+cc+')';
-
-      if(openTabsBtn) openTabsBtn.textContent='Open selected listings in new tabs ('+cc+')';
-      if(selectAllChk) {
-        var allAsins=allData.map(function(r){return r.asin;});
-        var checkedCount=allAsins.filter(function(a){return checkedAsins[a];}).length;
-        selectAllChk.indeterminate = false;
-        selectAllChk.checked = checkedCount === allAsins.length && allAsins.length > 0;
+      var allAsins=allData.map(function(r){return r.asin;});
+      var checkedCount=allAsins.filter(function(a){return checkedAsins[a];}).length;
+      if(selectAllBox){
+        selectAllBox.textContent = checkedCount===0 ? '' : checkedCount===allAsins.length ? '\u2713' : '\u2013';
+        selectAllBox.className = 'ppu-select-box'+(checkedCount===0?' empty': checkedCount===allAsins.length?' checked':' indeterminate');
       }
+
+      if(compareBtn){ compareBtn.style.display=cc>0?'block':'none'; }
+      if(compareHint){ compareHint.style.display=cc>0?'none':'block'; }
       var sortLabels={'ppu-asc':'best value','price-asc':'price','delivery-free':'soonest free delivery','delivery-any':'soonest delivery','default':'Amazon order'};
-      resortBtn.style.display=(needsResort&&!showCheckedOnly)?'block':'none';
+      resortBtn.style.display=needsResort?'block':'none';
       resortBtn.textContent='Re-sort all by '+(sortLabels[sortVal]||'current sort')+' \u21c5';
 
       var anyFilterActive = keyword.trim().length>0 || minReviews>0 || minRating>0 ||
@@ -1270,7 +1274,7 @@ const ITEM_UNITS = [
       var isSparse=sortVal==='ppu-asc'&&unitDataAvail<Math.ceil(allData.length*0.1);
       var effectiveSort=isSparse?'price-asc':sortVal;
 
-      var displayData=showCheckedOnly?allData.filter(function(r){return checkedAsins[r.asin];}):allData.slice();
+      var displayData=allData.slice();
       var FAR=new Date(9999,0,1);
 
       function sortFn(a,b) {
@@ -1303,7 +1307,7 @@ const ITEM_UNITS = [
         return 0;
       }
 
-      if(!needsResort||showCheckedOnly){
+      if(!needsResort){
         displayData.sort(sortFn);
       } else {
         var pages={};
@@ -1314,7 +1318,7 @@ const ITEM_UNITS = [
 
       var hasKw=kw.trim().length>0;
       displayData=displayData.map(function(r){return Object.assign({},r,{kwMatch:!hasKw||titleMatchesKeywords(r.title,r.cardText,kw)});});
-      if(hasKw&&!showCheckedOnly)
+      if(hasKw)
         displayData=displayData.filter(function(r){return r.kwMatch;}).concat(displayData.filter(function(r){return !r.kwMatch;}));
 
       var withData=allData.filter(function(r){return r.ppu!=null;}).length;
@@ -1332,7 +1336,6 @@ const ITEM_UNITS = [
       if(hiddenSrc>0)              info+=' \u00b7 '+hiddenSrc+' source-hidden';
       if(selectedUnit)             info+=' \u00b7 showing in '+selectedUnit;
       if(isLiquidDominant&&!selectedUnit) info+=' \u00b7 liquid category (oz\u2248fl oz)';
-      if(showCheckedOnly)          info+=' \u00b7 '+displayData.length+' selected';
       if(sponsoredMode==='demote'&&sponCount>0) info+=' \u00b7 '+sponCount+' ads demoted';
       if(sponsoredMode==='hide'&&sponCount>0)   info+=' \u00b7 '+sponCount+' ads hidden';
       if(revHiddenCt>0)            info+=' \u00b7 '+revHiddenCt+' below min reviews';
@@ -1371,7 +1374,7 @@ const ITEM_UNITS = [
 
       var html='',curPage=0;
       displayData.forEach(function(r){
-        if(needsResort&&!showCheckedOnly&&r.page!==curPage){
+        if(needsResort&&r.page!==curPage){
           if(r.page>1) html+='<div class="ppu-divider">\u2500\u2500 Page '+r.page+' results \u2500\u2500</div>';
           curPage=r.page;
         }
@@ -1485,11 +1488,13 @@ const ITEM_UNITS = [
           if(this.checked){checkedAsins[asin]=true;row.classList.add('checked');maybeShowNudge();}
           else{delete checkedAsins[asin];row.classList.remove('checked');}
           var cnt=Object.keys(checkedAsins).length;
-          showChkBtn.style.display=cnt>0?'block':'none';
-          clearChkBtn.style.display=cnt>0?'block':'none';
-          showChkBtn.textContent=showCheckedOnly?'Show all':'Show selected only ('+cnt+')';
-
-          if(openTabsBtn) openTabsBtn.textContent='Open selected listings in new tabs ('+cnt+')';
+          var total=allData.length;
+          if(selectAllBox){
+            selectAllBox.textContent = cnt===0?'':cnt===total?'\u2713':'\u2013';
+            selectAllBox.className = 'ppu-select-box'+(cnt===0?' empty':cnt===total?' checked':' indeterminate');
+          }
+          if(compareBtn){ compareBtn.style.display=cnt>0?'block':'none'; }
+          if(compareHint){ compareHint.style.display=cnt>0?'none':'block'; }
         });
       });
       scheduleLog();
@@ -1542,35 +1547,70 @@ const ITEM_UNITS = [
       render();
     });
 
-    showChkBtn.addEventListener('click',function(){showCheckedOnly=!showCheckedOnly;render();});
-    clearChkBtn.addEventListener('click',function(){checkedAsins={};showCheckedOnly=false;render();});
+    // ── Shortlist bar: select-all dropdown ───────────────────────────────
+    function applySelectAll(action){
+      var allAsins=allData.map(function(r){return r.asin;});
+      if(action==='all'){ allAsins.forEach(function(a){checkedAsins[a]=true;}); }
+      else { checkedAsins={}; }
+      render();
+    }
 
-    // ── Shortlist bar: select-all ─────────────────────────────────────────
-    if(selectAllChk){
-      selectAllChk.addEventListener('click',function(){
+    if(selectAllBox){
+      selectAllBox.addEventListener('click',function(){
         var allAsins=allData.map(function(r){return r.asin;});
         var checkedCount=allAsins.filter(function(a){return checkedAsins[a];}).length;
-        if(checkedCount===0){
-          allAsins.forEach(function(a){checkedAsins[a]=true;});
-        } else {
-          checkedAsins={};
-        }
-        render();
+        applySelectAll(checkedCount===0?'all':'none');
       });
     }
 
-    // ── Shortlist bar: open in tabs ───────────────────────────────────────
-    if(openTabsBtn){
-      openTabsBtn.addEventListener('click',function(){
-        var asins=Object.keys(checkedAsins);
-        asins.forEach(function(asin){
-          var row=allData.find(function(r){return r.asin===asin;});
-          if(row&&row.href) window.open(row.href,'_blank');
+    if(selectAllArrow){
+      selectAllArrow.addEventListener('click',function(e){
+        e.stopPropagation();
+        var isOpen=selectAllMenu.classList.contains('open');
+        selectAllMenu.classList.toggle('open',!isOpen);
+      });
+    }
+
+    if(selectAllMenu){
+      selectAllMenu.querySelectorAll('.ppu-select-menu-item').forEach(function(item){
+        item.addEventListener('click',function(){
+          applySelectAll(this.getAttribute('data-action'));
+          selectAllMenu.classList.remove('open');
         });
       });
     }
 
-    var kwDebounceTimer=null;
+    document.addEventListener('click',function(){
+      if(selectAllMenu) selectAllMenu.classList.remove('open');
+    });
+
+    // ── Shortlist bar: compare side by side ───────────────────────────────
+    if(compareBtn){
+      compareBtn.addEventListener('click',function(){
+        var asins=Object.keys(checkedAsins);
+        var items=asins.map(function(asin){
+          var r=allData.find(function(d){return d.asin===asin;});
+          if(!r) return null;
+          return {
+            asin:     r.asin,
+            title:    r.title||'',
+            price:    (r.price!=null&&!isNaN(r.price))?r.price:null,
+            ppu:      (r.ppu!=null&&!isNaN(r.ppu))?r.ppu:null,
+            ppuUnit:  r.unit||'',
+            delivery: r.freeDate?r.freeDate.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'',
+            rating:   r.rating||'',
+            reviewCount: r.reviewCount||'',
+            coupon:   r.hasCoupon?'Coupon':r.couponPillOnly?'Coupon (check Amazon)':r.sns?'Subscribe & Save':r.savings?r.savings:''
+          };
+        }).filter(Boolean);
+        var searchTerm=(new URLSearchParams(window.location.search).get('k')||'').trim();
+        var payload=JSON.stringify({items:items,searchTerm:searchTerm});
+        var encoded=encodeURIComponent(btoa(unescape(encodeURIComponent(payload))));
+        window.open('https://tibbalsgribbin.github.io/actually-useful/compare.html?data='+encoded,'_blank');
+      });
+    }
+
+
     kwInput.addEventListener('input',function(){
       keyword=this.value;
       this.classList.toggle('active',this.value.trim().length>0);
@@ -1682,7 +1722,7 @@ const ITEM_UNITS = [
     document.getElementById('ppu-close').addEventListener('click',function(e){e.stopPropagation();panel.remove();});
     document.getElementById('ppu-btn-refresh').addEventListener('click',function(){
       this.textContent='Re-scanning\u2026';this.disabled=true;
-      checkedAsins={};showCheckedOnly=false;
+      checkedAsins={};
       setTimeout(function(){buildPanel();},100);
     });
 

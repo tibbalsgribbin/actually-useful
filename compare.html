@@ -455,7 +455,8 @@
       const ppuCell = (() => {
         const v = parseFloat(item.ppu);
         if (isNaN(v) || v <= 0) return '<span class="na">—</span>';
-        const formatted = `$${v.toFixed(2)}${item.ppuUnit ? ' / ' + item.ppuUnit : ''}`;
+        const ppuStr = v < 0.10 ? '$'+v.toFixed(3).replace(/0+$/,'').replace(/\.$/,'0') : '$'+v.toFixed(2);
+        const formatted = `${ppuStr}${item.ppuUnit ? ' / ' + item.ppuUnit : ''}`;
         if (isBest) return `<span class="best-value">${formatted}<span class="best-value-star" title="Best value">★</span></span>`;
         return formatted;
       })();
@@ -472,7 +473,7 @@
         ? `<span class="pill pill-return">${esc(item.returnPolicy)}</span>`
         : '<span class="na">—</span>';
 
-      const priceCell = item.price
+      const priceCell = (item.price != null && !isNaN(item.price))
         ? `$${parseFloat(item.price).toFixed(2)}`
         : '<span class="na">—</span>';
 

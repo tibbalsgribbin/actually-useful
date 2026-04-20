@@ -144,8 +144,6 @@
   box-shadow:0 1px 2px rgba(0,0,0,0.08);
 }
 #ppu-btn-resort       { display:none; }
-#ppu-btn-show-checked { display:none; }
-#ppu-btn-clear-checked  { display:none; }
 
 /* ── Pages slider row ────────────────────────────────────────────────── */
 #ppu-pages-row {
@@ -293,17 +291,36 @@ input[type=range].ppu-slider::-moz-range-thumb {
   position:sticky;top:0;z-index:10;flex-shrink:0;
 }
 #ppu-select-all-wrap {
-  display:flex;align-items:center;gap:5px;font-size:12px;color:#444;
-  cursor:pointer;white-space:nowrap;flex-shrink:0;
+  display:flex;align-items:center;position:relative;flex-shrink:0;
 }
-#ppu-select-all { cursor:pointer;width:14px;height:14px; }
-#ppu-btn-open-tabs {
-  font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;
-  border:1px solid #e47911;background:#fff;color:#e47911;
-  box-shadow:0 1px 2px rgba(228,121,17,0.12);white-space:nowrap;
-  flex-shrink:0;
+.ppu-select-box {
+  display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;border:1.5px solid #aaa;border-radius:3px;
+  background:#fff;cursor:pointer;font-size:10px;font-weight:700;color:#333;
+  user-select:none;flex-shrink:0;
 }
-#ppu-btn-open-tabs:hover { background:#fff8f2; }
+.ppu-select-box.checked    { background:#e47911;border-color:#e47911;color:#fff; }
+.ppu-select-box.indeterminate { background:#fff;border-color:#aaa;color:#555; }
+#ppu-select-all-arrow {
+  font-size:8px;padding:0 3px;border:none;background:none;cursor:pointer;
+  color:#aaa;line-height:1;flex-shrink:0;
+}
+#ppu-select-all-arrow:hover { color:#555; }
+#ppu-select-all-menu {
+  display:none;position:absolute;top:100%;left:0;z-index:100;
+  background:#fff;border:1px solid #ddd;border-radius:5px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.12);min-width:80px;margin-top:2px;
+}
+#ppu-select-all-menu.open { display:block; }
+.ppu-select-menu-item {
+  padding:6px 12px;font-size:12px;color:#333;cursor:pointer;white-space:nowrap;
+}
+.ppu-select-menu-item:hover { background:#f5f5f5; }
+.ppu-select-menu-item:first-child { border-radius:5px 5px 0 0; }
+.ppu-select-menu-item:last-child  { border-radius:0 0 5px 5px; }
+#ppu-compare-hint {
+  font-size:13px;color:#333;font-weight:600;white-space:nowrap;flex-shrink:0;
+}
 
 #ppu-list { padding:4px 0; }
 .ppu-row {
