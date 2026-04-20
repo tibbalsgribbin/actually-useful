@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.5 (extension) · Userscript frozen at v5.19.0 · Updated April 19, 2026 (Chat 14)*
+*Current version: v0.6.1.6 (overall) · v0.6.1 (manifest) · v0.6.1.5 (AU_VERSION) · Updated April 20, 2026 (Chat 15)*
 
 ---
 
@@ -14,8 +14,9 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 |---|---|
 | Brand | Actually Useful |
 | Tagline | Actually Useful: Amazon but better. |
-| Domain | actuallyuseful.net (Namecheap) |
+| Domain | actuallyuseful.net (Namecheap) — not yet pointed at GitHub Pages |
 | GitHub | github.com/tibbalsgribbin/actually-useful (public) |
+| GitHub Pages | tibbalsgribbin.github.io/actually-useful/ (live) |
 | Ko-fi | ko-fi.com/butactuallyuseful |
 | Email | amazon.butactuallyuseful@gmail.com |
 | Google account | butactuallyuseful@gmail.com (InPrivate Edge only) |
@@ -65,7 +66,7 @@ Associates application deferred until real user base established. Melissa needs 
 
 **Decided Chat 10:** Version numbers shifted to sub-1.0 to reflect that the product is not yet at full public release.
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.5** (internal AU_VERSION)
+- Current: **v0.6.1** (manifest) / **v0.6.1.5** (internal AU_VERSION) / **v0.6.1.6** (overall release)
 - Increments normally: v0.6.2, v0.7, etc.
 - A polished, stable product earns **v0.9**
 - Web Store public launch = **v1.0**
@@ -78,16 +79,17 @@ Chrome manifests support three-part version numbers only — manifest uses `0.6.
 
 **Platform:** GitHub Pages (static, free, uses existing repo) + Supabase (free database for shareable links).
 
-**Pages planned:**
-- `index.html` — marketing/landing page
-- `compare.html` — comparison table; receives shortlist data from extension, renders results, applies affiliate tags, supports shareable permanent links
-- `search.html` — power search form (Jungle Search model)
+**Pages:**
+- `index.html` — marketing/landing page ✅ **live at tibbalsgribbin.github.io/actually-useful/**
+- `compare.html` — Actually Useful Comparisons — receives shortlist data from extension, renders results, applies affiliate tags, supports shareable permanent links
+- `search.html` — Actually Useful Searches — standalone advanced search tool
 
 **Key decisions:**
 - Shareable links are essential — implemented via Supabase (`actuallyuseful.net/compare?id=x7k2m`)
 - Price history: link to Keepa per item — Keepa doesn't inject affiliate tags; CamelCamelCamel does
 - Website cannot fetch Amazon results independently — extension remains the Amazon-facing piece
 - Two-way extension ↔ website connection is post-alpha
+- The Comparisons page must work for users who arrive via shared link without the extension
 
 ---
 
@@ -179,12 +181,12 @@ Top to bottom:
 ## 10. Known Issues / Deferred
 
 - **Product page panel** — deferred until after alpha launch (product.js disabled in manifest)
-- **Manifest warning** — `_content_scripts_product_disabled` key causes cosmetic warning in Edge; harmless; fix before Web Store submission
 - **Thumbnail images on load-more pages** — not available (fetched via `fetch()`, not live DOM)
 - **Scrollbar track** — click/drag doesn't work; scroll wheel does. Minor, deferred.
 - **Amazon unit price math unreliable** for multi-pack listings — do not attempt to fix without `diagnostic-prices.js` data
 - **Shortlist bar show/hide jank** — "Show selected only" and "Clear selection" appear/disappear when items are checked; slightly jarring. Not worth fixing before shortlist bar gets rethought for website integration.
-- **Logging verification needed** — verify rows still reaching Google Sheet after background.js move
+- **Frequently Returned badge** — bold only; red deferred until product.js is re-enabled post-alpha
+- **actuallyuseful.net** — domain not yet pointed at GitHub Pages
 
 ---
 
@@ -193,11 +195,12 @@ Top to bottom:
 | Item | Detail |
 |---|---|
 | GitHub | github.com/tibbalsgribbin/actually-useful |
+| GitHub Pages | tibbalsgribbin.github.io/actually-useful/ (live) |
 | Project docs | `docs/` folder in GitHub repo |
 | Greasy Fork | v5.19.0 — frozen, no further updates |
 | Usage log | Google Sheet — payload relayed via background.js |
 | Feedback form | https://forms.gle/J3AECVTDHWKDZZKE7 |
-| Website | actuallyuseful.net — GitHub Pages + Supabase (setup pending) |
+| Website | index.html live; compare.html and search.html pending |
 | Ko-fi | ko-fi.com/butactuallyuseful |
 | Contact | amazon.butactuallyuseful@gmail.com |
 
@@ -216,6 +219,7 @@ Top to bottom:
 - **Use Melissa's exact wording** — for UI messages, disclaimers, and copy
 - **Copy and tone** — "doesn't" not "won't"; warm, direct, personal
 - **Disclaimer placement** — global disclaimers at the bottom; row-level disclaimers inline; only when condition is active
+- **The website must work for users who arrive without the extension** — don't strangle the shared-link growth vector
 
 ---
 

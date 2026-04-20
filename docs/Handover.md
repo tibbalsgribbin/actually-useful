@@ -1,18 +1,16 @@
-# Session Handover — April 19, 2026 (Chat 14)
+# Session Handover — April 20, 2026 (Chat 15)
 
 ## What we did this session
 
-1. **Ko-fi link fixed (search.js)** — nudge was pointing to `ko-fi.com/tibbalsgribbin`; corrected to `ko-fi.com/butactuallyuseful`. Footer link was already correct.
+1. **Feedback form verified** — all three required questions confirmed present. Done.
 
-2. **Page-fetch throttling (search.js)** — added 750ms delay between sequential page fetches in the pages slider `loadNext` loop. Reduces bot-detection risk. Single-page load-more button unaffected.
+2. **Manifest warning fixed (manifest.json)** — deleted `_content_scripts_product_disabled` block entirely. Edge warning is gone. Extension loads cleanly.
 
-3. **`auSendLog` moved to background.js (core.js, background.js, search.js)** — `AU_LOG_URL` and `auSendLog()` removed from `core.js`. `sendLog()` in `search.js` now assembles the payload and relays via `chrome.runtime.sendMessage({ type: 'AU_LOG', payload })`. `background.js` fires the fetch from the service worker, bypassing Amazon's CSP.
+3. **Landing page built and deployed (index.html)** — full `index.html` created and pushed to repo root. GitHub Pages deployed automatically. Live at `https://tibbalsgribbin.github.io/actually-useful/`. Design: cream/navy/teal palette, DM Serif Display + DM Sans, four pillars, Why it exists section, feature grid, Ko-fi support section, footer.
 
-4. **Telemetry opt-out toggle (popup.html, popup.js, background.js, manifest.json)** — new `popup.html` and `popup.js` created. Extension icon is now clickable. Popup contains: telemetry toggle (default on), Give feedback link, Buy me a coffee link, version number. Toggle persists to `chrome.storage.local` under `au_telemetry_enabled`. `AU_LOG` handler in background.js checks preference before firing fetch. Manifest updated with `"action": { "default_popup": "popup.html" }`.
+4. **Task Overview updated** — all completed items struck through, manifest warning added and struck, FR badge correctly noted as deferred (not done), new items current as of this session.
 
-5. **FR badge deferred indefinitely** — confirmed badge only appears in product page panel (disabled). Removed from next-up list.
-
-6. **Known manifest warning noted** — `_content_scripts_product_disabled` key causes a cosmetic "Unrecognized manifest key" warning in Edge. Pre-existing from Chat 13, harmless, extension loads correctly. Fix before Web Store submission by deleting the block entirely.
+5. **Committed and pushed as v0.6.1.6.**
 
 ---
 
@@ -28,42 +26,31 @@
 ## Progress snapshot
 
 ### ✅ Recently done
-- Panel height resize via bottom drag handle
-- Persistent filter settings per search term (sessionStorage)
-- Refresh → Re-scan page (label + all messages)
-- Select-all simple toggle, no confirm dialog
-- Shortlist bar always visible
-- System font stack
-- Keyword debouncing (250ms)
-- Empty state message when filters clear everything
-- Collapse/minimize bug fixed (Chat 12)
-- Version strings aligned to sub-1.0 numbering (Chat 12)
-- docs/ folder created in GitHub (Chat 12)
-- Minimum rating filter fixed — parseRating() + r.rating (Chat 13)
-- product.js disabled in manifest (Chat 13)
-- Affiliate tag machinery removed from core.js (Chat 13)
-- Show Selected / Clear Selection reworked — moved to shortlist bar (Chat 13)
 - Ko-fi link fixed in nudge (Chat 14)
 - Page-fetch throttling — 750ms between sequential fetches (Chat 14)
 - auSendLog moved to background.js (Chat 14)
 - Telemetry opt-out toggle + popup (Chat 14)
+- Feedback form verified — all three questions present (Chat 15)
+- Manifest warning fixed — `_content_scripts_product_disabled` block deleted (Chat 15)
+- Landing page live at tibbalsgribbin.github.io/actually-useful/ (Chat 15)
+- Task Overview updated and current (Chat 15)
 
-### 🔜 Next up (short term) — in order
-1. Verify logging still reaches Google Sheet (do a search, check Sheet for new row)
-2. Fix manifest warning — delete `_content_scripts_product_disabled` block entirely (can just comment out instead, or delete; either way cleaner than renamed key)
-3. *(No other short-term items — roadmap items below are all pre-alpha or post-alpha)*
+### 🔜 Next up — Chat 16
+1. Build `compare.html` — Actually Useful Comparisons page (phase 1)
+   - Basic comparison table structure
+   - Decode shortlist data from URL parameter
+   - Affiliate tag application
+   - Must work for users who arrive via shared link without the extension
+   - No Supabase yet — URL bridge only for phase 1
 
 ### 🔭 Further out (pre-alpha)
-- GitHub Pages setup (actuallyuseful.net)
-- Supabase setup (shareable links)
-- Marketing/landing page built and published
-- Comparison page with sort/filter + shareable links
-- Feedback form verified (three required questions)
-- Test extension on a different setup (Mac, or Chrome vs Edge)
+- "Compare side by side (N)" button in shortlist bar → opens Comparisons page (Chat 17)
+- Supabase setup + shareable links (Chat 17)
+- Test extension on a different setup (Mac or Chrome vs Edge)
 - Decide: Chrome Web Store submission before or after alpha?
+- Alpha tester recruitment
 
 ### 🔭 Further out (post-alpha)
-- Comparison page "Open in new tabs" becomes "Compare on website"
 - Power search form (Jungle Search model)
 - Product page re-enabled
 - Cross-page shortlist persistence (chrome.storage.local)
@@ -86,27 +73,29 @@
 - All Google tasks: InPrivate Edge + butactuallyuseful@gmail.com
 - Context rot: stop and wrap up rather than pushing through
 - CSS/JS rule: removing JS visibility toggle → check and fix CSS baseline too
-- Version: manifest uses three-part `0.6.1`; AU_VERSION in core.js is `0.6.1.5`
+- Version: manifest uses three-part `0.6.1`; AU_VERSION in core.js is `0.6.1.5`; landing page does not carry a version string
 - Always provide a suggested GitHub commit message at end of session
 - Always include context/token status when asking "continue or wrap up?"
 - Bundle small changes together rather than shipping each one separately
 - Always include Project_Briefing.md in end-of-session documents — do not skip it
 - Project documents now live in `docs/` folder in GitHub — update them there after each session
 - Shortlist bar show/hide jank is known and noted — not worth fixing before website integration rethinks the whole bar
-- `_content_scripts_product_disabled` manifest warning is cosmetic/pre-existing — fix before Web Store submission by deleting the block
+- Affiliate tags go on the website only — never in the extension
+- The Comparisons page must work for users who arrive via shared link without the extension installed — don't strangle that growth vector
+- actuallyuseful.net is not yet pointed at GitHub Pages — still resolving to tibbalsgribbin.github.io/actually-useful/
 
 ---
 
 ## Suggested commit message
-`v0.6.1.5 — fix Ko-fi link, add fetch throttling, move logging to background, add popup + telemetry toggle`
+*(Already committed this session as: `v0.6.1.6 — fix manifest warning, add landing page`)*
 
 ## End-of-session checklist
 - [x] Handover.md — written
 - [x] Changelog.md — updated
 - [x] Roadmap.md — updated
 - [x] Project_Briefing.md — updated
-- [ ] Melissa downloads all six output files and places them in the extension folder
-- [ ] Melissa reloads extension in Edge and tests popup + search panel
-- [ ] Melissa commits and pushes via GitHub Desktop
+- [x] manifest.json — downloaded and placed
+- [x] index.html — downloaded and placed
+- [x] Committed and pushed via GitHub Desktop
 - [ ] Melissa downloads all four docs and puts them in `docs/` in GitHub
 - [ ] Melissa updates project files in Claude Project (upload new versions)

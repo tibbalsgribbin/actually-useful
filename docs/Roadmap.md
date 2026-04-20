@@ -4,15 +4,15 @@
 
 ---
 
-## Current version: v0.6.1.5
+## Current version: v0.6.1.6
 
 ---
 
 ## Known issues / needs testing
 
 - Shortlist bar show/hide of "Show selected only" and "Clear selection" is slightly jarring — not worth fixing before website integration rethinks the whole bar
-- `_content_scripts_product_disabled` manifest key causes a cosmetic "Unrecognized manifest key" warning in Edge — harmless, pre-existing from Chat 13. Fix before Web Store submission by deleting the block entirely.
-- Verify logging still reaching Google Sheet after background.js move (do a search, check Sheet for a new row)
+- Verify logging still reaching Google Sheet after background.js move (confirmed working Chat 15)
+- actuallyuseful.net not yet pointed at GitHub Pages — currently resolves to tibbalsgribbin.github.io/actually-useful/
 
 ---
 
@@ -48,7 +48,7 @@ When removing JS visibility toggling from an element, always check and update th
 Pause between "files produced" and "push to GitHub." Test first, commit after.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.5 (internal AU_VERSION)
+- Current: v0.6.1 (manifest) / v0.6.1.5 (internal AU_VERSION) / v0.6.1.6 (overall release including website)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal AU_VERSION can carry a fourth segment
@@ -57,6 +57,10 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 - All project documents now live in `docs/` folder in GitHub repo
 - After each session, download updated docs and put them in `docs/` before committing
 - Also update the Claude Project files (upload new versions)
+
+**Affiliate tags:**
+- Website only — never in the extension
+- Amazon policy explicitly forbids affiliate tags in browser extensions
 
 **How to know this session is going wrong:**
 - Melissa is being asked to hold multiple things in her head at once
@@ -76,8 +80,12 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **Verify logging** — do a search, check the Google Sheet for a new row
-2. **Fix manifest warning** — delete `_content_scripts_product_disabled` block from manifest.json (or convert to a comment); eliminates the Edge warning before Web Store submission
+1. **Build compare.html — Actually Useful Comparisons page (phase 1)**
+   - Basic comparison table: title, price, PPU, delivery, rating, sold by, ships from, coupon
+   - Decode shortlist data from URL parameter (Base64)
+   - Affiliate tags applied on this page
+   - Must work for users who arrive via shared link without the extension
+   - No Supabase yet — URL bridge only for phase 1
 
 ---
 
@@ -85,45 +93,34 @@ Two of these = stop and wrap up.
 
 ### v0.6.1.x — in progress
 
-- [x] Regression fixes (Chat 4)
-- [x] Collapsible Sort/Filters dividers, footer repositioned, keyword hint text (Chat 5)
-- [x] Polish items: font stack, debouncing, empty state, FR badge bold, hint text size (Chat 7)
-- [x] Shortlist bar visibility fix (Chat 7)
-- [x] Select-all simple toggle, no confirm dialog (Chat 8)
-- [x] Shortlist bar always visible (Chat 8)
-- [x] Panel height resize via bottom edge handle (Chat 9)
-- [x] Persistent filter settings per search term (Chat 9)
-- [x] Refresh → Re-scan page (Chat 9)
-- [x] Collapse/minimize bug fixed (Chat 12)
-- [x] Version strings aligned to sub-1.0 across all four files (Chat 12)
-- [x] docs/ folder created in GitHub (Chat 12)
-- [x] Minimum rating filter fixed — `parseRating()` + `r.rating` in `scrapeCard()` (Chat 13)
+- [x] All regression fixes and polish (Chats 4–9)
+- [x] Minimum rating filter fixed (Chat 13)
 - [x] product.js disabled in manifest (Chat 13)
-- [x] `AU_AFFILIATE_TAG` and `auTagUrl` removed from `core.js` (Chat 13)
-- [x] Show Selected / Clear Selection moved to shortlist bar, wording reworked (Chat 13)
+- [x] Affiliate tag machinery removed from core.js (Chat 13)
+- [x] Show Selected / Clear Selection reworked (Chat 13)
 - [x] Ko-fi link fixed in nudge (Chat 14)
-- [x] Page-fetch throttling — 750ms between sequential fetches (Chat 14)
-- [x] `auSendLog` moved to background.js (Chat 14)
-- [x] Telemetry opt-out toggle + popup.html/popup.js (Chat 14)
-- [ ] Fix manifest warning — delete `_content_scripts_product_disabled` block
+- [x] Page-fetch throttling (Chat 14)
+- [x] auSendLog moved to background.js (Chat 14)
+- [x] Telemetry opt-out toggle + popup (Chat 14)
+- [x] Feedback form verified (Chat 15)
+- [x] Manifest warning fixed (Chat 15)
+- [x] Landing page live (Chat 15)
 - [ ] Amazon unit price flagging — deferred, needs diagnostic first
 
 ### Alpha release — blockers
-- [ ] Feedback form verified — these three questions must be present:
-  - "What is one thing that confused you?"
-  - "What is one feature you wish it had?"
-  - "Did it break anything on the page?"
-- [ ] GitHub Pages live (actuallyuseful.net)
-- [ ] Marketing/landing page published
-- [ ] Actually Useful Comparisons page with shareable links working
-- [ ] "Compare side by side (N)" button in shortlist bar → opens Comparisons page
-- [ ] Test extension on a different setup (Mac, or Chrome vs Edge) via a tester
+- [ ] Actually Useful Comparisons page — basic version working
+- [ ] "Compare side by side (N)" button in shortlist bar
+- [ ] Supabase setup + shareable links
+- [ ] Test extension on a different setup (Mac or Chrome vs Edge)
 - [ ] Decide: Chrome Web Store submission before or after alpha?
+- [ ] Alpha tester recruitment
 
 ### Infrastructure — pending
 - [x] docs/ folder in GitHub repo
-- [ ] GitHub Pages enabled on existing repo
-- [ ] Supabase account + one table set up (shareable comparison links)
+- [x] GitHub Pages enabled
+- [x] Landing page live
+- [ ] actuallyuseful.net pointed at GitHub Pages
+- [ ] Supabase account + one table (shareable comparison links)
 - [ ] Create Amazon account (prerequisite for Associates)
 - [ ] Apply for Amazon Associates
 - [ ] Create Chrome Web Store developer account ($5)
@@ -134,8 +131,9 @@ Two of these = stop and wrap up.
 - [ ] Product page re-enabled (tested against current Amazon first)
 - [ ] Cross-page shortlist state persistence (chrome.storage.local)
 - [ ] "Compare side by side (N)" button → Actually Useful Comparisons page
-- [ ] Two-way extension ↔ website connection (refined shortlist back to extension)
+- [ ] Two-way extension ↔ website connection
 - [ ] Shortlist bar rethought for website integration
+- [ ] Frequently Returned badge — make it red (deferred until product.js re-enabled)
 - [ ] Derive per-item price from total ÷ count when Amazon reports wrong unit
 - [ ] Keyword length expression normalization ("6ft" vs "6 feet")
 - [ ] Exclusion possessives (`-men` not matching "men's")
@@ -150,18 +148,16 @@ Two of these = stop and wrap up.
 - [ ] Badge text on toolbar icon — shortlist count via `chrome.action.setBadgeText`
 
 **Website — Actually Useful Comparisons**
-- [ ] Comparison table: title, price, PPU, delivery, rating, sold by, ships from, coupon — side by side
 - [ ] Re-sort by any column
 - [ ] Per-item notes persisted to URL
 - [ ] Shareable permanent links via Supabase (`actuallyuseful.net/c/x7k2m`)
-- [ ] Affiliate tags applied on this page only
-- [ ] Works for users who arrive via shared link without the extension installed
+- [ ] Works for users who arrive via shared link without the extension
 - [ ] Keepa price history link per item
 
 **Website — Actually Useful Searches**
-- [ ] Build forms for queries Amazon makes hard: discount range, condition + department, Small Business + high rating, multi-merchant
-- [ ] Search URL state preserved — queries bookmarkable and shareable
-- [ ] Standalone search third in sequencing — validate with real users before committing
+- [ ] Build forms for queries Amazon makes hard
+- [ ] Search URL state preserved — bookmarkable and shareable
+- [ ] Validate with real users before committing to build
 
 ---
 
@@ -177,30 +173,25 @@ Two of these = stop and wrap up.
 
 ## Post-alpha feature batch: review integrity + price history
 
-- [ ] Mild caution signal for statistically improbable ratings (high stars, very low review count)
+- [ ] Mild caution signal for statistically improbable ratings
 - [ ] Contextual nudge to Fakespot / ReviewMeta on flagged items
-- [ ] "📈 Price history" link per card → Keepa
+- [ ] Keepa price history link per card
 
 ---
 
-## Website — architecture (decided Chat 10, updated Chat 11)
+## Website — architecture
 
 **Platform:** GitHub Pages (static, free, uses existing repo) + Supabase (free database tier).
 
 **Three website components:**
-- `index.html` — marketing/landing page
-- `compare.html` — **Actually Useful Comparisons** — receives shortlisted items from extension, renders side-by-side comparison table, applies affiliate tags, supports shareable permanent links via Supabase. Must work for users who arrive via shared link without the extension.
-- `search.html` — **Actually Useful Searches** — standalone advanced search tool; bookmarkable/shareable URLs.
+- `index.html` — marketing/landing page ✅ live
+- `compare.html` — Actually Useful Comparisons
+- `search.html` — Actually Useful Searches
 
 **Sequencing:**
-1. Comparisons page first — closes monetization loop, gives shortlist a destination, drives share-induced installs
+1. Comparisons page first — closes monetization loop, drives share-induced installs
 2. Supabase shareable links second
-3. Searches page third — validate which queries users actually want before building
-
-**Key decisions:**
-- Price history → Keepa links per item (not CamelCamelCamel)
-- Affiliate tags on website only — never in extension
-- Two-way extension ↔ website connection is post-alpha
+3. Searches page third — validate with real users before building
 
 ---
 
@@ -216,3 +207,4 @@ Two of these = stop and wrap up.
 - Use Melissa's exact wording for UI copy
 - Copy tone: warm, direct, personal. "doesn't" not "won't"
 - The website must work for users who arrive without the extension
+- Affiliate tags on website only — never in extension
