@@ -338,7 +338,15 @@
     <div>
       <a href="https://github.com/tibbalsgribbin/actually-useful" target="_blank">GitHub</a>
       <span class="footer-sep">·</span>
-      <a href="https://forms.gle/XU8RpYM3cGFTwQQ86" target="_blank">Give feedback</a>
+      <a id="feedback-link" href="https://forms.gle/XU8RpYM3cGFTwQQ86" target="_blank">Give feedback</a>
+      <script>
+        (function() {
+          const ua = navigator.userAgent;
+          const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Other';
+          const url = 'https://docs.google.com/forms/d/1AnG9frYVy7I2KUh27Re9iIJtwwqdzpa0qceFyGxZ-pE/viewform?usp=pp_url&entry.1362282898=website&entry.1312500883=' + encodeURIComponent(browser);
+          document.getElementById('feedback-link').href = url;
+        })();
+      </script>
       <span class="footer-sep">·</span>
       <a href="https://ko-fi.com/butactuallyuseful" target="_blank">Ko-fi</a>
     </div>

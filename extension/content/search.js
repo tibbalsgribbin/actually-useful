@@ -4,7 +4,7 @@
 'use strict';
 
 function auFeedbackUrl() {
-  const base = 'https://forms.gle/XU8RpYM3cGFTwQQ86';
+  const base = 'https://docs.google.com/forms/d/1AnG9frYVy7I2KUh27Re9iIJtwwqdzpa0qceFyGxZ-pE/viewform';
   const version = (typeof AU_VERSION !== 'undefined') ? AU_VERSION : 'unknown';
   const ua = navigator.userAgent;
   const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Other';
