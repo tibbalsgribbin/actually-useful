@@ -347,6 +347,9 @@
   // ── Config ────────────────────────────────────────────────────
   const AFFILIATE_TAG = 'PLACEHOLDER-20'; // Replace before Associates launch
 
+  const SUPABASE_URL = 'https://bnqgeguulurcrbkdpfzv.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_h70-MNvomO4EpJrpXgcdjw__motBOdi';
+
   // ── Helpers ───────────────────────────────────────────────────
   function affiliateUrl(asin) {
     return `https://www.amazon.com/dp/${asin}?tag=${AFFILIATE_TAG}`;
@@ -383,18 +386,25 @@
     return Number(n).toLocaleString();
   }
 
-  // Find the best PPU value among items that have one, for highlighting
-  function findBestPpuIndex(items) {
+  // Find all indices that share the best (lowest) PPU value, for highlighting.
+  // Round to 6dp before comparing to avoid floating-point mismatch on equal values.
+  function findBestPpuIndices(items) {
+    const round = v => Math.round(v * 1e6) / 1e6;
     let bestVal = Infinity;
-    let bestIdx = -1;
-    items.forEach((item, i) => {
+    items.forEach(item => {
       const v = parseFloat(item.ppu);
-      if (!isNaN(v) && v > 0 && v < bestVal) {
-        bestVal = v;
-        bestIdx = i;
+      if (!isNaN(v) && v > 0) {
+        const r = round(v);
+        if (r < bestVal) bestVal = r;
       }
     });
-    return bestIdx;
+    const result = new Set();
+    if (bestVal === Infinity) return result;
+    items.forEach((item, i) => {
+      const v = parseFloat(item.ppu);
+      if (!isNaN(v) && round(v) === bestVal) result.add(i);
+    });
+    return result;
   }
 
   // ── Sort state ────────────────────────────────────────────────
@@ -426,7 +436,7 @@
 
   // ── Render table ──────────────────────────────────────────────
   function renderTable(items, searchTerm) {
-    const bestIdx = findBestPpuIndex(items);
+    const bestIndices = findBestPpuIndices(items);
 
     const colDefs = [
       { key: 'title',       label: 'Product' },
@@ -450,7 +460,7 @@
     }).join('');
 
     const rows = items.map((item, i) => {
-      const isBest = i === bestIdx;
+      const isBest = bestIndices.has(i);
 
       const ppuCell = (() => {
         const v = parseFloat(item.ppu);
@@ -501,6 +511,7 @@
       <div class="meta-bar">
         <span class="item-count">Comparing <strong>${items.length}</strong> item${items.length !== 1 ? 's' : ''}</span>
         ${termBadge}
+        ${renderShareButton('top')}
       </div>
       <div class="table-wrapper">
         <table id="compare-table">
@@ -509,6 +520,7 @@
         </table>
       </div>
       <p class="affiliate-note">As an Amazon Associate I earn from qualifying purchases. Links on this page support Actually Useful — and don't cost you anything extra.</p>
+      <div style="text-align:center;margin-top:1rem;">${renderShareButton('bottom')}</div>
     `;
   }
 
@@ -541,18 +553,104 @@
         const sorted = sortItems(currentItems, sortCol);
         document.getElementById('main-content').innerHTML = renderTable(sorted, currentSearchTerm);
         attachSortHandlers();
+        attachShareHandler('top-share-btn');
+        attachShareHandler('bottom-share-btn');
       });
     });
   }
 
   let currentSearchTerm = '';
 
+  // ── Supabase: save comparison ─────────────────────────────────
+  async function saveComparison(items, searchTerm) {
+    const payload = JSON.stringify({ items, searchTerm });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/comparisons`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({ data: payload })
+    });
+    if (!res.ok) throw new Error('Save failed: ' + res.status);
+    const rows = await res.json();
+    return rows[0].id;
+  }
+
+  // ── Supabase: load comparison ─────────────────────────────────
+  async function loadComparison(id) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/comparisons?id=eq.${encodeURIComponent(id)}&select=data`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    if (!res.ok) throw new Error('Load failed: ' + res.status);
+    const rows = await res.json();
+    if (!rows || rows.length === 0) throw new Error('Not found');
+    return JSON.parse(rows[0].data);
+  }
+
+  // ── Share button ──────────────────────────────────────────────
+  function renderShareButton(label) {
+    return `<button class="btn btn-ghost share-btn" id="${label}-share-btn">Share this comparison</button>`;
+  }
+
+  function attachShareHandler(btnId) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      btn.textContent = 'Saving…';
+      btn.disabled = true;
+      try {
+        const id = await saveComparison(currentItems, currentSearchTerm);
+        const url = new URL(window.location.href);
+        url.search = '';
+        url.searchParams.set('id', id);
+        window.history.replaceState(null, '', url.toString());
+        await navigator.clipboard.writeText(url.toString());
+        btn.textContent = 'Link copied!';
+        // Update all share buttons on the page
+        document.querySelectorAll('.share-btn').forEach(b => {
+          b.textContent = 'Link copied!';
+          b.disabled = true;
+        });
+      } catch (e) {
+        btn.textContent = 'Share failed — try again';
+        btn.disabled = false;
+      }
+    });
+  }
+
   // ── Bootstrap ─────────────────────────────────────────────────
-  (function init() {
+  async function init() {
     const main = document.getElementById('main-content');
     const params = new URLSearchParams(window.location.search);
+    const shareId = params.get('id');
     const raw = params.get('data');
 
+    // Load from Supabase if ?id= is present
+    if (shareId) {
+      main.innerHTML = '<p style="text-align:center;padding:3rem;color:#6b7280;">Loading comparison…</p>';
+      try {
+        const parsed = await loadComparison(shareId);
+        currentItems = parsed.items || [];
+        currentSearchTerm = parsed.searchTerm || '';
+      } catch (e) {
+        main.innerHTML = renderError();
+        return;
+      }
+      if (!currentItems.length) { main.innerHTML = renderError(); return; }
+      main.innerHTML = renderTable(currentItems, currentSearchTerm);
+      attachSortHandlers();
+      attachShareHandler('top-share-btn');
+      attachShareHandler('bottom-share-btn');
+      return;
+    }
+
+    // Otherwise decode ?data= as before
     if (!raw) {
       main.innerHTML = renderError();
       return;
@@ -582,7 +680,11 @@
     currentItems = items;
     main.innerHTML = renderTable(items, currentSearchTerm);
     attachSortHandlers();
-  })();
+    attachShareHandler('top-share-btn');
+    attachShareHandler('bottom-share-btn');
+  }
+
+  init();
 </script>
 </body>
 </html>
