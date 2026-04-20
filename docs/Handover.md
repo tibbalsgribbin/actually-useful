@@ -1,22 +1,24 @@
-# Session Handover — April 19, 2026 (Chat 12)
+# Session Handover — April 19, 2026 (Chat 13)
 
 ## What we did this session
 
-1. **Collapse/minimize bug fixed** — when the panel had been resized, the ⇕ button was toggling between the resized height and the CSS collapsed height instead of collapsing to just the header. Root cause: inline `style.height` and `style.maxHeight` were overriding the CSS `.collapsed` rule. Fix: collapse button now clears inline height styles when collapsing, and restores them from saved storage when expanding. Change is in `search.js`.
+1. **Minimum rating filter fixed (search.js)** — `r.rating` was never being set. Added `parseRating(el)` (scrapes `aria-label="X out of 5 stars"`) and wired it into `scrapeCard()`. Slider now filters correctly; tested and confirmed working.
 
-2. **Version strings aligned** — all four files brought to the new sub-1.0 numbering scheme: `manifest.json` → `0.6.1`, `core.js` / `search.js` / `styles.css` → `0.6.1.3`. Done as direct editor changes by Melissa.
+2. **product.js disabled in manifest (manifest.json)** — Second `content_scripts` entry moved to `_content_scripts_product_disabled`. Product page no longer runs on `/dp/*` visits.
 
-3. **`docs/` folder created in GitHub** — all ten project documents moved into `C:\Users\tibba\GitHub\actually-useful\docs\`. GitHub is now the single source of truth for project documents.
+3. **Affiliate tag machinery removed (core.js)** — `AU_AFFILIATE_TAG` and `auTagUrl()` removed entirely. No callers existed. Policy-violation risk eliminated.
 
-4. **Process reminder** — confirmed the rule: confirm scope before coding, not mid-diagnosis.
+4. **Show Selected / Clear Selection reworked (search.js)** — Both buttons moved from Sort section to shortlist bar. New bar order: Select all · Show selected only (N) · Clear selection · Open in new tabs (N). Two-state label: "Show selected only (N)" / "Show all". Buttons hidden when nothing is checked.
+
+5. **Process improvement** — Melissa asked for context/token status to be included whenever the "continue or wrap up?" question is asked. Done from this session forward.
 
 ---
 
 ## ⚠️ Start of next session
 
-1. Melissa uploads `search.js`, `core.js`, `manifest.json` fresh from GitHub as actual file uploads (not document blocks)
-2. Claude confirms version strings match `0.6.1` (manifest) / `0.6.1.3` (core.js, search.js) before any edits
-3. Claude confirms scope of session before touching any files
+1. Melissa uploads `search.js`, `core.js`, `manifest.json` fresh from GitHub as actual file uploads
+2. Claude confirms version strings: `0.6.1` (manifest) / `0.6.1.4` (core.js, search.js) before any edits
+3. Confirm scope before touching any files
 4. Ask Melissa if she has any fresh testing observations
 
 ---
@@ -36,22 +38,23 @@
 - Collapse/minimize bug fixed (Chat 12)
 - Version strings aligned to sub-1.0 numbering (Chat 12)
 - docs/ folder created in GitHub (Chat 12)
+- Minimum rating filter fixed — parseRating() + r.rating (Chat 13) ✅ was red flag
+- product.js disabled in manifest (Chat 13) ✅ was red flag
+- Affiliate tag machinery removed from core.js (Chat 13) ✅ was must-do
+- Show Selected / Clear Selection reworked — moved to shortlist bar (Chat 13)
 
 ### 🔜 Next up (short term) — in order
-1. Fix minimum rating filter — add `parseRating()` and set `r.rating` in `scrapeCard()` ⚠️ red flag
-2. Disable `product.js` in manifest — comment out second `content_scripts` entry ⚠️ red flag
-3. Remove `AU_AFFILIATE_TAG` and `auTagUrl` from `core.js` ⚠️ must happen before public release
-4. Show Selected / Clear Selection rework — wording, behavior, location (shortlist bar)
-5. Frequently Returned badge — make it red (bold done, red still needed)
-6. Page-fetch throttling (500ms delay between fetches)
-7. Move `auSendLog` to background.js
-8. Telemetry opt-out toggle
+1. Frequently Returned badge — make it red (bold done, red still needed)
+2. Page-fetch throttling (500ms delay between fetches)
+3. Move `auSendLog` to background.js
+4. Telemetry opt-out toggle
+5. Fix Ko-fi link inconsistency (nudge vs footer) — verify correct URL
 
 ### 🔭 Further out (post-alpha)
 - GitHub Pages setup (actuallyuseful.net)
 - Supabase setup (shareable links)
 - Marketing/landing page built and published
-- Comparison page with sort/filter + shareable links
+- Comparison page with sort/filter + shareable links — "Open in new tabs" becomes "Compare on website"
 - Power search form (Jungle Search model)
 - "Export to website" button in shortlist bar
 - Product page re-enabled
@@ -75,17 +78,18 @@
 - All Google tasks: InPrivate Edge + butactuallyuseful@gmail.com
 - Context rot: stop and wrap up rather than pushing through
 - CSS/JS rule: removing JS visibility toggle → check and fix CSS baseline too
-- Version: manifest uses three-part `0.6.1`; AU_VERSION in core.js is `0.6.1.3`
+- Version: manifest uses three-part `0.6.1`; AU_VERSION in core.js is `0.6.1.4`
 - Always provide a suggested GitHub commit message at end of session
+- Always include context/token status when asking "continue or wrap up?"
 - Bundle small changes together rather than shipping each one separately
 - Always include Project_Briefing.md in end-of-session documents — do not skip it
 - Project documents now live in `docs/` folder in GitHub — update them there after each session
+- Shortlist bar show/hide jank is known and noted — not worth fixing before website integration rethinks the whole bar
 
 ---
 
-## Suggested next commit message
-`v0.6.1.3 — fix rating filter, disable product.js, remove affiliate tag, rework Show Selected`
-*(update this at end of next session based on what actually landed)*
+## Suggested commit message
+`v0.6.1.4 — fix rating filter, disable product.js, remove affiliate tag, rework Show Selected`
 
 ## End-of-session checklist
 - [x] Handover.md — written
@@ -93,5 +97,6 @@
 - [x] Roadmap.md — updated
 - [x] Project_Briefing.md — updated
 - [ ] Melissa downloads all four documents and puts them in `docs/` in GitHub
+- [ ] Melissa downloads search.js, core.js, manifest.json and replaces files in extension folder
 - [ ] Melissa commits and pushes via GitHub Desktop
 - [ ] Melissa updates project files in Claude Project (upload new versions)

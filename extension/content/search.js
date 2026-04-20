@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.3)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.4)
 'use strict';
 
 const PANEL_ID = 'ppu-sorter-panel';
@@ -496,6 +496,16 @@ const ITEM_UNITS = [
     return null;
   }
 
+  function parseRating(el) {
+    var starEl = el.querySelector('[aria-label*="out of 5 stars"],[aria-label*="out of 5 star"]');
+    if (starEl) {
+      var lbl = starEl.getAttribute('aria-label') || '';
+      var m = lbl.match(/([\d.]+)\s+out of/);
+      if (m) return parseFloat(m[1]);
+    }
+    return null;
+  }
+
   // ── Nudge ─────────────────────────────────────────────────────────────────
   var nudgeTriggeredThisSession=false;
   function maybeShowNudge() {
@@ -680,13 +690,14 @@ const ITEM_UNITS = [
     var delivery=parseDeliveryDates(el);
     var wfFreeFlag=(retailer.key==='whole-foods')&&!!delivery.freeDate;
     var reviewCount=parseReviewCount(el);
+    var rating=parseRating(el);
     var cardText=scrapeCardText(el,hasCoupon,delivery.freeDate,delivery.fastDate);
     var freeWindowMinutes=parseDeliveryWindowMinutes(el);
     var freeQualifier=parseDeliveryQualifier(el);
     var imgEl=el.querySelector('img.s-image');
     var imgUrl=imgEl?imgEl.src:'';
     var base={title,href,asin,price,listPrice,count,page,retailer,wfFreeFlag,isSponsored,hasCoupon,
-              couponPillOnly,sns,savings,cardText,reviewCount,originalIndex:originalIndex||0,
+              couponPillOnly,sns,savings,cardText,reviewCount,rating,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff,
               freeWindowMinutes:freeWindowMinutes,freeQualifier:freeQualifier,imgUrl:imgUrl};
@@ -1001,8 +1012,6 @@ const ITEM_UNITS = [
             '<button id="ppu-btn-refresh" class="ppu-btn">\u21ba Re-scan page</button>'+
             '<button id="ppu-btn-resort" class="ppu-btn btn-teal">Re-sort all \u21c5</button>'+
             '<button id="ppu-btn-hide-sponsored" class="ppu-btn">Move ads to end of results</button>'+
-            '<button id="ppu-btn-show-checked" class="ppu-btn btn-orange">Show selected (0)</button>'+
-            '<button id="ppu-btn-clear-checked" class="ppu-btn">Clear selection</button>'+
           '</div>'+
           (nextPageUrl ?
             '<div id="ppu-pages-row">'+
@@ -1074,6 +1083,8 @@ const ITEM_UNITS = [
       '<div id="ppu-scroll-area">'+
         '<div id="ppu-shortlist-bar">'+
           '<label id="ppu-select-all-wrap"><input type="checkbox" id="ppu-select-all"> Select all</label>'+
+          '<button id="ppu-btn-show-checked" class="ppu-btn btn-orange" style="display:none">Show selected only (0)</button>'+
+          '<button id="ppu-btn-clear-checked" class="ppu-btn" style="display:none">Clear selection</button>'+
           '<button id="ppu-btn-open-tabs">Open selected listings in new tabs (0)</button>'+
         '</div>'+
         '<div id="ppu-list"></div>'+
@@ -1233,7 +1244,7 @@ const ITEM_UNITS = [
       var cc=Object.keys(checkedAsins).length;
       showChkBtn.style.display=cc>0?'block':'none';
       clearChkBtn.style.display=cc>0?'block':'none';
-      showChkBtn.textContent=showCheckedOnly?'Show all ('+cc+' selected)':'Show selected ('+cc+')';
+      showChkBtn.textContent=showCheckedOnly?'Show all':'Show selected only ('+cc+')';
 
       if(openTabsBtn) openTabsBtn.textContent='Open selected listings in new tabs ('+cc+')';
       if(selectAllChk) {
@@ -1473,7 +1484,7 @@ const ITEM_UNITS = [
           var cnt=Object.keys(checkedAsins).length;
           showChkBtn.style.display=cnt>0?'block':'none';
           clearChkBtn.style.display=cnt>0?'block':'none';
-          showChkBtn.textContent=showCheckedOnly?'Show all ('+cnt+' selected)':'Show selected ('+cnt+')';
+          showChkBtn.textContent=showCheckedOnly?'Show all':'Show selected only ('+cnt+')';
 
           if(openTabsBtn) openTabsBtn.textContent='Open selected listings in new tabs ('+cnt+')';
         });

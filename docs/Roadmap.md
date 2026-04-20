@@ -4,15 +4,13 @@
 
 ---
 
-## Current version: v0.6.1.3
+## Current version: v0.6.1.4
 
 ---
 
 ## Known issues / needs testing
 
-- Show Selected / Clear Selection buttons in Sort section — wording and behavior need rethinking; likely to be relocated to shortlist bar (deferred, noted)
-- Minimum rating filter does nothing — `r.rating` is never set in `scrapeCard()`, no `parseRating()` function exists (red flag, fix before alpha)
-- product.js is still registered in manifest on every `/dp/*` visit despite being "deferred" — needs to be commented out in manifest.json
+- Shortlist bar show/hide of "Show selected only" and "Clear selection" is slightly jarring — noted, not worth fixing before website integration rethinks the whole bar
 - Ko-fi link in nudge (`ko-fi.com/tibbalsgribbin`) may differ from footer link (`ko-fi.com/butactuallyuseful`) — verify which is correct
 
 ---
@@ -26,6 +24,8 @@
 **One decision surface per session.** Polish items together = one surface. Architecture change = one surface. Mixing them is where sessions go wrong.
 
 **Context rot warning.** Long sessions degrade quality. Stop and wrap up rather than pushing through.
+
+**Always include context/token status** when asking "continue or wrap up?" — added Chat 13.
 
 **Code files — new protocol (from Chat 7):**
 - Code files are NOT stored in the Claude Project
@@ -48,7 +48,7 @@ When removing JS visibility toggling from an element, always check and update th
 Pause between "files produced" and "push to GitHub." Test first, commit after. Catches bugs before they live on main.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.3 (internal AU_VERSION)
+- Current: v0.6.1 (manifest) / v0.6.1.4 (internal AU_VERSION)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch — something to earn, not arbitrarily assign
 - Chrome manifests support three-part version numbers only; internal AU_VERSION can carry a fourth segment
@@ -76,10 +76,11 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **Fix minimum rating filter** — add `parseRating()` and set `r.rating` in `scrapeCard()` ⚠️ red flag
-2. **Disable product.js in manifest** — comment out second `content_scripts` entry until tested against current Amazon ⚠️ red flag
-3. **Remove affiliate tag machinery from core.js** — remove `AU_AFFILIATE_TAG` and `auTagUrl` entirely ⚠️ must happen before public release
-4. **Show Selected / Clear Selection rework** — wording, behavior, location (shortlist bar)
+1. **Frequently Returned badge — make it red** (bold done Chat 7, red still needed)
+2. **Page-fetch throttling** — 500ms delay between fetches (bot-detection risk)
+3. **Move `auSendLog` to background.js** (CSP reliability)
+4. **Telemetry opt-out toggle** (required before public release)
+5. **Fix Ko-fi link inconsistency** — verify correct URL (nudge vs footer)
 
 ---
 
@@ -99,10 +100,10 @@ Two of these = stop and wrap up.
 - [x] Collapse/minimize bug fixed — inline height styles cleared on collapse (Chat 12)
 - [x] Version strings aligned to sub-1.0 across all four files (Chat 12)
 - [x] docs/ folder created in GitHub — all project documents moved there (Chat 12)
-- [ ] Fix minimum rating filter — `parseRating()` + `r.rating` in `scrapeCard()` ⚠️ red flag
-- [ ] Disable product.js in manifest ⚠️ red flag
-- [ ] Remove `AU_AFFILIATE_TAG` and `auTagUrl` from `core.js` ⚠️ must happen before any public release
-- [ ] Show Selected / Clear Selection rework
+- [x] Minimum rating filter fixed — `parseRating()` + `r.rating` in `scrapeCard()` (Chat 13)
+- [x] product.js disabled in manifest — moved to `_content_scripts_product_disabled` (Chat 13)
+- [x] `AU_AFFILIATE_TAG` and `auTagUrl` removed from `core.js` (Chat 13)
+- [x] Show Selected / Clear Selection moved to shortlist bar, wording reworked (Chat 13)
 - [ ] Frequently Returned badge — make it red (bold done Chat 7, red still needed)
 - [ ] Fix Ko-fi link inconsistency (nudge vs footer) — verify correct URL
 - [ ] Amazon unit price flagging — deferred, needs diagnostic first
@@ -114,7 +115,6 @@ Two of these = stop and wrap up.
 - [ ] Badge text on toolbar icon — shortlist count via `chrome.action.setBadgeText`
 
 ### Alpha release — blockers
-- [ ] All ⚠️ red flag items above resolved
 - [ ] Feedback form verified — these three questions must be present:
   - "What is one thing that confused you?"
   - "What is one feature you wish it had?"
@@ -142,6 +142,7 @@ Two of these = stop and wrap up.
 - [ ] Cross-page shortlist state persistence (chrome.storage.local)
 - [ ] "Compare side by side (N)" button → Actually Useful Comparisons page
 - [ ] Two-way extension ↔ website connection (refined shortlist back to extension)
+- [ ] Shortlist bar rethought for website integration — "Open in new tabs" → "Compare on website"
 - [ ] Derive per-item price from total ÷ count when Amazon reports wrong unit
 - [ ] Keyword length expression normalization ("6ft" vs "6 feet")
 - [ ] Exclusion possessives (`-men` not matching "men's")

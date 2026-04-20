@@ -4,6 +4,35 @@
 
 ---
 
+## **v0.6.1.4 — April 19, 2026 (Chat 13)**
+
+### Minimum rating filter fixed (search.js)
+- `r.rating` was never set in `scrapeCard()` — the slider existed and the filter logic existed, but no data flowed through
+- Added `parseRating(el)` — scrapes `aria-label="X out of 5 stars"` from the card element
+- Added `var rating=parseRating(el)` call in `scrapeCard()`, and `rating` added to the `base` object so all return paths carry it
+- Rating filter now works correctly; info bar correctly reports "N below min rating"
+
+### product.js disabled in manifest (manifest.json)
+- Second `content_scripts` entry (matching `/dp/*`) moved to `_content_scripts_product_disabled`
+- Browser ignores unknown manifest keys — product.js no longer runs on product pages
+- Entry preserved (not deleted) for easy restoration when product page work resumes
+
+### Affiliate tag machinery removed (core.js)
+- `AU_AFFILIATE_TAG` constant and `auTagUrl()` function removed entirely
+- No callers existed; removal eliminates the policy-violation risk before any public release
+- Affiliate tags will be applied on the website only
+
+### Show Selected / Clear Selection rework (search.js)
+- Both buttons moved from Sort section to shortlist bar
+- Shortlist bar order: Select all · Show selected only (N) · Clear selection · Open in new tabs (N)
+- Both new buttons hidden by default; appear as soon as any item is checked
+- "Show selected only (N)" → filters list to checked items, label becomes "Show all"
+- "Show all" → returns to full list
+- "Clear selection" → unchecks all, exits filtered view, buttons hide
+- Known: show/hide of buttons is slightly jarring — noted, not worth fixing before shortlist bar gets rethought for website integration
+
+---
+
 ## **v0.6.1.3 — April 19, 2026 (Chat 12)**
 
 ### Collapse/minimize bug fix (search.js)

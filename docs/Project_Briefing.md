@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.3 (extension) · Userscript frozen at v5.19.0 · Updated April 19, 2026 (Chat 12)*
+*Current version: v0.6.1.4 (extension) · Userscript frozen at v5.19.0 · Updated April 19, 2026 (Chat 13)*
 
 ---
 
@@ -173,11 +173,11 @@ Top to bottom:
 
 ## 10. Known Issues / Deferred
 
-- **Product page panel** — deferred until after alpha launch
+- **Product page panel** — deferred until after alpha launch (product.js disabled in manifest as of Chat 13)
 - **Thumbnail images on load-more pages** — not available (fetched via `fetch()`, not live DOM)
 - **Scrollbar track** — click/drag doesn't work; scroll wheel does. Minor, deferred.
 - **Amazon unit price math unreliable** for multi-pack listings — Amazon uses per-unit weight as divisor instead of total weight. Do not attempt to fix without `diagnostic-prices.js` data.
-- **Show Selected / Clear Selection buttons** — wording, behavior, and location need rethinking; likely moving to shortlist bar. Deferred.
+- **Shortlist bar show/hide jank** — "Show selected only" and "Clear selection" appear/disappear when items are checked; slightly jarring. Not worth fixing before shortlist bar gets rethought for website integration.
 
 ---
 
@@ -227,6 +227,7 @@ Top to bottom:
 - Many Google accounts — InPrivate Edge + butactuallyuseful@gmail.com only for all Google tasks
 - **Use the AskUserQuestion widget** for clarifying questions — Melissa strongly prefers it over prose questions
 - **Melissa handles simple file operations herself** — folder creation, file deletion, clicks
+- **Always include context/token status** when asking "continue or wrap up?" — Melissa wants to know if another task would jeopardize quality before deciding
 - **CSS/JS rule:** when removing JS visibility toggling, always check and update the CSS baseline too
 - **End-of-session checklist — do not present files until all are complete:**
   1. Project_Briefing.md — updated if anything changed
