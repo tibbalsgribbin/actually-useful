@@ -4,22 +4,22 @@
 /* ── Lavender Fields palette ─────────────────────────────────────────── */
 :root {
   --au-bg:           #FFFFFF;
-  --au-surface:      #FDFBD4;
-  --au-header:       #BDB96A;
-  --au-orchid:       #CF6DFC;
-  --au-orchid-dark:  #912c9e;
-  --au-orchid-hover: #da8cff;
-  --au-periwinkle:   #C1BFFF;
-  --au-periwinkle-h: #d6d4ff;
-  --au-seafoam:      #98DBC6;
+  --au-surface:      #FDFBD4;   /* pale yellow — panel/card surfaces */
+  --au-header:       #BDB96A;   /* gold — shortlist bar, footer bar */
+  --au-orchid:       #CF6DFC;   /* orchid — sliders only */
+  --au-orchid-dark:  #912c9e;   /* dark orchid — links, active accents */
+  --au-orchid-hover: #da8cff;   /* light orchid — hover */
+  --au-periwinkle:   #C1BFFF;   /* periwinkle — buttons, pills */
+  --au-periwinkle-h: #d6d4ff;   /* periwinkle hover */
+  --au-seafoam:      #98DBC6;   /* seafoam — Fresh/WF tags, coupon badges */
   --au-coral:        #FFA590;
   --au-coral-dark:   #c94b2e;
-  --au-text:         #351E45;
-  --au-text-muted:   #877891;
-  --au-border:       #EAE6B6;
-  --au-row-hover:    #fcfadb;
-  --au-success:      #2a7a5f;
-  --au-best-value:   #f5eda0;
+  --au-text:         #351E45;   /* eggplant */
+  --au-text-muted:   #877891;   /* muted purple */
+  --au-border:       #EAE6B6;   /* warm border */
+  --au-row-hover:    #fcfadb;   /* pale yellow hover */
+  --au-success:      #2a7a5f;   /* green — delivery, savings */
+  --au-best-value:   #f5eda0;   /* vivid yellow — best value row */
 }
 
 #ppu-sorter-panel {
@@ -33,19 +33,19 @@
 #ppu-sorter-panel.collapsed { width:420px !important; max-height:41px; }
 #ppu-scroll-area   { flex:1;overflow-y:auto;overflow-x:hidden; }
 #ppu-header {
-  background:var(--au-orchid);color:var(--au-text);padding:8px 10px;border-radius:8px 8px 0 0;
+  background:var(--au-header);color:var(--au-text);padding:8px 10px;border-radius:8px 8px 0 0;
   display:flex;align-items:center;justify-content:space-between;
   position:sticky;top:0;user-select:none;gap:8px;white-space:nowrap;
   cursor:move;
 }
 #ppu-sorter-panel.collapsed #ppu-header { border-radius:8px; }
-#ppu-header h3  { margin:0;font-size:14px;font-weight:700;flex-shrink:0; }
+#ppu-header h3  { margin:0;font-size:14px;font-weight:500;flex-shrink:0; }
 #ppu-header-btns{ display:flex;gap:6px;align-items:center;flex-shrink:0; }
 #ppu-collapse,#ppu-close {
   background:none;border:none;color:var(--au-text);font-size:16px;cursor:pointer;line-height:1;padding:0 3px;flex-shrink:0;
 }
 #ppu-help {
-  font-size:13px;font-weight:700;text-decoration:none;color:var(--au-text);
+  font-size:13px;font-weight:500;text-decoration:none;color:var(--au-text);
   width:20px;height:20px;border-radius:50%;border:1px solid rgba(53,30,69,0.4);
   display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0.85;
   transition:opacity 0.15s;
@@ -67,7 +67,7 @@
 }
 #ppu-feedback, #ppu-coffee {
   font-size:12px;text-decoration:none;color:var(--au-orchid-dark);opacity:0.9;
-  transition:opacity 0.15s;white-space:nowrap;font-weight:700;
+  transition:opacity 0.15s;white-space:nowrap;font-weight:500;
 }
 #ppu-feedback:hover, #ppu-coffee:hover { opacity:1;text-decoration:underline; }
 
@@ -89,7 +89,7 @@
   content:'';flex:1;height:1px;background:var(--au-border);
 }
 .ppu-section-divider span {
-  font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+  font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;
   color:var(--au-text-muted);padding:0 8px;white-space:nowrap;
 }
 /* Clickable collapsible divider */
@@ -114,7 +114,7 @@
   color:var(--au-text);
   box-shadow:0 1px 2px rgba(53,30,69,0.10);
   transition:box-shadow 0.1s,background 0.1s,transform 0.1s;
-  user-select:none;white-space:nowrap;font-weight:600;
+  user-select:none;white-space:nowrap;font-weight:400;
 }
 .ppu-btn:hover {
   background:var(--au-periwinkle-h);
@@ -193,7 +193,7 @@
 .ppu-unit-pill:hover { border-color:var(--au-orchid-dark);color:var(--au-orchid-dark); }
 .ppu-unit-pill.active {
   background:var(--au-orchid);
-  color:var(--au-text);border-color:#b04fe8;font-weight:600;
+  color:var(--au-text);border-color:#b04fe8;font-weight:400;
   box-shadow:inset 0 1px 3px rgba(53,30,69,0.2);
 }
 .ppu-unit-pill.recommended { border-color:var(--au-orchid-dark);color:var(--au-orchid-dark); }
@@ -234,10 +234,10 @@
 .ppu-slider-half:first-child { padding-right:10px;border-right:1px solid var(--au-border); }
 .ppu-slider-half:last-child  { padding-left:10px; }
 .ppu-slider-label { font-size:11px;color:var(--au-text);white-space:nowrap; }
-.ppu-slider-label em { font-style:normal;font-weight:600;color:var(--au-orchid-dark); }
+.ppu-slider-label em { font-style:normal;font-weight:400;color:var(--au-orchid-dark); }
 .ppu-slider-wrap { display:flex;align-items:center;gap:4px;flex:1; }
 .ppu-slider-endlabel, .ppu-slider-startlabel {
-  font-size:10px;color:var(--au-text);white-space:nowrap;flex-shrink:0;font-weight:600;min-width:14px;
+  font-size:10px;color:var(--au-text);white-space:nowrap;flex-shrink:0;font-weight:400;min-width:14px;
 }
 .ppu-slider-startlabel { text-align:right; }
 .ppu-slider-endlabel   { text-align:left; }
@@ -289,7 +289,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 #ppu-source-row span.label { font-size:12px;color:var(--au-text);white-space:nowrap; }
 .ppu-source-toggle {
   font-size:11px;padding:3px 10px;border-radius:10px;cursor:pointer;
-  border:1px solid currentColor;transition:all 0.12s;user-select:none;font-weight:600;
+  border:1px solid currentColor;transition:all 0.12s;user-select:none;font-weight:400;
   box-shadow:0 1px 2px rgba(53,30,69,0.07);
 }
 .ppu-source-toggle.src-standard  { color:#5a3a00;background:#f5eda0;border-color:#c9a84c; }
@@ -315,7 +315,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-select-box {
   display:inline-flex;align-items:center;justify-content:center;
   width:14px;height:14px;border:1.5px solid #b0a8c0;border-radius:3px;
-  background:var(--au-bg);cursor:pointer;font-size:10px;font-weight:700;color:var(--au-text);
+  background:var(--au-bg);cursor:pointer;font-size:10px;font-weight:500;color:var(--au-text);
   user-select:none;flex-shrink:0;
 }
 .ppu-select-box.checked    { background:var(--au-orchid);border-color:var(--au-orchid-dark);color:var(--au-text); }
@@ -338,7 +338,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-select-menu-item:first-child { border-radius:5px 5px 0 0; }
 .ppu-select-menu-item:last-child  { border-radius:0 0 5px 5px; }
 #ppu-compare-hint {
-  font-size:13px;color:var(--au-text);font-weight:600;white-space:nowrap;flex-shrink:0;
+  font-size:13px;color:var(--au-text);font-weight:400;white-space:nowrap;flex-shrink:0;
 }
 
 #ppu-list { padding:4px 0; }
@@ -368,9 +368,9 @@ input[type=range].ppu-slider::-moz-range-thumb {
 }
 .ppu-row a:hover { text-decoration:underline; }
 .ppu-meta  { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
-.ppu-price { font-weight:700;color:var(--au-text);font-size:14px; }
+.ppu-price { font-weight:500;color:var(--au-text);font-size:14px; }
 .ppu-count { font-size:0.82rem;color:var(--au-text); }
-.ppu-badge { font-size:12px;font-weight:600;padding:2px 6px;border-radius:4px;background:var(--au-seafoam);border:1px solid #81C9B2;color:#1b4d3c; }
+.ppu-badge { font-size:12px;font-weight:400;padding:2px 6px;border-radius:4px;background:var(--au-seafoam);border:1px solid #81C9B2;color:#1b4d3c; }
 .ppu-badge.best { background:var(--au-best-value);border-color:#c9a84c;color:#5a3a00; }
 .ppu-converted  { font-size:0.78rem;color:var(--au-text-muted);font-style:italic;margin-left:2px; }
 .ppu-delivery   { font-size:0.82rem;color:var(--au-success);margin-top:2px; }
@@ -381,7 +381,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-note-deal { font-size:0.78rem;color:var(--au-success);margin-top:2px; }
 .ppu-note-sns  { color:var(--au-header); }
 .ppu-note-was  { color:var(--au-text-muted);font-weight:normal; }
-.ppu-src-tag  { font-size:0.78rem;padding:1px 4px;border-radius:3px;font-weight:600;margin-bottom:2px;display:inline-block; }
+.ppu-src-tag  { font-size:0.78rem;padding:1px 4px;border-radius:3px;font-weight:400;margin-bottom:2px;display:inline-block; }
 .ppu-src-wf   { background:var(--au-seafoam);color:#1b4d3c;border:1px solid #81C9B2; }
 .ppu-src-fr   { background:var(--au-seafoam);color:#1b4d3c;border:1px solid #81C9B2; }
 .ppu-src-rx   { background:var(--au-periwinkle);color:var(--au-text);border:1px solid #aba8eb; }
@@ -389,7 +389,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-src-dup  { background:var(--au-surface);color:var(--au-text-muted);border:1px solid var(--au-border);font-weight:normal;font-style:italic; }
 .ppu-divider {
   padding:5px 14px;background:var(--au-periwinkle);border-top:1px solid #aba8eb;
-  border-bottom:1px solid #aba8eb;font-size:0.82rem;font-weight:600;color:var(--au-text);
+  border-bottom:1px solid #aba8eb;font-size:0.82rem;font-weight:400;color:var(--au-text);
 }
 mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);border-radius:2px;padding:0 1px; }
 
@@ -401,7 +401,7 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 #ppu-btn-load-more {
   font-size:12px;padding:5px 14px;border:1px solid var(--au-border);border-radius:5px;
   background:var(--au-periwinkle);cursor:pointer;color:var(--au-text);width:100%;
-  box-shadow:0 1px 2px rgba(53,30,69,0.08);font-weight:600;
+  box-shadow:0 1px 2px rgba(53,30,69,0.08);font-weight:400;
 }
 #ppu-btn-load-more:hover { background:var(--au-periwinkle-h); }
 #ppu-btn-load-more:disabled { opacity:0.5;cursor:default; }
@@ -440,7 +440,7 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 #ppu-nudge-close:hover { opacity:1; }
 #ppu-nudge-msg   { margin-bottom:12px;margin-right:20px;line-height:1.5;color:var(--au-text);font-size:0.95rem; }
 #ppu-nudge-btns  { display:flex;gap:8px;flex-wrap:wrap; }
-#ppu-nudge-yes { font-size:0.85rem;padding:5px 12px;border-radius:4px;cursor:pointer;background:var(--au-header);color:var(--au-text);border:none;text-decoration:none;font-weight:600; }
+#ppu-nudge-yes { font-size:0.85rem;padding:5px 12px;border-radius:4px;cursor:pointer;background:var(--au-header);color:var(--au-text);border:none;text-decoration:none;font-weight:400; }
 #ppu-nudge-yes:hover { background:#cec76e; }
 #ppu-nudge-did,#ppu-nudge-no { font-size:0.85rem;padding:5px 10px;border-radius:4px;cursor:pointer;background:transparent;color:var(--au-text);border:1px solid rgba(53,30,69,0.35); }
 #ppu-nudge-did:hover,#ppu-nudge-no:hover { border-color:var(--au-text);background:rgba(53,30,69,0.08); }
@@ -462,7 +462,7 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
   padding:6px 14px;background:var(--au-periwinkle);border-bottom:1px solid #aba8eb;
   font-size:0.82rem;color:var(--au-text);
 }
-#ppu-product-context strong { font-weight:700; }
+#ppu-product-context strong { font-weight:500; }
 
 /* Data rows */
 .ppu-product-section {
@@ -486,7 +486,7 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 #au-btn-back-to-search {
   display:block;width:calc(100% - 28px);margin:10px 14px 4px;
   padding:6px 0;background:var(--au-bg);color:var(--au-text);border:1px solid var(--au-border);border-radius:5px;
-  font-size:12px;cursor:pointer;text-align:center;font-weight:600;
+  font-size:12px;cursor:pointer;text-align:center;font-weight:400;
 }
 #au-btn-back-to-search:hover { background:var(--au-periwinkle); }
 #au-back-to-search-caveat {
@@ -500,7 +500,7 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
   user-select:none;cursor:move;
 }
 .ppu-product-header-title {
-  font-size:14px;font-weight:700;color:var(--au-text);
+  font-size:14px;font-weight:500;color:var(--au-text);
 }
 .ppu-product-close {
   background:none;border:none;color:var(--au-text);font-size:18px;cursor:pointer;
@@ -524,19 +524,19 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 .ppu-product-row .ppu-product-value { text-align:right;color:var(--au-text); }
 .ppu-product-link { color:var(--au-orchid-dark);text-decoration:none;font-size:0.82rem; }
 .ppu-product-link:hover { text-decoration:underline; }
-.ppu-product-coupon { color:var(--au-success);font-weight:600; }
+.ppu-product-coupon { color:var(--au-success);font-weight:400; }
 .ppu-product-prime-badge {
   font-size:0.75rem;padding:1px 5px;border-radius:3px;
-  background:var(--au-periwinkle);color:var(--au-text);border:1px solid #aba8eb;font-weight:600;
+  background:var(--au-periwinkle);color:var(--au-text);border:1px solid #aba8eb;font-weight:400;
 }
 .ppu-product-warning {
   font-size:0.8rem;color:#8a6a00;margin-top:4px;line-height:1.4;
 }
-.ppu-product-warning-fr { color:var(--au-coral-dark);font-weight:600; }
+.ppu-product-warning-fr { color:var(--au-coral-dark);font-weight:400; }
 
 .ppu-product-btn {
   display:block;width:100%;padding:7px 0;background:var(--au-orchid);color:var(--au-text);
-  border:none;border-radius:5px;font-size:13px;font-weight:600;
+  border:none;border-radius:5px;font-size:13px;font-weight:400;
   cursor:pointer;text-align:center;margin-bottom:6px;
 }
 .ppu-product-btn:hover { background:var(--au-orchid-hover); }
@@ -564,7 +564,7 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 .ppu-product-context-label {
   font-size:0.75rem;color:var(--au-text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px;
 }
-.ppu-product-context-term { font-size:0.95rem;font-weight:700;color:var(--au-text);margin-bottom:2px; }
+.ppu-product-context-term { font-size:0.95rem;font-weight:500;color:var(--au-text);margin-bottom:2px; }
 .ppu-product-context-position { font-size:0.78rem;color:var(--au-text-muted); }
 
 .ppu-product-list-scroll { max-height:220px;overflow-y:auto;margin-top:4px; }
@@ -577,11 +577,11 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
   background:var(--au-best-value);border-left:3px solid var(--au-header);padding-left:5px;margin-left:-5px;
 }
 .ppu-product-list-title { flex:1;min-width:0;color:var(--au-text);line-height:1.3; }
-.ppu-product-list-price { color:var(--au-text);font-weight:700;white-space:nowrap; }
+.ppu-product-list-price { color:var(--au-text);font-weight:500;white-space:nowrap; }
 .ppu-product-ppu        { color:var(--au-orchid-dark);font-size:0.78rem;white-space:nowrap; }
 .ppu-product-list-badge {
   font-size:0.72rem;padding:1px 5px;border-radius:3px;
-  background:var(--au-header);color:var(--au-text);font-weight:600;white-space:nowrap;
+  background:var(--au-header);color:var(--au-text);font-weight:400;white-space:nowrap;
 }
 
 .ppu-empty-kw { padding:10px 12px;font-size:0.82rem;color:var(--au-text-muted);font-style:italic; }

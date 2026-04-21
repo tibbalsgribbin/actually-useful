@@ -12,14 +12,14 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --navy:        #CF6DFC;
-      --teal:        #912c9e;
-      --teal-mid:    #da8cff;
-      --cream:       #FDFBD4;
-      --warm:        #f5eda0;
-      --text:        #351E45;
-      --muted:       #877891;
-      --rule:        #EAE6B6;
+      --navy:        #3B1F5A;   /* deep plum — brand primary */
+      --teal:        #2D7A5F;   /* sage green — value & actions */
+      --teal-mid:    #3EA882;   /* medium sage — hover */
+      --cream:       #FDFBF7;   /* warm neutral background */
+      --warm:        #EDE8F5;   /* light lavender — surface/hover */
+      --text:        #2A1840;   /* near-black plum */
+      --muted:       #7A6890;   /* muted plum */
+      --rule:        #DDD4EC;   /* lavender border */
     }
 
     html { scroll-behavior: smooth; }
@@ -41,7 +41,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 1.1rem 2.5rem;
-      background: rgba(253,251,212,0.95);
+      background: rgba(253,251,247,0.95);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--rule);
@@ -85,7 +85,7 @@
       top: 0; right: 0;
       width: 50%;
       height: 100%;
-      background: radial-gradient(ellipse at 80% 35%, rgba(207,109,252,0.07) 0%, transparent 60%);
+      background: radial-gradient(ellipse at 80% 35%, rgba(59,31,90,0.05) 0%, transparent 60%);
       pointer-events: none;
     }
 
@@ -105,7 +105,7 @@
       color: var(--teal);
       margin-bottom: 1.6rem;
       padding-bottom: 0.55rem;
-      border-bottom: 1px solid rgba(207,109,252,0.35);
+      border-bottom: 1px solid rgba(45,122,95,0.4);
     }
 
     h1 {
@@ -220,20 +220,20 @@
       align-items: start;
     }
 
-    .why h2        { color: var(--text); }
+    .why h2        { color: var(--cream); }
     .why .section-label { color: var(--teal-mid); }
 
     .why-body { padding-top: 0.5rem; }
 
     .why-body p {
       font-size: 1rem;
-      color: rgba(53,30,69,0.82);
+      color: rgba(253,251,247,0.72);
       line-height: 1.75;
       margin-bottom: 1.25rem;
     }
 
     .why-body p:last-child { margin-bottom: 0; }
-    .why-body strong { color: var(--text); font-weight: 600; }
+    .why-body strong { color: var(--cream); font-weight: 600; }
 
     /* ─── DETAILS ─── */
     .details {
@@ -293,7 +293,7 @@
       display: inline-block;
       padding: 0.85rem 2rem;
       background: var(--teal);
-      color: var(--text);
+      color: var(--cream);
       text-decoration: none;
       font-size: 0.88rem;
       font-weight: 500;
@@ -302,7 +302,7 @@
       transition: background 0.2s, transform 0.15s;
     }
 
-    .btn:hover { background: var(--teal-mid); transform: translateY(-1px); }
+    .btn:hover { background: var(--teal-mid); color: var(--cream); transform: translateY(-1px); }
 
     /* ─── FOOTER ─── */
     footer {

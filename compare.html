@@ -11,13 +11,13 @@
   <style>
     /* ── Variables ───────────────────────────────────────────── */
     :root {
-      --cream:   #FDFBD4;
-      --navy:    #CF6DFC;
-      --teal:    #912c9e;
-      --teal-lt: #C1BFFF;
-      --gold:    #BDB96A;
-      --muted:   #877891;
-      --border:  #EAE6B6;
+      --cream:   #FDFBF7;    /* warm neutral background */
+      --navy:    #3B1F5A;    /* deep plum — brand primary */
+      --teal:    #2D7A5F;    /* sage green — links & actions */
+      --teal-lt: #C8C0E8;    /* soft periwinkle */
+      --gold:    #B89000;    /* amber — star ratings only */
+      --muted:   #7A6890;    /* muted plum */
+      --border:  #DDD4EC;    /* lavender border */
       --red:     #c94b2e;
       --green:   #2a7a5f;
     }
@@ -55,14 +55,14 @@
     }
 
     .nav-links a {
-      color: rgba(53,30,69,0.75);
+      color: rgba(253,251,247,0.65);
       text-decoration: none;
       font-size: 0.875rem;
       font-weight: 500;
       transition: color 0.15s;
     }
 
-    .nav-links a:hover { color: var(--cream); filter: brightness(0.85); }
+    .nav-links a:hover { color: var(--cream); }
 
     /* ── Page header ─────────────────────────────────────────── */
     .page-header {
@@ -73,14 +73,14 @@
 
     .page-header h1 {
       font-family: 'DM Serif Display', serif;
-      color: #351E45;
+      color: var(--cream);
       font-size: 2rem;
       font-weight: 400;
       margin-bottom: 0.4rem;
     }
 
     .page-header p {
-      color: rgba(53,30,69,0.75);
+      color: rgba(253,251,247,0.65);
       font-size: 0.9rem;
     }
 
@@ -106,8 +106,8 @@
       align-items: center;
       justify-content: space-between;
       padding: 0.5rem 0.9rem;
-      background: #CF6DFC;
-      color: #fff;
+      background: var(--navy);
+      color: var(--cream);
     }
 
     #filter-bar-title {
@@ -119,7 +119,7 @@
     #filter-bar-toggle {
       background: none;
       border: none;
-      color: #fff;
+      color: var(--cream);
       font-size: 0.8rem;
       cursor: pointer;
       padding: 0.2rem 0.4rem;
@@ -216,7 +216,7 @@
 
     thead {
       background: var(--navy);
-      color: #351E45;
+      color: var(--cream);
       position: sticky;
       top: 0;
       z-index: 10;
@@ -234,7 +234,7 @@
       user-select: none;
     }
 
-    thead th:hover { background: rgba(53,30,69,0.1); }
+    thead th:hover { background: rgba(253,251,247,0.1); }
 
     thead th.sorted-asc::after  { content: ' ▲'; font-size: 0.65rem; }
     thead th.sorted-desc::after { content: ' ▼'; font-size: 0.65rem; }
@@ -245,7 +245,7 @@
     }
 
     tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: #fcfadb; }
+    tbody tr:hover { background: #EDE8F5; }
 
     td {
       padding: 0.75rem 1rem;
@@ -275,7 +275,7 @@
     }
 
     .best-value {
-      color: var(--gold);
+      color: var(--green);
       font-weight: 700;
     }
 
@@ -358,13 +358,13 @@
     .btn:hover { opacity: 0.85; }
     .btn:active { transform: translateY(1px); opacity: 0.75; }
 
-    .btn-primary { background: var(--navy); color: #351E45; }
+    .btn-primary { background: var(--navy); color: var(--cream); }
     .btn-ghost   { background: transparent; color: var(--teal); border: 1.5px solid var(--teal); margin-left: 0.75rem; }
 
     /* ── Footer ──────────────────────────────────────────────── */
     footer {
-      background: #BDB96A;
-      color: rgba(53,30,69,0.85);
+      background: var(--navy);
+      color: rgba(253,251,247,0.65);
       text-align: center;
       padding: 1.5rem;
       font-size: 0.8rem;
@@ -372,11 +372,11 @@
     }
 
     footer a {
-      color: rgba(53,30,69,0.85);
+      color: rgba(253,251,247,0.65);
       text-decoration: none;
     }
 
-    footer a:hover { color: #351E45; }
+    footer a:hover { color: var(--cream); }
 
     .footer-sep { margin: 0 0.5rem; }
 
