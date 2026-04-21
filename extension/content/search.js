@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.13)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.14)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1619,6 +1619,8 @@ const ITEM_UNITS = [
             savings:     r.savings||'',
             freeDate:    r.freeDate?r.freeDate.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'',
             fastDate:    r.fastDate?r.fastDate.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'',
+            freeDateTs:  r.freeDate?r.freeDate.getTime():null,
+            fastDateTs:  r.fastDate?r.fastDate.getTime():null,
             freeQualifier: r.freeQualifier||'',
             retailerKey: r.retailer?r.retailer.key:'standard',
             rating:      r.rating||'',
@@ -1627,7 +1629,8 @@ const ITEM_UNITS = [
         }).filter(Boolean);
 
         var searchTerm=(new URLSearchParams(window.location.search).get('k')||'').trim();
-        var payload=JSON.stringify({items:items,searchTerm:searchTerm});
+        var searchUrl=window.location.href;
+        var payload=JSON.stringify({items:items,searchTerm:searchTerm,searchUrl:searchUrl});
 
         // Show loading state
         var originalLabel=compareBtn.textContent;

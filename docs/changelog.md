@@ -4,6 +4,21 @@
 
 ---
 
+## **v0.6.1.14 — April 21, 2026 (Chat 23)**
+
+### Compare payload expanded (search.js)
+- `freeDateTs` and `fastDateTs` (epoch ms) added — enables time-precise delivery sort on compare.html
+- `searchUrl` added — enables clickable "Amazon search" link in compare.html meta bar
+
+### Compare table and filters fixed (compare.html)
+- **Coupon sort fixed** — was alphabetizing strings; now sorts by whether item has any promo (hasCoupon / sns / savings / couponPillOnly); couponed items sort to top on ascending click
+- **Delivery sort fixed** — was doing string comparison on formatted dates; now uses `freeDateTs`/`fastDateTs` timestamps for precise date+time sort; items with no delivery date sort last
+- **Search term badge updated** — now reads "Amazon search: [term]" with the term as a clickable link back to Amazon results (new comparisons only; old Supabase rows lack `searchUrl`)
+- **Keyword focus fixed** — keyword input now calls `rerenderTableOnly()` which replaces only `#meta-and-table`, leaving filter bar DOM untouched; was destroying and recreating the input on every debounce tick, dropping focus mid-type
+- **Price range filter added** — Min price ($) and Max price ($) number inputs in filter bar; applied in `applyFilters()`; cleared by Clear filters button
+
+---
+
 ## **v0.6.1.13 — April 21, 2026 (Chat 22)**
 
 ### Compare payload expanded (search.js)

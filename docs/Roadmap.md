@@ -4,18 +4,18 @@
 
 ---
 
-## Current version: v0.6.1.13
+## Current version: v0.6.1.14
 
 ---
 
 ## Known issues / needs testing
 
 - **Palette redesign needed** — Lavender Fields applied but live result unsatisfactory. Use Claude Design tool for iteration before taking screenshots.
-- **Testing observations from Chat 22** — Melissa has observations to share at start of Chat 23; may generate new items here.
 - **Laundry pods show wrong unit ($/lb instead of $/ct)** — fix before public launch
 - **Mixed units in results** — `/lb` and `/ct` appearing together; cross-family sort may be occurring
 - **Page limit** — 7 pages confirmed in practice but not definitively researched
 - actuallyuseful.net not yet pointed at GitHub Pages
+- **"Amazon search" link in compare.html** — only works for comparisons created after v0.6.1.14; old Supabase rows have no `searchUrl`
 
 ---
 
@@ -54,7 +54,7 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 Never use Python heredoc string escaping to write JavaScript template literals — it produces `\'` sequences that are invalid in .html files. Use string concatenation (`+`) for all HTML-building JS in compare.html.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.13 (search.js) / v0.6.1.13 (compare.html)
+- Current: v0.6.1 (manifest) / v0.6.1.14 (search.js) / v0.6.1.14 (compare.html)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
@@ -98,11 +98,10 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **Hear Melissa's Chat 22 testing observations** — may adjust priorities below
-2. **Palette redesign** — use Claude Design tool, then apply to CSS
-3. **Screenshots** — blocked on palette
-4. **Chrome Web Store submission** — blocked on screenshots
-5. **Persistent research session** (compare.html) — localStorage, inline notes, tab messaging, Save & share button
+1. **Palette redesign** — use Claude Design tool, then apply to CSS
+2. **Screenshots** — blocked on palette
+3. **Chrome Web Store submission** — blocked on screenshots
+4. **Persistent research session** (compare.html) — localStorage, inline notes, tab messaging, Save & share button
 
 ---
 
@@ -132,6 +131,12 @@ Two of these = stop and wrap up.
 - [x] Compare payload expanded — isPrime, isSponsored, full coupon/delivery/retailer fields (Chat 22)
 - [x] Compare table updated — new columns, removed blank columns (Chat 22)
 - [x] Filter bar on compare.html — keyword, min reviews, source, hide sponsored (Chat 22)
+- [x] Coupon/promo sort fixed — boolean sort, couponed items to top (Chat 23)
+- [x] Delivery sort fixed — timestamp-based, time-precise, nulls last (Chat 23)
+- [x] Search term badge — label + clickable Amazon link (Chat 23)
+- [x] Keyword focus fixed — table-only rerender preserves input focus (Chat 23)
+- [x] Price range filter — min/max price inputs on compare.html (Chat 23)
+- [x] searchUrl + freeDateTs/fastDateTs added to compare payload (Chat 23)
 
 ### Alpha release — blockers
 - [ ] Palette redesign (Claude Design tool)

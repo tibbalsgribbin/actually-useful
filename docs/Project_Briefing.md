@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.13 (overall) · v0.6.1 (manifest) · v0.6.1.13 (search.js) · v0.6.1.13 (compare.html) · Updated April 21, 2026 (Chat 22)*
+*Current version: v0.6.1.14 (overall) · v0.6.1 (manifest) · v0.6.1.14 (search.js) · v0.6.1.14 (compare.html) · Updated April 21, 2026 (Chat 23)*
 
 ---
 
@@ -42,16 +42,16 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 
 The **persistent shortlist** is the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-**Shortlist item object shape sent to compare.html (current — v0.6.1.13):**
+**Shortlist item object shape sent to compare.html (current — v0.6.1.14):**
 ```
 { asin, title, price (raw float), ppu (raw float), ppuUnit,
   isPrime (bool), isSponsored (bool),
   hasCoupon (bool), couponPillOnly (bool), sns (string), savings (string),
-  freeDate (formatted string), fastDate (formatted string), freeQualifier (string),
+  freeDate (formatted string), fastDate (formatted string),
+  freeDateTs (epoch ms), fastDateTs (epoch ms), freeQualifier (string),
   retailerKey (string), rating, reviewCount }
 ```
-
-Note: soldBy, shipsFrom, returnPolicy require product page — deferred.
+Payload also includes: `searchTerm` (string), `searchUrl` (string).
 
 ---
 
@@ -177,12 +177,12 @@ Sent via background.js. User can opt out via popup.
 ## 10. Known Issues / Deferred
 
 - **Palette redesign needed** — live result unsatisfactory; use Claude Design for iteration
-- **Testing observations from Chat 22** — Melissa has observations to share at start of Chat 23
 - **Product page panel** — disabled in manifest, deferred until post-alpha
 - **Laundry pods show wrong unit ($/lb)** — fix before public launch
 - **Mixed units in same search** — investigate
 - **actuallyuseful.net** — not yet pointed at GitHub Pages
 - **compare.html soldBy/shipsFrom/returnPolicy** — blank until product.js re-enabled
+- **"Amazon search" link** — only works for comparisons created after v0.6.1.14; old Supabase rows lack `searchUrl`
 
 ---
 

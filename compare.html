@@ -505,6 +505,10 @@
   let filterMinReviews = 0;
   let filterRetailer   = '';   // '' = all; or a retailerKey value
   let filterHideSponsored = false;
+  let filterMinPrice   = '';
+  let filterMaxPrice   = '';
+
+  let currentSearchUrl = '';
 
   function sortItems(items, col) {
     const sorted = [...items];
@@ -517,6 +521,21 @@
         va = parseFloat(va) || Infinity;
         vb = parseFloat(vb) || Infinity;
         return sortDir === 'asc' ? va - vb : vb - va;
+      }
+
+      // Coupon/promo: sort by whether item has any promo (yes first on asc)
+      if (col === 'coupon') {
+        const haA = !!(a.hasCoupon || a.sns || a.savings || a.couponPillOnly) ? 1 : 0;
+        const haB = !!(b.hasCoupon || b.sns || b.savings || b.couponPillOnly) ? 1 : 0;
+        return sortDir === 'asc' ? haB - haA : haA - haB;
+      }
+
+      // Delivery: use timestamp fields for precise sort; nulls go last
+      if (col === 'delivery') {
+        const FAR = 9999999999999;
+        const tsA = a.freeDateTs || a.fastDateTs || FAR;
+        const tsB = b.freeDateTs || b.fastDateTs || FAR;
+        return sortDir === 'asc' ? tsA - tsB : tsB - tsA;
       }
 
       // String columns
@@ -564,6 +583,8 @@
       if (filterRetailer && (item.retailerKey || 'standard') !== filterRetailer) return false;
       if (filterMinReviews > 0 && (parseFloat(item.reviewCount) || 0) < filterMinReviews) return false;
       if (filterKeyword && !keywordMatchesItem(item, filterKeyword)) return false;
+      if (filterMinPrice !== '' && !isNaN(filterMinPrice) && (parseFloat(item.price) || 0) < parseFloat(filterMinPrice)) return false;
+      if (filterMaxPrice !== '' && !isNaN(filterMaxPrice) && (parseFloat(item.price) || 0) > parseFloat(filterMaxPrice)) return false;
       return true;
     });
   }
@@ -596,6 +617,9 @@
     var kwVal = esc(filterKeyword);
     var mrVal = filterMinReviews || '';
 
+    var minPriceVal = filterMinPrice !== '' ? esc(String(filterMinPrice)) : '';
+    var maxPriceVal = filterMaxPrice !== '' ? esc(String(filterMaxPrice)) : '';
+
     return '<div id="filter-bar">'
       + '<div id="filter-bar-header">'
       + '<span id="filter-bar-title">Filters</span>'
@@ -605,6 +629,8 @@
       + '<div class="fb-row">'
       + '<label class="fb-label">Keyword<input type="text" id="fb-keyword" placeholder="e.g. unscented -refill" value="' + kwVal + '"></label>'
       + '<label class="fb-label">Min reviews<input type="number" id="fb-min-reviews" min="0" placeholder="0" value="' + mrVal + '"></label>'
+      + '<label class="fb-label">Min price ($)<input type="number" id="fb-min-price" min="0" placeholder="0" value="' + minPriceVal + '"></label>'
+      + '<label class="fb-label">Max price ($)<input type="number" id="fb-max-price" min="0" placeholder="any" value="' + maxPriceVal + '"></label>'
       + retailerOptions
       + sponsoredToggle
       + '<button id="fb-clear" class="btn btn-ghost">Clear filters</button>'
@@ -713,10 +739,16 @@
       : '';
 
     var termBadge = searchTerm
-      ? '<span class="search-term-badge">' + esc(searchTerm) + '</span>'
+      ? '<span class="search-term-badge">'
+        + 'Amazon search: '
+        + (currentSearchUrl
+            ? '<a href="' + esc(currentSearchUrl) + '" target="_blank" rel="noopener" style="color:#351E45;">' + esc(searchTerm) + '</a>'
+            : esc(searchTerm))
+        + '</span>'
       : '';
 
     return renderFilterBar(currentItems)
+      + '<div id="meta-and-table">'
       + '<div class="meta-bar">'
       + '<span class="item-count">Comparing <strong>' + items.length + '</strong> item' + (items.length !== 1 ? 's' : '') + '</span>'
       + hiddenNote
@@ -730,7 +762,8 @@
       + '</table>'
       + '</div>'
       + '<div style="text-align:center;margin-top:1rem;">' + renderShareButton('bottom') + '</div>'
-      + '<p class="affiliate-note">This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you.</p>';
+      + '<p class="affiliate-note">This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you.</p>'
+      + '</div>';
   }
 
 
@@ -761,17 +794,6 @@
   // ── Column sort handler ───────────────────────────────────────
   let currentItems = [];
 
-  // Central re-render: applies filters then sort, then rewires handlers
-  function rerender() {
-    const filtered = applyFilters(currentItems);
-    const sorted = (sortCol && filtered.length) ? sortItems(filtered, sortCol) : filtered;
-    document.getElementById('main-content').innerHTML = renderTable(sorted, currentSearchTerm);
-    attachSortHandlers();
-    attachFilterHandlers();
-    attachShareHandler('top-share-btn');
-    attachShareHandler('bottom-share-btn');
-  }
-
   function attachSortHandlers() {
     document.querySelectorAll('#compare-table thead th').forEach(th => {
       th.addEventListener('click', () => {
@@ -787,6 +809,149 @@
     });
   }
 
+  // Central re-render: replaces entire main-content (filter bar + table)
+  function rerender() {
+    const filtered = applyFilters(currentItems);
+    const sorted = (sortCol && filtered.length) ? sortItems(filtered, sortCol) : filtered;
+    document.getElementById('main-content').innerHTML = renderTable(sorted, currentSearchTerm);
+    attachSortHandlers();
+    attachFilterHandlers();
+    attachShareHandler('top-share-btn');
+    attachShareHandler('bottom-share-btn');
+  }
+
+  // Partial re-render: only replaces the meta-bar + table, leaves filter bar untouched.
+  // Used by the keyword input to avoid destroying the input and dropping focus.
+  function rerenderTableOnly() {
+    const filtered = applyFilters(currentItems);
+    const sorted = (sortCol && filtered.length) ? sortItems(filtered, sortCol) : filtered;
+
+    var bestIndices = findBestPpuIndices(filtered);
+
+    var colDefs = [
+      { key: 'title',       label: 'Product' },
+      { key: 'price',       label: 'Price' },
+      { key: 'ppu',         label: 'Per unit' },
+      { key: 'delivery',    label: 'Delivery' },
+      { key: 'rating',      label: 'Rating' },
+      { key: 'reviewCount', label: 'Reviews' },
+      { key: 'isPrime',     label: 'Prime' },
+      { key: 'coupon',      label: 'Coupon / promo' },
+      { key: 'retailerKey', label: 'Source' },
+    ];
+
+    var theadCells = colDefs.map(function(c) {
+      var cls = '';
+      if (sortCol === c.key) cls = sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc';
+      return '<th data-col="' + c.key + '" class="' + cls + '">' + c.label + '</th>';
+    }).join('');
+
+    var rows = sorted.map(function(item, i) {
+      var isBest = bestIndices.has(i);
+
+      var ppuV = parseFloat(item.ppu);
+      var ppuCell;
+      if (isNaN(ppuV) || ppuV <= 0) {
+        ppuCell = '<span class="na">—</span>';
+      } else {
+        var ppuStr = ppuV < 0.10 ? '$' + ppuV.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0') : '$' + ppuV.toFixed(2);
+        var ppuFormatted = ppuStr + (item.ppuUnit ? ' / ' + item.ppuUnit : '');
+        ppuCell = isBest
+          ? '<span class="best-value">' + ppuFormatted + '<span class="best-value-star" title="Best value">★</span></span>'
+          : ppuFormatted;
+      }
+
+      var primeCell = item.isPrime ? '<span class="pill pill-prime">Prime</span>' : '<span class="na">—</span>';
+
+      var couponCell;
+      if (item.hasCoupon) {
+        var wasStr = (item.listPrice && !isNaN(item.listPrice))
+          ? ' <span class="na">(was $' + parseFloat(item.listPrice).toFixed(2) + ')</span>' : '';
+        couponCell = '<span class="pill pill-coupon">Coupon' + wasStr + '</span>';
+      } else if (item.sns) {
+        var snsStr = item.sns === 'unknown' ? 'Subscribe &amp; Save' : esc(item.sns) + ' with S&amp;S';
+        couponCell = '<span class="pill pill-coupon">' + snsStr + '</span>';
+      } else if (item.savings) {
+        couponCell = '<span class="pill pill-coupon">' + esc(item.savings) + '</span>';
+      } else if (item.couponPillOnly) {
+        couponCell = '<span class="pill pill-coupon">Coupon — check Amazon</span>';
+      } else {
+        couponCell = '<span class="na">—</span>';
+      }
+
+      var deliveryParts = [];
+      if (item.freeDate) {
+        var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
+        deliveryParts.push('FREE: ' + esc(item.freeDate) + q);
+      }
+      if (item.fastDate) deliveryParts.push('Fastest: ' + esc(item.fastDate));
+      var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
+
+      var priceCell = (item.price != null && !isNaN(item.price))
+        ? '$' + parseFloat(item.price).toFixed(2) : '<span class="na">—</span>';
+
+      var sourceKey = item.retailerKey || 'standard';
+      var sourceCell = sourceKey === 'standard'
+        ? '<span class="na">Amazon</span>'
+        : '<span class="pill" style="background:#e8e4f8;color:#351E45;border:1px solid #c1bfff;">' + esc(retailerLabel(sourceKey)) + '</span>';
+
+      var sponsoredBadge = item.isSponsored
+        ? ' <span class="pill" style="background:#f0f0f0;color:#888;border:1px solid #ddd;font-size:0.7em;">Ad</span>'
+        : '';
+
+      return '<tr>'
+        + '<td class="col-title"><a href="' + affiliateUrl(item.asin) + '" target="_blank" rel="noopener">' + esc(item.title) + '</a>' + sponsoredBadge + '</td>'
+        + '<td class="col-price">' + priceCell + '</td>'
+        + '<td class="col-ppu">' + ppuCell + '</td>'
+        + '<td class="col-delivery">' + deliveryCell + '</td>'
+        + '<td class="col-rating">' + renderStars(item.rating) + '</td>'
+        + '<td class="col-reviews">' + formatReviews(item.reviewCount) + '</td>'
+        + '<td>' + primeCell + '</td>'
+        + '<td>' + couponCell + '</td>'
+        + '<td>' + sourceCell + '</td>'
+        + '</tr>';
+    }).join('');
+
+    var hiddenCount = currentItems.length - filtered.length;
+    var hiddenNote = hiddenCount > 0
+      ? '<span style="color:#877891;font-size:0.88em;">' + hiddenCount + ' item' + (hiddenCount !== 1 ? 's' : '') + ' hidden by filters</span>'
+      : '';
+
+    var searchTerm = currentSearchTerm;
+    var termBadge = searchTerm
+      ? '<span class="search-term-badge">'
+        + 'Amazon search: '
+        + (currentSearchUrl
+            ? '<a href="' + esc(currentSearchUrl) + '" target="_blank" rel="noopener" style="color:#351E45;">' + esc(searchTerm) + '</a>'
+            : esc(searchTerm))
+        + '</span>'
+      : '';
+
+    var metaAndTable = document.getElementById('meta-and-table');
+    if (metaAndTable) {
+      metaAndTable.innerHTML = '<div class="meta-bar">'
+        + '<span class="item-count">Comparing <strong>' + filtered.length + '</strong> item' + (filtered.length !== 1 ? 's' : '') + '</span>'
+        + hiddenNote
+        + termBadge
+        + renderShareButton('top')
+        + '</div>'
+        + '<div class="table-wrapper">'
+        + '<table id="compare-table">'
+        + '<thead><tr>' + theadCells + '</tr></thead>'
+        + '<tbody>' + rows + '</tbody>'
+        + '</table>'
+        + '</div>'
+        + '<div style="text-align:center;margin-top:1rem;">' + renderShareButton('bottom') + '</div>'
+        + '<p class="affiliate-note">This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you.</p>';
+      attachSortHandlers();
+      attachShareHandler('top-share-btn');
+      attachShareHandler('bottom-share-btn');
+    } else {
+      // Fallback: full rerender if structure isn't in place yet
+      rerender();
+    }
+  }
+
   function attachFilterHandlers() {
     // Collapse/expand toggle
     const toggle = document.getElementById('filter-bar-toggle');
@@ -800,7 +965,7 @@
       });
     }
 
-    // Keyword — 250ms debounce
+    // Keyword — 250ms debounce, table-only rerender to preserve focus
     let kwTimer = null;
     const kwInput = document.getElementById('fb-keyword');
     if (kwInput) {
@@ -808,7 +973,7 @@
         clearTimeout(kwTimer);
         kwTimer = setTimeout(() => {
           filterKeyword = kwInput.value;
-          rerender();
+          rerenderTableOnly();
         }, 250);
       });
     }
@@ -818,6 +983,24 @@
     if (mrInput) {
       mrInput.addEventListener('change', () => {
         filterMinReviews = parseInt(mrInput.value, 10) || 0;
+        rerender();
+      });
+    }
+
+    // Min price
+    const minPriceInput = document.getElementById('fb-min-price');
+    if (minPriceInput) {
+      minPriceInput.addEventListener('change', () => {
+        filterMinPrice = minPriceInput.value.trim();
+        rerender();
+      });
+    }
+
+    // Max price
+    const maxPriceInput = document.getElementById('fb-max-price');
+    if (maxPriceInput) {
+      maxPriceInput.addEventListener('change', () => {
+        filterMaxPrice = maxPriceInput.value.trim();
         rerender();
       });
     }
@@ -846,6 +1029,8 @@
       clearBtn.addEventListener('click', () => {
         filterKeyword = '';
         filterMinReviews = 0;
+        filterMinPrice = '';
+        filterMaxPrice = '';
         filterRetailer = '';
         filterHideSponsored = false;
         sortCol = null;
@@ -944,6 +1129,7 @@
         const parsed = await loadComparison(shareId);
         currentItems = parsed.items || [];
         currentSearchTerm = parsed.searchTerm || '';
+        currentSearchUrl = parsed.searchUrl || '';
       } catch (e) {
         main.innerHTML = renderError('load-failed');
         return;
@@ -969,6 +1155,7 @@
       } else {
         items = parsed.items || [];
         currentSearchTerm = parsed.searchTerm || '';
+        currentSearchUrl = parsed.searchUrl || '';
       }
     } catch (e) {
       main.innerHTML = renderError('load-failed');
