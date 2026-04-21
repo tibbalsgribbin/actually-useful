@@ -4,14 +4,14 @@
 
 ---
 
-## Current version: v0.6.1.12
+## Current version: v0.6.1.13
 
 ---
 
 ## Known issues / needs testing
 
 - **Palette redesign needed** — Lavender Fields applied but live result unsatisfactory. Use Claude Design tool for iteration before taking screenshots.
-- **Compare table blank columns** — Prime, full coupon detail, delivery range, retailer tag — fix scoped for Chat 22
+- **Testing observations from Chat 22** — Melissa has observations to share at start of Chat 23; may generate new items here.
 - **Laundry pods show wrong unit ($/lb instead of $/ct)** — fix before public launch
 - **Mixed units in results** — `/lb` and `/ct` appearing together; cross-family sort may be occurring
 - **Page limit** — 7 pages confirmed in practice but not definitively researched
@@ -50,8 +50,11 @@ When removing JS visibility toggling from an element, always check and update th
 **Confirm before committing (added Chat 11):**
 Pause between "files produced" and "push to GitHub." Test first, commit after.
 
+**Template literal rule (learned Chat 22):**
+Never use Python heredoc string escaping to write JavaScript template literals — it produces `\'` sequences that are invalid in .html files. Use string concatenation (`+`) for all HTML-building JS in compare.html.
+
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.12 (search.js) / v0.6.1.12 (compare.html)
+- Current: v0.6.1 (manifest) / v0.6.1.13 (search.js) / v0.6.1.13 (compare.html)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
@@ -67,6 +70,7 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 
 **Data format between extension and compare.html:**
 - search.js sends raw numbers for price and ppu — compare.html handles all formatting
+- All data visible in the extension panel listing must be in the payload — no exceptions
 
 **Supabase (from Chat 18, updated Chat 21):**
 - Table: `comparisons` — id (int8), created_at (timestamptz), data (text), RLS disabled
@@ -94,11 +98,11 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **Compare table payload fixes** (search.js) — isPrime, full coupon fields, delivery range, retailerKey
-2. **Compare table rendering** (compare.html) — display the new fields
-3. **Palette redesign** — use Claude Design tool, then apply to CSS
-4. **Screenshots** — blocked on palette
-5. **Chrome Web Store submission** — blocked on screenshots
+1. **Hear Melissa's Chat 22 testing observations** — may adjust priorities below
+2. **Palette redesign** — use Claude Design tool, then apply to CSS
+3. **Screenshots** — blocked on palette
+4. **Chrome Web Store submission** — blocked on screenshots
+5. **Persistent research session** (compare.html) — localStorage, inline notes, tab messaging, Save & share button
 
 ---
 
@@ -125,6 +129,9 @@ Two of these = stop and wrap up.
 - [x] Supabase compare — no item limit (Chat 21)
 - [x] renderError split into two states (Chat 21)
 - [x] Lavender Fields palette applied (Chat 21) — needs redesign
+- [x] Compare payload expanded — isPrime, isSponsored, full coupon/delivery/retailer fields (Chat 22)
+- [x] Compare table updated — new columns, removed blank columns (Chat 22)
+- [x] Filter bar on compare.html — keyword, min reviews, source, hide sponsored (Chat 22)
 
 ### Alpha release — blockers
 - [ ] Palette redesign (Claude Design tool)
@@ -144,13 +151,7 @@ Two of these = stop and wrap up.
 - [ ] Create Amazon account (prerequisite for Associates)
 - [ ] Apply for Amazon Associates (after real user base established)
 
-### Compare table — Chat 22
-- [ ] isPrime field in payload + rendering
-- [ ] Full coupon/savings fields in payload + rendering
-- [ ] Delivery range (freeDate + fastDate + qualifier) in payload + rendering
-- [ ] Retailer/source tag in payload + rendering
-
-### Persistent research session — Chat 22/23
+### Persistent research session — Chat 23
 - [ ] localStorage for working comparison state on compare.html
 - [ ] Inline notes editing on compare.html
 - [ ] Tab messaging: extension appends items to open compare tab
@@ -173,9 +174,8 @@ Two of these = stop and wrap up.
 - [ ] Badge text on toolbar icon
 
 **Website**
-- [ ] Per-item notes persisted to URL / localStorage
+- [ ] soldBy / shipsFrom / returnPolicy in compare table — populate when product.js re-enabled
 - [ ] Keepa price history link per item
-- [ ] soldBy / shipsFrom / returnPolicy — populate when product.js re-enabled
 - [ ] Power search form (Jungle Search model)
 
 ---
@@ -193,4 +193,5 @@ Two of these = stop and wrap up.
 - Affiliate tags on website only — never in extension
 - Affiliate disclosure on every page — whether or not affiliate links are live
 - search.js sends raw numbers to compare.html — compare.html handles all formatting
+- All data visible in the extension panel listing must survive the trip to compare.html
 - Claude Design tool is the right place for iterative visual/palette work

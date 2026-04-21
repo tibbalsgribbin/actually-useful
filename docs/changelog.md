@@ -4,6 +4,35 @@
 
 ---
 
+## **v0.6.1.13 — April 21, 2026 (Chat 22)**
+
+### Compare payload expanded (search.js)
+- `isPrime` boolean added — detected from result card DOM at click time
+- `isSponsored` boolean added — already detected, now promoted to payload
+- Coupon fields split: `hasCoupon`, `couponPillOnly`, `sns`, `savings` sent separately (previously collapsed into one string)
+- Delivery fields split: `freeDate`, `fastDate`, `freeQualifier` sent separately (previously one formatted string)
+- `retailerKey` added — retailer key string (e.g. `whole-foods`, `fresh`, `standard`)
+
+### Compare table updated (compare.html)
+- Removed three permanently-blank columns: Sold by, Ships from, Returns (product.js still disabled)
+- Added Source column — shows retailer pill for non-standard sources; plain "Amazon" for standard
+- Prime column now reads `isPrime` correctly
+- Coupon column now shows specific detail: coupon with was-price, S&S amount, savings text, or "check Amazon"
+- Delivery column now shows both free and fastest dates when both are present, with qualifier
+- Sponsored items show an "Ad" badge in the product title cell
+
+### Filter bar added (compare.html)
+- Collapsible filter bar above the table, expanded by default
+- Keyword filter — include/exclude syntax, 250ms debounce, same as extension
+- Min reviews number input
+- Source/retailer dropdown — only shown when multiple sources present in loaded data
+- Hide sponsored toggle — only shown when sponsored items are present
+- Clear filters button — resets all filters and sort
+- Column sort via header clicks still works and respects active filters
+- Hidden item count shown in meta bar when filters are active
+
+---
+
 ## **v0.6.1.12 — April 21, 2026 (Chat 21)**
 
 ### Supabase compare — no item limit (search.js, compare.html)

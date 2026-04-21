@@ -1,117 +1,76 @@
-# Session Handover — April 21, 2026 (Chat 21)
+# Session Handover — April 21, 2026 (Chat 23)
 
-## What we did this session
+## What we did this session (Chat 22)
 
-1. **Palette pivot — Lavender Fields design system**
-   - Melissa found a new colour scheme and wanted to try it before taking screenshots
-   - Built an HTML preview artifact (extension panel mock + website strip) and iterated on it through several rounds of feedback
-   - Final palette decisions:
-     - Header (panel + website nav): Orchid (#CF6DFC)
-     - Shortlist bar + footer bar + section dividers: Gold (#BDB96A)
-     - Panel/page background: White (#FFFFFF)
-     - Cards, rows, control areas: Pale Yellow (#FDFBD4)
-     - Best value row: More vivid yellow (#f5eda0)
-     - White used ONLY for text inputs, dropdowns, and checkboxes (unchecked)
-     - Checked checkboxes: Orchid
-     - Feature cards on website: Periwinkle (#C1BFFF)
-     - Comparison table cells: White (intentional)
-   - Applied to styles.css, index.html, compare.html
-   - Note: Melissa was not satisfied with the result on the actual extension ("lmao. that's something. Not something good.") — will revisit with Claude Design tool
+Coding session. Two files changed.
 
-2. **Supabase compare — removed URL length limit**
-   - Old approach: Base64 encoded items into ?data= URL parameter — broke at ~6 items
-   - New approach: POST shortlist to Supabase on Compare click, open compare.html?id=xxx
-   - Tested with 50 items — worked perfectly
-   - Button shows "Opening…" while POST is in flight
-   - On Supabase failure: error message in shortlist bar for 4 seconds, then resets
-   - Old ?data= fallback preserved in compare.html for existing shared links
-   - renderError() split into two states: "nothing to compare" vs "couldn't load"
+**search.js — payload expanded:**
+- Added `isPrime` (detected from result card DOM at click time)
+- Added `isSponsored` (already detected, promoted to payload)
+- Split coupon fields: `hasCoupon`, `couponPillOnly`, `sns`, `savings` (previously one collapsed string)
+- Split delivery fields: `freeDate`, `fastDate`, `freeQualifier` (previously one formatted string)
+- Added `retailerKey`
 
-3. **Scoped next major feature: persistent research session**
-   - Melissa identified that the comparison table is a dead end — no way to add items from a new search, no notes input, several columns blank
-   - Blank columns diagnosed:
-     - Prime: scraped into cardText only, not as a boolean field — needs promoting
-     - Coupon/savings detail: collapsed into one string in payload — needs sending separately
-     - Delivery: only freeDate sent, not fastDate or qualifier — needs full range
-     - Source/retailer: not in payload — needs adding
-     - Sold by / Ships from / Returns: genuinely require product page — deferred
-   - Decision: build Option C (localStorage working session + explicit Supabase share)
-   - Tab messaging (extension → open compare tab to append items) identified as the hard piece
-   - Session ended before implementation began — this is Chat 22's main task
+**compare.html — table + filter bar:**
+- Removed three permanently-blank columns: Sold by, Ships from, Returns
+- Added Source column (retailer pill for non-standard; plain "Amazon" for standard)
+- Prime, coupon, delivery columns now use the new payload fields correctly
+- Sponsored items show "Ad" badge in title cell
+- Filter bar added above table — collapsible, expanded by default — keyword, min reviews, source/retailer dropdown, hide sponsored toggle, clear button
+- Column sort via header clicks still works and respects active filters
+
+**Bug during session:** First compare.html delivery had a syntax error (`Missing } in template expression`) caused by Python heredoc escaping producing `\'` sequences in JS. Fixed by rewriting the affected block using string concatenation instead of template literals. Added a working rule to Roadmap to prevent recurrence.
 
 ---
 
-## ⚠️ Start of next session
+## ⚠️ Start of next session (Chat 23)
 
-1. Melissa uploads fresh search.js and compare.html from GitHub as actual file uploads
-2. Claude confirms version strings: manifest `0.6.1` · search.js `0.6.1.12` · compare.html `0.6.1.12` (both bumped this session)
-3. Confirm scope before touching any files
-4. Ask Melissa if she has fresh testing observations
+1. Melissa shares her Chat 22 testing observations — do this before anything else
+2. Melissa uploads fresh search.js and compare.html from GitHub as actual file uploads
+3. Claude confirms version strings: manifest `0.6.1` · search.js `0.6.1.13` · compare.html `0.6.1.13`
+4. Confirm scope before touching any files
 
 ---
 
 ## Known issues / bugs
 
-- **Palette not working well on actual extension** — preview looked one way, live extension looked bad. Needs redesign session using Claude Design tool before screenshots can be taken.
+- **Palette not working well on actual extension** — needs redesign session using Claude Design tool before screenshots can be taken
 - **Laundry pods show wrong unit ($/lb instead of $/ct)** — ongoing
 - **Mixed units in results** — cross-family sort may be occurring
-- **Compare table blank columns** — Prime, full coupon detail, delivery range, retailer source — fix is scoped, not yet built
+- **Testing observations from Chat 22** — Melissa has observations to share; may reveal new bugs
 
 ---
 
-## Next session agenda (Chat 22)
+## Next session agenda (Chat 23)
 
-**Main task: compare table payload + persistent research session**
-
-Phase 1 — payload fixes (search.js):
-1. Add `isPrime` boolean field to data object (already detected in scrapeCardText, just needs promoting)
-2. Send coupon fields separately: `hasCoupon`, `couponPillOnly`, `sns`, `savings` (not collapsed)
-3. Send full delivery: `freeDate`, `fastDate`, `freeQualifier` — not just one formatted string
-4. Send `retailerKey` (retailer.key) for source tag display
-
-Phase 2 — compare.html rendering:
-5. Render Prime pill from `isPrime`
-6. Render full coupon/savings detail
-7. Render delivery range (free + fast if both present)
-8. Render source tag (WF, Fresh, Pharmacy, etc.)
-
-Phase 3 — persistent session (bigger work, may be Chat 23):
-9. localStorage for working comparison state
-10. Inline notes editing on compare.html
-11. Tab messaging so extension can append to open compare tab
-12. Explicit "Save & share" button → Supabase → permanent link
+1. Hear and triage Melissa's testing observations
+2. Fix anything that came up in testing
+3. Palette redesign (Claude Design tool) — blocked on this before screenshots
+4. If palette is done: screenshots
+5. If all above done: persistent research session on compare.html (localStorage, inline notes, tab messaging, Save & share)
 
 ---
 
 ## Progress snapshot
 
 ### ✅ Recently done
+- Compare payload expanded — all panel data now survives the trip to compare.html (Chat 22)
+- Compare table updated — new columns, blank columns removed (Chat 22)
+- Filter bar on compare.html (Chat 22)
 - Supabase compare — no item limit (Chat 21)
-- renderError split into two states (Chat 21)
-- Lavender Fields palette applied to styles.css, index.html, compare.html (Chat 21) — needs redesign
-- Keyword filter bug fixed (Chat 20)
-- privacy.html built (Chat 20)
-- Developer account created (Chat 20)
+- Lavender Fields palette applied (Chat 21) — needs redesign
 
-### 🔜 Next up — Chat 22
-1. Compare table payload fixes (Prime, coupon detail, delivery range, retailer)
-2. Compare table rendering updates
-3. Begin persistent research session architecture
+### 🔜 Next up — Chat 23
+1. Triage testing observations
+2. Palette redesign (Claude Design tool)
+3. Screenshots — blocked on palette
+4. Chrome Web Store submission — blocked on screenshots
 
-### 🔭 Further out (pre-alpha)
-- Screenshots (5) — blocked on palette redesign
-- Chrome Web Store submission — blocked on screenshots
-- Palette redesign using Claude Design tool
-- Research page limit
-
-### 🔭 Further out (post-alpha)
+### 🔭 Further out
+- Persistent research session (compare.html)
 - Power search form
 - Product page re-enabled
 - Cross-page shortlist persistence
-- Two-way extension ↔ website connection
-- Hidden data capture batch
-- Review integrity signals + Keepa links
-- Sold by / Ships from in compare table (requires product page)
 - Walmart version
 
 ---
@@ -125,7 +84,7 @@ Phase 3 — persistent session (bigger work, may be Chat 23):
 - Use AskUserQuestion widget for clarifying questions
 - All Google tasks: InPrivate Edge + butactuallyuseful@gmail.com
 - Context rot: stop and wrap up rather than pushing through
-- Version: manifest `0.6.1` · search.js `0.6.1.12` · compare.html `0.6.1.12`
+- Version: manifest `0.6.1` · search.js `0.6.1.13` · compare.html `0.6.1.13`
 - Always provide a suggested GitHub commit message at end of session
 - Always include context/token status when asking "continue or wrap up?"
 - Bundle small changes together rather than shipping each one separately
@@ -144,18 +103,18 @@ Phase 3 — persistent session (bigger work, may be Chat 23):
 - Screenshot method: DevTools → device emulator → 1280×800 → Ctrl+Shift+P → "Capture screenshot"
 - Do NOT use laundry pods for unit price screenshot (wrong units bug)
 - Claude Design tool is the right place for iterative visual/palette work — doesn't count against message limits
-- compare.html now loads via ?id= (Supabase) by default; ?data= fallback kept for old links
+- compare.html loads via ?id= (Supabase) by default; ?data= fallback kept for old links
+- compare.html JS must use string concatenation, not template literals — Python escaping breaks template literals in .html files
+- All data that appears in the extension panel listing should be in the compare.html payload — no exceptions
 
 ---
 
-## Suggested commit message
-`v0.6.1.12 — Supabase compare (no item limit), Lavender Fields palette, error states`
-
 ## End-of-session checklist
-- [ ] Handover.md — written
-- [ ] Changelog.md — updated
-- [ ] Roadmap.md — updated
-- [ ] Project_Briefing.md — updated
+- [x] Handover.md — written (this file)
+- [x] Roadmap.md — updated
+- [x] Changelog.md — updated
+- [x] Project_Briefing.md — updated
+- [x] Changed code files presented (search.js v0.6.1.13, compare.html v0.6.1.13)
 - [ ] Melissa puts updated docs in `docs/` folder in GitHub
 - [ ] Melissa commits and pushes via GitHub Desktop (pull → stage → commit → push)
 - [ ] Melissa updates project files in Claude Project (upload new versions)

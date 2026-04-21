@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.12 (overall) · v0.6.1 (manifest) · v0.6.1.12 (search.js) · v0.6.1.12 (compare.html) · Updated April 21, 2026 (Chat 21)*
+*Current version: v0.6.1.13 (overall) · v0.6.1 (manifest) · v0.6.1.13 (search.js) · v0.6.1.13 (compare.html) · Updated April 21, 2026 (Chat 22)*
 
 ---
 
@@ -42,18 +42,13 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 
 The **persistent shortlist** is the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-**Shortlist item object shape sent to compare.html (current):**
+**Shortlist item object shape sent to compare.html (current — v0.6.1.13):**
 ```
 { asin, title, price (raw float), ppu (raw float), ppuUnit,
-  delivery (formatted string — freeDate only), rating, reviewCount, coupon (collapsed string) }
-```
-
-**Shortlist item object shape (planned — Chat 22):**
-```
-{ asin, title, price, ppu, ppuUnit,
-  freeDelivery, fastDelivery, freeQualifier,
-  isPrime, hasCoupon, couponPillOnly, sns, savings,
-  retailerKey, rating, reviewCount }
+  isPrime (bool), isSponsored (bool),
+  hasCoupon (bool), couponPillOnly (bool), sns (string), savings (string),
+  freeDate (formatted string), fastDate (formatted string), freeQualifier (string),
+  retailerKey (string), rating, reviewCount }
 ```
 
 Note: soldBy, shipsFrom, returnPolicy require product page — deferred.
@@ -72,7 +67,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 5. Version Numbering
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.12** (search.js) / **v0.6.1.12** (compare.html)
+- Current: **v0.6.1** (manifest) / **v0.6.1.13** (search.js) / **v0.6.1.13** (compare.html)
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
 
@@ -173,19 +168,21 @@ Sent via background.js. User can opt out via popup.
 ### Comparison page
 - Loads from Supabase by ?id= (primary) or ?data= Base64 (legacy fallback)
 - Sortable columns, best-value star, shareable links
-- Currently blank: Prime, full coupon detail, delivery range, retailer tag — fix planned Chat 22
+- Filter bar: keyword, min reviews, source/retailer, hide sponsored — collapsible, expanded by default
+- Columns: Product, Price, Per unit, Delivery, Rating, Reviews, Prime, Coupon/promo, Source
+- Sponsored items show "Ad" badge in title cell
 
 ---
 
 ## 10. Known Issues / Deferred
 
 - **Palette redesign needed** — live result unsatisfactory; use Claude Design for iteration
-- **Compare table blank columns** — Prime, coupon detail, delivery range, retailer — fix scoped for Chat 22
+- **Testing observations from Chat 22** — Melissa has observations to share at start of Chat 23
 - **Product page panel** — disabled in manifest, deferred until post-alpha
 - **Laundry pods show wrong unit ($/lb)** — fix before public launch
 - **Mixed units in same search** — investigate
 - **actuallyuseful.net** — not yet pointed at GitHub Pages
-- **compare.html soldBy/shipsFrom/returnPolicy/prime** — some blank until product.js re-enabled
+- **compare.html soldBy/shipsFrom/returnPolicy** — blank until product.js re-enabled
 
 ---
 
@@ -218,6 +215,7 @@ Sent via background.js. User can opt out via popup.
 - Affiliate tags on website only — never in extension
 - Affiliate disclosure on every page — whether or not affiliate links are live
 - search.js sends raw numbers to compare.html — compare.html handles all formatting
+- All data that appears in the extension panel listing should be in the compare.html payload — no exceptions
 - Claude Design tool is the right place for iterative visual/palette work
 
 ---
