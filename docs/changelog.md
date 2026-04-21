@@ -4,6 +4,22 @@
 
 ---
 
+## **v0.6.1.11 — April 21, 2026 (Chat 20)**
+
+### Keyword filter bug fixed (search.js)
+- `kwDebounceTimer` was used but never declared — `setTimeout` result wasn't being stored reliably, so `render()` wasn't firing when typing in the keyword box
+- Fix: `var kwDebounceTimer = null;` added to state block
+- Keyword filtering (include, exclude, OR) now works correctly
+
+### Chrome Web Store prep (index.html, privacy.html — new file)
+- `privacy.html` created — matches index.html styling exactly; covers telemetry, comparison page data, affiliate links, contact
+- `index.html` footer updated — Privacy link added
+- Store short description and long description written (not in code — kept in session notes)
+- Developer account created (butactuallyuseful@gmail.com)
+- Screenshots planned (5): unit price sort, keyword filter, shortlist, comparison table, multi-page + source filter
+
+---
+
 ## **v0.6.1.10 — April 20, 2026 (Chat 19)**
 
 ### Feedback form pre-fill (search.js, compare.html)

@@ -11,15 +11,15 @@
   <style>
     /* ── Variables ───────────────────────────────────────────── */
     :root {
-      --cream:   #faf7f2;
-      --navy:    #1a2640;
-      --teal:    #2a7f7f;
-      --teal-lt: #e8f4f4;
-      --gold:    #c9a84c;
-      --muted:   #6b7280;
-      --border:  #ddd8ce;
-      --red:     #c0392b;
-      --green:   #27ae60;
+      --cream:   #FDFBD4;
+      --navy:    #CF6DFC;
+      --teal:    #912c9e;
+      --teal-lt: #C1BFFF;
+      --gold:    #BDB96A;
+      --muted:   #877891;
+      --border:  #EAE6B6;
+      --red:     #c94b2e;
+      --green:   #2a7a5f;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -55,14 +55,14 @@
     }
 
     .nav-links a {
-      color: rgba(250,247,242,0.75);
+      color: rgba(53,30,69,0.75);
       text-decoration: none;
       font-size: 0.875rem;
       font-weight: 500;
       transition: color 0.15s;
     }
 
-    .nav-links a:hover { color: var(--cream); }
+    .nav-links a:hover { color: var(--cream); filter: brightness(0.85); }
 
     /* ── Page header ─────────────────────────────────────────── */
     .page-header {
@@ -73,14 +73,14 @@
 
     .page-header h1 {
       font-family: 'DM Serif Display', serif;
-      color: var(--cream);
+      color: #351E45;
       font-size: 2rem;
       font-weight: 400;
       margin-bottom: 0.4rem;
     }
 
     .page-header p {
-      color: rgba(250,247,242,0.65);
+      color: rgba(53,30,69,0.75);
       font-size: 0.9rem;
     }
 
@@ -111,9 +111,9 @@
     }
 
     .search-term-badge {
-      background: var(--teal-lt);
-      color: var(--teal);
-      border: 1px solid var(--teal);
+      background: #C1BFFF;
+      color: #351E45;
+      border: 1px solid #aba8eb;
       border-radius: 4px;
       padding: 0.2rem 0.6rem;
       font-size: 0.8rem;
@@ -125,19 +125,19 @@
       overflow-x: auto;
       border: 1px solid var(--border);
       border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(26,38,64,0.06);
+      box-shadow: 0 2px 8px rgba(53,30,69,0.08);
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.875rem;
-      background: #fff;
+      background: #FFFFFF;
     }
 
     thead {
       background: var(--navy);
-      color: var(--cream);
+      color: #351E45;
       position: sticky;
       top: 0;
       z-index: 10;
@@ -155,7 +155,7 @@
       user-select: none;
     }
 
-    thead th:hover { background: rgba(255,255,255,0.08); }
+    thead th:hover { background: rgba(53,30,69,0.1); }
 
     thead th.sorted-asc::after  { content: ' ▲'; font-size: 0.65rem; }
     thead th.sorted-desc::after { content: ' ▼'; font-size: 0.65rem; }
@@ -166,7 +166,7 @@
     }
 
     tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: #fdfaf6; }
+    tbody tr:hover { background: #fcfadb; }
 
     td {
       padding: 0.75rem 1rem;
@@ -220,9 +220,9 @@
       white-space: nowrap;
     }
 
-    .pill-prime   { background: #e8f0fe; color: #1a56db; }
-    .pill-coupon  { background: #fef9e7; color: #b7791f; border: 1px solid #f6e05e; }
-    .pill-return  { background: #f0fdf4; color: #166534; }
+    .pill-prime   { background: #C1BFFF; color: #351E45; border: 1px solid #aba8eb; }
+    .pill-coupon  { background: #98DBC6; color: #1b4d3c; border: 1px solid #81C9B2; }
+    .pill-return  { background: #FFA590; color: #5c2415; border: 1px solid #F28B73; }
 
     .stars {
       color: var(--gold);
@@ -234,7 +234,7 @@
       font-weight: 600;
     }
 
-    .na { color: #bbb; font-size: 0.8rem; }
+    .na { color: #877891; font-size: 0.8rem; }
 
     /* ── Empty / error state ─────────────────────────────────── */
     .state-box {
@@ -279,13 +279,13 @@
     .btn:hover { opacity: 0.85; }
     .btn:active { transform: translateY(1px); opacity: 0.75; }
 
-    .btn-primary { background: var(--teal); color: #fff; }
+    .btn-primary { background: var(--navy); color: #351E45; }
     .btn-ghost   { background: transparent; color: var(--teal); border: 1.5px solid var(--teal); margin-left: 0.75rem; }
 
     /* ── Footer ──────────────────────────────────────────────── */
     footer {
-      background: var(--navy);
-      color: rgba(250,247,242,0.55);
+      background: #BDB96A;
+      color: rgba(53,30,69,0.85);
       text-align: center;
       padding: 1.5rem;
       font-size: 0.8rem;
@@ -293,11 +293,11 @@
     }
 
     footer a {
-      color: rgba(250,247,242,0.7);
+      color: rgba(53,30,69,0.85);
       text-decoration: none;
     }
 
-    footer a:hover { color: var(--cream); }
+    footer a:hover { color: #351E45; }
 
     .footer-sep { margin: 0 0.5rem; }
 
@@ -653,7 +653,7 @@
 
     // Load from Supabase if ?id= is present
     if (shareId) {
-      main.innerHTML = '<p style="text-align:center;padding:3rem;color:#6b7280;">Loading comparison…</p>';
+      main.innerHTML = '<p style="text-align:center;padding:3rem;color:#877891;">Loading comparison…</p>';
       try {
         const parsed = await loadComparison(shareId);
         currentItems = parsed.items || [];

@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.8)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.11)
 'use strict';
 
 function auFeedbackUrl() {
@@ -798,6 +798,7 @@ const ITEM_UNITS = [
   var needsResort      = false;
   var srcFilter        = {};
   var logTimer         = null;
+  var kwDebounceTimer  = null;
   var minReviews       = 0;
   var minRating        = 0;
   var isLiquidDominant = false;

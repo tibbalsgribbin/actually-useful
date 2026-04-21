@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.10 (overall) · v0.6.1 (manifest) · v0.6.1.8 (search.js) · v0.6.1.10 (compare.html) · Updated April 20, 2026 (Chat 19)*
+*Current version: v0.6.1.11 (overall) · v0.6.1 (manifest) · v0.6.1.11 (search.js) · v0.6.1.10 (compare.html) · Updated April 21, 2026 (Chat 20)*
 
 ---
 
@@ -16,12 +16,13 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 | Tagline | Actually Useful: Amazon but better. |
 | Domain | actuallyuseful.net (Namecheap) — not yet pointed at GitHub Pages |
 | GitHub | github.com/tibbalsgribbin/actually-useful (public) |
-| GitHub Pages | tibbalsgribbin.github.io/actually-useful/ (live) |
+| GitHub Pages | tibbalsgribbling.github.io/actually-useful/ (live) |
 | Ko-fi | ko-fi.com/butactuallyuseful |
-| Email | amazon.butactuallyuseful@gmail.com |
+| Email | butactuallyuseful@gmail.com |
 | Google account | butactuallyuseful@gmail.com (InPrivate Edge only) |
 | Feedback form | https://forms.gle/XU8RpYM3cGFTwQQ86 |
 | Supabase | Actually Useful / actually-useful project, free tier |
+| Chrome Web Store | Developer account created (Chat 20) — unlisted submission pending |
 
 ---
 
@@ -72,7 +73,7 @@ Associates application deferred until real user base established.
 
 ## 5. Version Numbering
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.8** (search.js) / **v0.6.1.10** (compare.html)
+- Current: **v0.6.1** (manifest) / **v0.6.1.11** (search.js) / **v0.6.1.10** (compare.html)
 - Increments normally: v0.6.2, v0.7, etc.
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
@@ -85,6 +86,7 @@ Associates application deferred until real user base established.
 
 **Pages:**
 - `index.html` — marketing/landing page ✅ live
+- `privacy.html` — privacy policy ✅ live (added Chat 20)
 - `compare.html` — Actually Useful Comparisons ✅ live — comparison table, sortable columns, shareable links via Supabase (`?id=xxx`)
 - `search.html` — Actually Useful Searches (post-alpha)
 
@@ -156,7 +158,7 @@ Top to bottom:
 ### Keyword filtering
 - Inclusion, exclusion (`-word`), OR branches (`word1 OR word2` or `|`)
 - Mismatches dimmed to bottom — never hidden
-- 250ms debounce
+- 250ms debounce (kwDebounceTimer now correctly declared)
 
 ### Sponsored button — three-state cycle
 Move ads to end → Hide ads → Show ads
@@ -187,6 +189,8 @@ Sent via background.js (bypasses CSP). User can opt out via popup. Default on.
 ## 10. Known Issues / Deferred
 
 - **Product page panel** — disabled in manifest, deferred until post-alpha
+- **Laundry pods show wrong unit ($/lb)** — Amazon reports weight-based unit price; AU accepts it rather than calculating from count. Fix before public launch.
+- **Mixed units in same search** — cross-family sort may be occurring. Investigate.
 - **Best-value star ties** — appears to be working; keep an eye on with varied PPU data
 - **Page limit** — 7 pages in practice; not definitively researched
 - **Thumbnail images on load-more pages** — not available via fetch()
@@ -206,11 +210,12 @@ Sent via background.js (bypasses CSP). User can opt out via popup. Default on.
 | GitHub Pages | tibbalsgribbin.github.io/actually-useful/ (live) |
 | Project docs | `docs/` folder in GitHub repo |
 | Supabase | Actually Useful / actually-useful, free tier |
+| Chrome Web Store | Developer account created; unlisted submission pending |
 | Greasy Fork | v5.19.0 — frozen, no further updates |
 | Usage log | Google Sheet — payload relayed via background.js |
 | Feedback form | https://forms.gle/XU8RpYM3cGFTwQQ86 |
 | Ko-fi | ko-fi.com/butactuallyuseful |
-| Contact | amazon.butactuallyuseful@gmail.com |
+| Contact | butactuallyuseful@gmail.com |
 
 ---
 

@@ -12,14 +12,14 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --navy:        #0f1923;
-      --teal:        #1a8c7a;
-      --teal-mid:    #19a08c;
-      --cream:       #f5f1ea;
-      --warm:        #ede8df;
-      --text:        #2a3a48;
-      --muted:       #6b7e8e;
-      --rule:        #d8d2c8;
+      --navy:        #CF6DFC;
+      --teal:        #912c9e;
+      --teal-mid:    #da8cff;
+      --cream:       #FDFBD4;
+      --warm:        #f5eda0;
+      --text:        #351E45;
+      --muted:       #877891;
+      --rule:        #EAE6B6;
     }
 
     html { scroll-behavior: smooth; }
@@ -41,7 +41,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 1.1rem 2.5rem;
-      background: rgba(245,241,234,0.93);
+      background: rgba(253,251,212,0.95);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--rule);
@@ -85,7 +85,7 @@
       top: 0; right: 0;
       width: 50%;
       height: 100%;
-      background: radial-gradient(ellipse at 80% 35%, rgba(26,140,122,0.07) 0%, transparent 60%);
+      background: radial-gradient(ellipse at 80% 35%, rgba(207,109,252,0.07) 0%, transparent 60%);
       pointer-events: none;
     }
 
@@ -105,7 +105,7 @@
       color: var(--teal);
       margin-bottom: 1.6rem;
       padding-bottom: 0.55rem;
-      border-bottom: 1px solid rgba(26,140,122,0.4);
+      border-bottom: 1px solid rgba(207,109,252,0.35);
     }
 
     h1 {
@@ -207,7 +207,7 @@
     /* ─── WHY ─── */
     .why {
       background: var(--navy);
-      color: var(--cream);
+      color: var(--text);
       padding: 6rem 2.5rem;
     }
 
@@ -220,20 +220,20 @@
       align-items: start;
     }
 
-    .why h2        { color: var(--cream); }
+    .why h2        { color: var(--text); }
     .why .section-label { color: var(--teal-mid); }
 
     .why-body { padding-top: 0.5rem; }
 
     .why-body p {
       font-size: 1rem;
-      color: rgba(245,241,234,0.72);
+      color: rgba(53,30,69,0.82);
       line-height: 1.75;
       margin-bottom: 1.25rem;
     }
 
     .why-body p:last-child { margin-bottom: 0; }
-    .why-body strong { color: var(--cream); font-weight: 500; }
+    .why-body strong { color: var(--text); font-weight: 600; }
 
     /* ─── DETAILS ─── */
     .details {
@@ -293,7 +293,7 @@
       display: inline-block;
       padding: 0.85rem 2rem;
       background: var(--teal);
-      color: #fff;
+      color: var(--text);
       text-decoration: none;
       font-size: 0.88rem;
       font-weight: 500;
