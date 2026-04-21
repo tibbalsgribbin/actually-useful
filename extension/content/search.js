@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.11)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.12)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1594,6 +1594,9 @@ const ITEM_UNITS = [
     });
 
     // ── Shortlist bar: compare side by side ───────────────────────────────
+    var AU_SUPABASE_URL = 'https://bnqgeguulurcrbkdpfzv.supabase.co';
+    var AU_SUPABASE_KEY = 'sb_publishable_h70-MNvomO4EpJrpXgcdjw__motBOdi';
+
     if(compareBtn){
       compareBtn.addEventListener('click',function(){
         var asins=Object.keys(checkedAsins);
@@ -1612,10 +1615,51 @@ const ITEM_UNITS = [
             coupon:   r.hasCoupon?'Coupon':r.couponPillOnly?'Coupon (check Amazon)':r.sns?'Subscribe & Save':r.savings?r.savings:''
           };
         }).filter(Boolean);
+
         var searchTerm=(new URLSearchParams(window.location.search).get('k')||'').trim();
         var payload=JSON.stringify({items:items,searchTerm:searchTerm});
-        var encoded=encodeURIComponent(btoa(unescape(encodeURIComponent(payload))));
-        window.open('https://tibbalsgribbin.github.io/actually-useful/compare.html?data='+encoded,'_blank');
+
+        // Show loading state
+        var originalLabel=compareBtn.textContent;
+        compareBtn.textContent='Opening\u2026';
+        compareBtn.disabled=true;
+
+        // POST to Supabase, open compare page with returned id
+        fetch(AU_SUPABASE_URL+'/rest/v1/comparisons',{
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'apikey':AU_SUPABASE_KEY,
+            'Authorization':'Bearer '+AU_SUPABASE_KEY,
+            'Prefer':'return=representation'
+          },
+          body:JSON.stringify({data:payload})
+        })
+        .then(function(res){
+          if(!res.ok) throw new Error('Supabase error '+res.status);
+          return res.json();
+        })
+        .then(function(rows){
+          var id=rows&&rows[0]&&rows[0].id;
+          if(!id) throw new Error('No id returned');
+          window.open('https://tibbalsgribbin.github.io/actually-useful/compare.html?id='+id,'_blank');
+          compareBtn.textContent=originalLabel;
+          compareBtn.disabled=false;
+        })
+        .catch(function(){
+          compareBtn.textContent=originalLabel;
+          compareBtn.disabled=false;
+          if(compareHint){
+            compareHint.textContent='Couldn\u2019t open comparison \u2014 check your connection and try again.';
+            compareHint.style.display='block';
+            compareHint.style.color='#c94b2e';
+            setTimeout(function(){
+              compareHint.textContent='Select items to compare them.';
+              compareHint.style.color='';
+              compareHint.style.display=Object.keys(checkedAsins).length>0?'none':'block';
+            },4000);
+          }
+        });
       });
     }
 

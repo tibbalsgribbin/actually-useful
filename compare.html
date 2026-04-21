@@ -535,12 +535,23 @@
   }
 
   // ── Error state ───────────────────────────────────────────────
-  function renderError() {
+  function renderError(type) {
+    if (type === 'load-failed') {
+      return `
+        <div class="state-box">
+          <div class="icon">⚠️</div>
+          <h2>Couldn't load this comparison</h2>
+          <p>The link may have expired, or there was a problem reaching the server. If you still have the extension open, you can select your items again and click <strong>Compare selected items</strong> to create a new one.</p>
+          <a class="btn btn-primary" href="index.html">Back to home</a>
+        </div>
+      `;
+    }
+    // Default: no data at all
     return `
       <div class="state-box">
         <div class="icon">🛒</div>
         <h2>Nothing to compare yet</h2>
-        <p>This page shows your shortlisted Amazon items side by side. To use it, install the Actually Useful extension, shortlist some items while searching on Amazon, and click <strong>Compare side by side</strong>.</p>
+        <p>This page shows your shortlisted Amazon items side by side. To use it, install the Actually Useful extension, shortlist some items while searching on Amazon, and click <strong>Compare selected items</strong>.</p>
         <a class="btn btn-primary" href="index.html">Learn more</a>
         <a class="btn btn-ghost" href="https://github.com/tibbalsgribbin/actually-useful" target="_blank">Get the extension</a>
       </div>
@@ -659,10 +670,10 @@
         currentItems = parsed.items || [];
         currentSearchTerm = parsed.searchTerm || '';
       } catch (e) {
-        main.innerHTML = renderError();
+        main.innerHTML = renderError('load-failed');
         return;
       }
-      if (!currentItems.length) { main.innerHTML = renderError(); return; }
+      if (!currentItems.length) { main.innerHTML = renderError('load-failed'); return; }
       main.innerHTML = renderTable(currentItems, currentSearchTerm);
       attachSortHandlers();
       attachShareHandler('top-share-btn');
@@ -670,7 +681,7 @@
       return;
     }
 
-    // Otherwise decode ?data= as before
+    // Fallback: decode ?data= for old shared links
     if (!raw) {
       main.innerHTML = renderError();
       return;
@@ -688,12 +699,12 @@
         currentSearchTerm = parsed.searchTerm || '';
       }
     } catch (e) {
-      main.innerHTML = renderError();
+      main.innerHTML = renderError('load-failed');
       return;
     }
 
     if (!items || items.length === 0) {
-      main.innerHTML = renderError();
+      main.innerHTML = renderError('load-failed');
       return;
     }
 
