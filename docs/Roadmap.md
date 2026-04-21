@@ -4,17 +4,17 @@
 
 ---
 
-## Current version: v0.6.1.11
+## Current version: v0.6.1.12
 
 ---
 
 ## Known issues / needs testing
 
-- **Laundry pods show wrong unit ($/lb instead of $/ct)** — Amazon reports weight-based unit price; AU accepts it rather than calculating from count. Fix before public launch.
-- **Mixed units in results** — `/lb` and `/ct` appearing together in same search; cross-family sort may be occurring. Investigate.
-- **Best-value star tie handling** — appears to be working; keep an eye on with more varied PPU values
-- **Page limit** — 7 pages confirmed in practice but not definitively. Research whether limit varies by category/result count before committing to a higher UI cap.
-- Verify logging still reaching Google Sheet (confirmed working Chat 15)
+- **Palette redesign needed** — Lavender Fields applied but live result unsatisfactory. Use Claude Design tool for iteration before taking screenshots.
+- **Compare table blank columns** — Prime, full coupon detail, delivery range, retailer tag — fix scoped for Chat 22
+- **Laundry pods show wrong unit ($/lb instead of $/ct)** — fix before public launch
+- **Mixed units in results** — `/lb` and `/ct` appearing together; cross-family sort may be occurring
+- **Page limit** — 7 pages confirmed in practice but not definitively researched
 - actuallyuseful.net not yet pointed at GitHub Pages
 
 ---
@@ -51,7 +51,7 @@ When removing JS visibility toggling from an element, always check and update th
 Pause between "files produced" and "push to GitHub." Test first, commit after.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.11 (search.js) / v0.6.1.10 (compare.html)
+- Current: v0.6.1 (manifest) / v0.6.1.12 (search.js) / v0.6.1.12 (compare.html)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
@@ -61,33 +61,20 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 - After each session, download updated docs and put them in `docs/` before committing
 - Also update the Claude Project files (upload new versions)
 
-**Affiliate tags:**
-- Website only — never in the extension
-- Amazon policy explicitly forbids affiliate tags in browser extensions
+**Affiliate tags:** Website only — never in the extension.
 
-**Amazon Associates disclaimer (from Chat 16):**
-- Every page gets: "This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you."
-- Standing rule: goes on every page whether or not affiliate links are live
+**Amazon Associates disclaimer (from Chat 16):** Every page gets the disclaimer. Standing rule.
 
 **Data format between extension and compare.html:**
-- search.js sends raw numbers for price and ppu (not formatted strings)
-- compare.html handles all formatting
+- search.js sends raw numbers for price and ppu — compare.html handles all formatting
 
-**Supabase (from Chat 18):**
-- Project: Actually Useful / actually-useful, free tier
+**Supabase (from Chat 18, updated Chat 21):**
 - Table: `comparisons` — id (int8), created_at (timestamptz), data (text), RLS disabled
-- Publishable key and URL are in compare.html config constants
+- compare.html loads via ?id= (primary); ?data= Base64 kept as fallback for old links
+- Extension POSTs shortlist to Supabase on Compare click — no item limit
 - Never use the secret key in browser code
 
-**Feedback form (from Chat 19):**
-- Form URL: https://forms.gle/XU8RpYM3cGFTwQQ86
-- Entry IDs: version = entry.1362282898 · browser = entry.1312500883
-- Pre-fill uses full viewform URL — forms.gle shortlinks don't support pre-fill
-
-**Screenshot method (from Chat 20):**
-- DevTools → Toggle device emulation → 1280×800 → Ctrl+Shift+P → "Capture screenshot"
-- Saves to Downloads as PNG, no browser chrome included
-- Do NOT use laundry pods for unit price screenshot (wrong units bug)
+**Claude Design tool:** Use for iterative visual/palette work — doesn't count against message limits.
 
 **How to know this session is going wrong:**
 - Melissa is being asked to hold multiple things in her head at once
@@ -99,16 +86,19 @@ Two of these = stop and wrap up.
 **End of every session:**
 1. Present all changed files for download
 2. Give Melissa a suggested GitHub commit message
-3. Remind Melissa to push to GitHub (pull → stage → commit → push)
-4. Update project documents (Briefing, Changelog, Roadmap, Handover) — download and put in `docs/`
+3. Remind Melissa to push to GitHub
+4. Update project documents — download and put in `docs/`
 5. Remind Melissa to update project files in Claude after the push
 
 ---
 
 ## Next session priorities (in order)
 
-1. **Screenshots (5)** — DevTools capture method, see Handover for lineup
-2. **Chrome Web Store submission** — unlisted listing
+1. **Compare table payload fixes** (search.js) — isPrime, full coupon fields, delivery range, retailerKey
+2. **Compare table rendering** (compare.html) — display the new fields
+3. **Palette redesign** — use Claude Design tool, then apply to CSS
+4. **Screenshots** — blocked on palette
+5. **Chrome Web Store submission** — blocked on screenshots
 
 ---
 
@@ -120,113 +110,73 @@ Two of these = stop and wrap up.
 - [x] Minimum rating filter fixed (Chat 13)
 - [x] product.js disabled in manifest (Chat 13)
 - [x] Affiliate tag machinery removed from core.js (Chat 13)
-- [x] Show Selected / Clear Selection reworked (Chat 13)
-- [x] Ko-fi link fixed in nudge (Chat 14)
+- [x] Ko-fi link fixed (Chat 14)
 - [x] Page-fetch throttling (Chat 14)
 - [x] auSendLog moved to background.js (Chat 14)
 - [x] Telemetry opt-out toggle + popup (Chat 14)
 - [x] Feedback form verified (Chat 15)
-- [x] Manifest warning fixed (Chat 15)
 - [x] Landing page live (Chat 15)
 - [x] compare.html built (Chat 16)
-- [x] Affiliate disclaimer on every page (Chat 16)
-- [x] Compare button added to shortlist bar; open-in-tabs removed (Chat 17)
-- [x] Gmail-style select-all dropdown (Chat 17)
-- [x] Price/PPU NaN bug fixed in compare.html (Chat 17)
-- [x] Best-value tie handling in compare.html (Chat 18)
-- [x] Supabase setup + shareable links (Chat 18)
-- [x] Affiliate note reordered + reworded (Chat 19)
-- [x] Feedback form pre-fill — extension + comparison page (Chat 19)
-- [x] Keyword filter bug fixed — kwDebounceTimer undeclared (Chat 20)
+- [x] Compare button + Gmail select-all (Chat 17)
+- [x] Supabase shareable links (Chat 18)
+- [x] Feedback form pre-fill (Chat 19)
+- [x] Keyword filter bug fixed (Chat 20)
 - [x] privacy.html built (Chat 20)
-- [x] index.html Privacy footer link added (Chat 20)
+- [x] Supabase compare — no item limit (Chat 21)
+- [x] renderError split into two states (Chat 21)
+- [x] Lavender Fields palette applied (Chat 21) — needs redesign
 
 ### Alpha release — blockers
-- [ ] Screenshots (5) — next session
+- [ ] Palette redesign (Claude Design tool)
+- [ ] Screenshots (5)
 - [ ] Chrome Web Store submission (unlisted)
-- [ ] Test extension on a different setup (Mac or Chrome vs Edge)
+- [ ] Test on a different setup (Mac or Chrome vs Edge)
 
 ### Infrastructure — pending
 - [x] docs/ folder in GitHub repo
 - [x] GitHub Pages enabled
 - [x] Landing page live
 - [x] compare.html live
-- [x] privacy.html live (after this push)
+- [x] privacy.html live
 - [x] Supabase account + comparisons table
 - [x] Chrome Web Store developer account ($5 paid)
 - [ ] actuallyuseful.net pointed at GitHub Pages
 - [ ] Create Amazon account (prerequisite for Associates)
 - [ ] Apply for Amazon Associates (after real user base established)
 
+### Compare table — Chat 22
+- [ ] isPrime field in payload + rendering
+- [ ] Full coupon/savings fields in payload + rendering
+- [ ] Delivery range (freeDate + fastDate + qualifier) in payload + rendering
+- [ ] Retailer/source tag in payload + rendering
+
+### Persistent research session — Chat 22/23
+- [ ] localStorage for working comparison state on compare.html
+- [ ] Inline notes editing on compare.html
+- [ ] Tab messaging: extension appends items to open compare tab
+- [ ] "Save & share" button → Supabase → permanent link
+
 ### Post-alpha (v0.7+)
 
 **Extension**
-- [ ] Laundry pods / wrong unit bug — investigate and fix
-- [ ] Mixed unit cross-family sort — investigate
-- [ ] Product page re-enabled (tested against current Amazon first)
-- [ ] Cross-page shortlist state persistence (chrome.storage.local)
+- [ ] Laundry pods / wrong unit bug
+- [ ] Mixed unit cross-family sort investigation
+- [ ] Product page re-enabled
+- [ ] Cross-page shortlist persistence (chrome.storage.local)
 - [ ] Two-way extension ↔ website connection
-- [ ] Frequently Returned badge — make it red (deferred until product.js re-enabled)
-- [ ] Derive per-item price from total ÷ count when Amazon reports wrong unit
-- [ ] Keyword length expression normalization ("6ft" vs "6 feet")
-- [ ] Exclusion possessives (`-men` not matching "men's")
-- [ ] Fix nudge firing on hyphenated keywords (e.g. "t-shirt")
-- [ ] "Start over" button — reset `selectedUnit`
-- [ ] Re-scan: preserve shortlist on same-term re-scans
-- [ ] Contribution nudge (30-day floor, usage trigger, permanent dismiss)
+- [ ] Frequently Returned badge — red (deferred until product.js re-enabled)
+- [ ] Contribution nudge
 - [ ] Walmart version
 - [ ] Settings/onboarding page
-- [ ] IIFE wrapping of scripts (pre-Web Store submission)
-- [ ] Replace `.innerHTML` row template with `document.createElement` (pre-Web Store submission)
-- [ ] Badge text on toolbar icon — shortlist count via `chrome.action.setBadgeText`
-- [ ] Research and confirm page limit (7 pages — needs verification)
+- [ ] IIFE wrapping (pre-Web Store)
+- [ ] Replace .innerHTML with createElement (pre-Web Store)
+- [ ] Badge text on toolbar icon
 
-**Website — Actually Useful Comparisons**
-- [x] Basic comparison table (Chat 16)
-- [x] Sortable columns (Chat 16)
-- [x] Works for users who arrive via shared link without the extension (Chat 16)
-- [x] Price/PPU formatting fixed (Chat 17)
-- [x] Best-value star on all tied items (Chat 18)
-- [x] Shareable permanent links via Supabase (Chat 18)
-- [x] Affiliate note reordered + reworded (Chat 19)
-- [ ] Per-item notes persisted to URL
+**Website**
+- [ ] Per-item notes persisted to URL / localStorage
 - [ ] Keepa price history link per item
-- [ ] soldBy / shipsFrom / returnPolicy / prime — populate when product.js re-enabled
-
-**Website — Actually Useful Searches**
-- [ ] Build forms for queries Amazon makes hard
-- [ ] Search URL state preserved — bookmarkable and shareable
-- [ ] Validate with real users before committing to build
-
----
-
-## Post-alpha feature batch: hidden data capture
-
-- [ ] SNAP eligible flag
-- [ ] Small Business badge
-- [ ] Condition (New / Used / Renewed)
-- [ ] "Amazon's Choice" label — with transparency note
-- [ ] Best Seller badge + category
-
----
-
-## Post-alpha feature batch: review integrity + price history
-
-- [ ] Mild caution signal for statistically improbable ratings
-- [ ] Contextual nudge to Fakespot / ReviewMeta on flagged items
-- [ ] Keepa price history link per card
-
----
-
-## Website — architecture
-
-**Platform:** GitHub Pages (static, free, uses existing repo) + Supabase (free database tier).
-
-**Three website components:**
-- `index.html` — marketing/landing page ✅ live
-- `privacy.html` — privacy policy ✅ live (after this push)
-- `compare.html` — Actually Useful Comparisons ✅ live with shareable links
-- `search.html` — Actually Useful Searches (post-alpha)
+- [ ] soldBy / shipsFrom / returnPolicy — populate when product.js re-enabled
+- [ ] Power search form (Jungle Search model)
 
 ---
 
@@ -243,3 +193,4 @@ Two of these = stop and wrap up.
 - Affiliate tags on website only — never in extension
 - Affiliate disclosure on every page — whether or not affiliate links are live
 - search.js sends raw numbers to compare.html — compare.html handles all formatting
+- Claude Design tool is the right place for iterative visual/palette work

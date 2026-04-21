@@ -1,113 +1,117 @@
-# Session Handover — April 21, 2026 (Chat 20)
+# Session Handover — April 21, 2026 (Chat 21)
 
 ## What we did this session
 
-1. **Chrome Web Store strategy decided**
-   - Going with unlisted Store listing (not sideloaded alpha)
-   - Unlisted = goes through review, not publicly discoverable, share direct link with testers
-   - Auto-updates are a key advantage over sideloading
-   - Edge users covered automatically — Chrome Web Store extensions install on Edge natively
-   - Affiliate links: can't apply for Associates yet; add tag to compare.html after approval, don't block on it
+1. **Palette pivot — Lavender Fields design system**
+   - Melissa found a new colour scheme and wanted to try it before taking screenshots
+   - Built an HTML preview artifact (extension panel mock + website strip) and iterated on it through several rounds of feedback
+   - Final palette decisions:
+     - Header (panel + website nav): Orchid (#CF6DFC)
+     - Shortlist bar + footer bar + section dividers: Gold (#BDB96A)
+     - Panel/page background: White (#FFFFFF)
+     - Cards, rows, control areas: Pale Yellow (#FDFBD4)
+     - Best value row: More vivid yellow (#f5eda0)
+     - White used ONLY for text inputs, dropdowns, and checkboxes (unchecked)
+     - Checked checkboxes: Orchid
+     - Feature cards on website: Periwinkle (#C1BFFF)
+     - Comparison table cells: White (intentional)
+   - Applied to styles.css, index.html, compare.html
+   - Note: Melissa was not satisfied with the result on the actual extension ("lmao. that's something. Not something good.") — will revisit with Claude Design tool
 
-2. **Developer account created**
-   - butactuallyuseful@gmail.com, $5 fee paid, InPrivate Edge
+2. **Supabase compare — removed URL length limit**
+   - Old approach: Base64 encoded items into ?data= URL parameter — broke at ~6 items
+   - New approach: POST shortlist to Supabase on Compare click, open compare.html?id=xxx
+   - Tested with 50 items — worked perfectly
+   - Button shows "Opening…" while POST is in flight
+   - On Supabase failure: error message in shortlist bar for 4 seconds, then resets
+   - Old ?data= fallback preserved in compare.html for existing shared links
+   - renderError() split into two states: "nothing to compare" vs "couldn't load"
 
-3. **Privacy policy written and published (privacy.html — new file)**
-   - Matches index.html styling exactly (same fonts, colors, nav, footer)
-   - Covers: telemetry collection and opt-out, comparison page data, affiliate links, contact
-   - Contact email: butactuallyuseful@gmail.com
-   - Goes in repo root alongside index.html and compare.html
-
-4. **index.html updated**
-   - Privacy link added to footer
-
-5. **Store descriptions written**
-   - Short (107 chars): "Sort Amazon by unit price, filter results, shortlist products, and shop on your terms. Free, always."
-   - Long description: written this session — saved in session notes, not in a file. Claude can regenerate from Handover if needed.
-
-6. **Screenshots planned (5, not yet taken)**
-   - Method: DevTools device emulator → 1280×800 → Ctrl+Shift+P → "Capture screenshot" → saves to Downloads as PNG, no browser chrome
-   - Lineup: (1) unit price sort, (2) keyword filter active, (3) shortlist with Compare button, (4) comparison table on website, (5) multi-page + source filter
-   - Do NOT use laundry pods for unit price screenshot — bug present (wrong units shown)
-   - Olive oil or paper towels recommended for unit price shot
-
-7. **Keyword filter bug fixed (search.js → v0.6.1.11)**
-   - `kwDebounceTimer` was never declared — render() wasn't firing on keystrokes
-   - Fix: `var kwDebounceTimer = null;` added to state block
-   - Confirmed working by Melissa
+3. **Scoped next major feature: persistent research session**
+   - Melissa identified that the comparison table is a dead end — no way to add items from a new search, no notes input, several columns blank
+   - Blank columns diagnosed:
+     - Prime: scraped into cardText only, not as a boolean field — needs promoting
+     - Coupon/savings detail: collapsed into one string in payload — needs sending separately
+     - Delivery: only freeDate sent, not fastDate or qualifier — needs full range
+     - Source/retailer: not in payload — needs adding
+     - Sold by / Ships from / Returns: genuinely require product page — deferred
+   - Decision: build Option C (localStorage working session + explicit Supabase share)
+   - Tab messaging (extension → open compare tab to append items) identified as the hard piece
+   - Session ended before implementation began — this is Chat 22's main task
 
 ---
 
 ## ⚠️ Start of next session
 
-1. Melissa uploads fresh code files from GitHub as actual file uploads: search.js, index.html, compare.html
-2. Claude confirms version strings: `0.6.1` (manifest) · `0.6.1.11` (search.js header) · `0.6.1.10` (compare.html)
+1. Melissa uploads fresh search.js and compare.html from GitHub as actual file uploads
+2. Claude confirms version strings: manifest `0.6.1` · search.js `0.6.1.12` · compare.html `0.6.1.12` (both bumped this session)
 3. Confirm scope before touching any files
 4. Ask Melissa if she has fresh testing observations
 
 ---
 
-## Known issues / bugs noted this session
+## Known issues / bugs
 
-- **Laundry pods show wrong unit ($/lb instead of $/ct)** — Amazon reports weight-based unit price on these listings; AU accepts it rather than calculating from count. Log for pre-launch fixing.
-- **Mixed units in results** — `/lb` and `/ct` appearing together in same search suggests cross-family sorting may be happening. Investigate when next in code.
-
----
-
-## Next session agenda (Chat 21)
-
-1. Take 5 screenshots using DevTools capture method
-2. Submit extension to Chrome Web Store as unlisted listing
-3. Write Store listing copy into the dashboard
+- **Palette not working well on actual extension** — preview looked one way, live extension looked bad. Needs redesign session using Claude Design tool before screenshots can be taken.
+- **Laundry pods show wrong unit ($/lb instead of $/ct)** — ongoing
+- **Mixed units in results** — cross-family sort may be occurring
+- **Compare table blank columns** — Prime, full coupon detail, delivery range, retailer source — fix is scoped, not yet built
 
 ---
 
-## Store submission checklist (for reference)
+## Next session agenda (Chat 22)
 
-- [x] Developer account created
-- [x] Privacy policy at a URL (privacy.html live after this push)
-- [x] Short description written
-- [x] Long description written
-- [x] Icon 128×128px PNG (already in extension)
-- [x] Category: Shopping
-- [ ] Screenshots (5) — next session
-- [ ] Submit as Unlisted
-- [ ] Create Amazon account (prerequisite for Associates)
-- [ ] Apply for Amazon Associates (after real user base established)
+**Main task: compare table payload + persistent research session**
+
+Phase 1 — payload fixes (search.js):
+1. Add `isPrime` boolean field to data object (already detected in scrapeCardText, just needs promoting)
+2. Send coupon fields separately: `hasCoupon`, `couponPillOnly`, `sns`, `savings` (not collapsed)
+3. Send full delivery: `freeDate`, `fastDate`, `freeQualifier` — not just one formatted string
+4. Send `retailerKey` (retailer.key) for source tag display
+
+Phase 2 — compare.html rendering:
+5. Render Prime pill from `isPrime`
+6. Render full coupon/savings detail
+7. Render delivery range (free + fast if both present)
+8. Render source tag (WF, Fresh, Pharmacy, etc.)
+
+Phase 3 — persistent session (bigger work, may be Chat 23):
+9. localStorage for working comparison state
+10. Inline notes editing on compare.html
+11. Tab messaging so extension can append to open compare tab
+12. Explicit "Save & share" button → Supabase → permanent link
 
 ---
 
 ## Progress snapshot
 
 ### ✅ Recently done
+- Supabase compare — no item limit (Chat 21)
+- renderError split into two states (Chat 21)
+- Lavender Fields palette applied to styles.css, index.html, compare.html (Chat 21) — needs redesign
 - Keyword filter bug fixed (Chat 20)
 - privacy.html built (Chat 20)
-- index.html Privacy footer link added (Chat 20)
-- Store descriptions written (Chat 20)
 - Developer account created (Chat 20)
-- Feedback form pre-fill — extension + comparison page (Chat 19)
-- Affiliate note reordered + reworded (Chat 19)
-- Supabase shareable links (Chat 18)
-- Best-value tie handling fixed (Chat 18)
 
-### 🔜 Next up — Chat 21
-1. Screenshots (5) — DevTools capture method
-2. Chrome Web Store submission (unlisted)
+### 🔜 Next up — Chat 22
+1. Compare table payload fixes (Prime, coupon detail, delivery range, retailer)
+2. Compare table rendering updates
+3. Begin persistent research session architecture
 
 ### 🔭 Further out (pre-alpha)
-- Research page limit (7 pages confirmed in practice, not definitively)
-- Laundry pods / wrong unit bug
-- Mixed unit cross-family sort investigation
+- Screenshots (5) — blocked on palette redesign
+- Chrome Web Store submission — blocked on screenshots
+- Palette redesign using Claude Design tool
+- Research page limit
 
 ### 🔭 Further out (post-alpha)
-- Power search form (Jungle Search model)
+- Power search form
 - Product page re-enabled
-- Cross-page shortlist persistence (chrome.storage.local)
+- Cross-page shortlist persistence
 - Two-way extension ↔ website connection
-- Hidden data capture batch (SNAP, Small Business, Condition, Amazon's Choice, Best Seller)
-- Review integrity signals + Keepa price history links
-- Badge text on toolbar icon (shortlist count)
-- Contribution nudge
+- Hidden data capture batch
+- Review integrity signals + Keepa links
+- Sold by / Ships from in compare table (requires product page)
 - Walmart version
 
 ---
@@ -121,7 +125,7 @@
 - Use AskUserQuestion widget for clarifying questions
 - All Google tasks: InPrivate Edge + butactuallyuseful@gmail.com
 - Context rot: stop and wrap up rather than pushing through
-- Version: manifest `0.6.1` · search.js header `0.6.1.11` · compare.html `0.6.1.10`
+- Version: manifest `0.6.1` · search.js `0.6.1.12` · compare.html `0.6.1.12`
 - Always provide a suggested GitHub commit message at end of session
 - Always include context/token status when asking "continue or wrap up?"
 - Bundle small changes together rather than shipping each one separately
@@ -131,25 +135,27 @@
 - The Comparisons page must work for users who arrive via shared link without the extension
 - actuallyuseful.net is not yet pointed at GitHub Pages
 - Amazon Associates disclaimer goes on every page — standing rule from Chat 16
-- compare.html is in the repo root (not in a subfolder)
+- compare.html is in the repo root
 - privacy.html is in the repo root
-- search.js sends raw numbers to compare.html (not formatted strings)
+- search.js sends raw numbers to compare.html — compare.html handles all formatting
 - Supabase secret key never goes in browser code — publishable key only
 - Feedback form pre-fill uses full viewform URL, not forms.gle shortlink
 - Feedback form entry IDs: version = entry.1362282898 · browser = entry.1312500883
 - Screenshot method: DevTools → device emulator → 1280×800 → Ctrl+Shift+P → "Capture screenshot"
 - Do NOT use laundry pods for unit price screenshot (wrong units bug)
+- Claude Design tool is the right place for iterative visual/palette work — doesn't count against message limits
+- compare.html now loads via ?id= (Supabase) by default; ?data= fallback kept for old links
 
 ---
 
 ## Suggested commit message
-`v0.6.1.11 — keyword filter bug fixed, privacy.html added, index.html footer updated`
+`v0.6.1.12 — Supabase compare (no item limit), Lavender Fields palette, error states`
 
 ## End-of-session checklist
-- [x] Handover.md — written
-- [x] Changelog.md — updated
-- [x] Roadmap.md — updated
-- [x] Project_Briefing.md — updated
+- [ ] Handover.md — written
+- [ ] Changelog.md — updated
+- [ ] Roadmap.md — updated
+- [ ] Project_Briefing.md — updated
 - [ ] Melissa puts updated docs in `docs/` folder in GitHub
 - [ ] Melissa commits and pushes via GitHub Desktop (pull → stage → commit → push)
 - [ ] Melissa updates project files in Claude Project (upload new versions)
