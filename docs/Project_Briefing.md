@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.9 (overall) · v0.6.1 (manifest) · v0.6.1.8 (search.js) · v0.6.1.9 (compare.html) · Updated April 20, 2026 (Chat 18)*
+*Current version: v0.6.1.10 (overall) · v0.6.1 (manifest) · v0.6.1.8 (search.js) · v0.6.1.10 (compare.html) · Updated April 20, 2026 (Chat 19)*
 
 ---
 
@@ -20,7 +20,7 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 | Ko-fi | ko-fi.com/butactuallyuseful |
 | Email | amazon.butactuallyuseful@gmail.com |
 | Google account | butactuallyuseful@gmail.com (InPrivate Edge only) |
-| Feedback form | https://forms.gle/J3AECVTDHWKDZZKE7 |
+| Feedback form | https://forms.gle/XU8RpYM3cGFTwQQ86 |
 | Supabase | Actually Useful / actually-useful project, free tier |
 
 ---
@@ -64,7 +64,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 **Affiliate link policy:** Affiliate tags are applied on the website only — never in the extension. Amazon's policy explicitly forbids affiliate tags in browser extensions.
 
-**Amazon Associates disclosure:** Every page must display: *"As an Amazon Associate I earn from qualifying purchases. Links on this page support Actually Useful — and don't cost you anything extra."* Standing rule: this disclaimer goes on every page, whether or not affiliate links are live.
+**Affiliate disclosure:** Every page must display: *"This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you."* Standing rule: this disclaimer goes on every page, whether or not affiliate links are live.
 
 Associates application deferred until real user base established.
 
@@ -72,7 +72,7 @@ Associates application deferred until real user base established.
 
 ## 5. Version Numbering
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.8** (search.js) / **v0.6.1.9** (compare.html)
+- Current: **v0.6.1** (manifest) / **v0.6.1.8** (search.js) / **v0.6.1.10** (compare.html)
 - Increments normally: v0.6.2, v0.7, etc.
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
@@ -81,7 +81,7 @@ Associates application deferred until real user base established.
 
 ## 6. Website Architecture
 
-**Platform:** GitHub Pages + Supabase (free tier).
+**Platform:** GitHub Pages (static, free, uses existing repo) + Supabase (free tier).
 
 **Pages:**
 - `index.html` — marketing/landing page ✅ live
@@ -93,19 +93,18 @@ Associates application deferred until real user base established.
 - Table: `comparisons` — id (int8), created_at (timestamptz), data (text), RLS disabled
 - Publishable key and project URL stored in compare.html config constants
 - Secret key: never goes in browser code
-- Save: POST to `/rest/v1/comparisons`, returns row id
-- Load: GET `/rest/v1/comparisons?id=eq.{id}&select=data`
+
+**Feedback form:**
+- URL: https://forms.gle/XU8RpYM3cGFTwQQ86
+- Pre-fill entry IDs: version = entry.1362282898 · browser = entry.1312500883
+- Must use full viewform URL for pre-fill — forms.gle shortlinks don't support it
+- search.js: `auFeedbackUrl()` pre-fills AU_VERSION + detected browser
+- compare.html: inline script pre-fills "website" + detected browser
 
 **Key decisions:**
 - The Comparisons page must work for users who arrive via shared link without the extension
 - Two-way extension ↔ website connection is post-alpha
 - Affiliate tags on website only — never in extension
-
-**URL bridge format (entry point from extension):**
-```js
-const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify({ items: shortlistArray, searchTerm: "..." })))));
-const url = `https://tibbalsgribbin.github.io/actually-useful/compare.html?data=${encoded}`;
-```
 
 ---
 
@@ -178,10 +177,9 @@ Parses free/fastest delivery, windows, cutoff times. WF free delivery excluded f
 Sent via background.js (bypasses CSP). User can opt out via popup. Default on.
 
 ### Shareable comparison links
-- Share button in meta bar and below table
+- Share button above affiliate note
 - First click: saves to Supabase, updates URL to `?id=xxx`, copies link
 - Subsequent clicks: reuses existing id, re-copies
-- Button resets to "Share this comparison" after 2.5s
 - Works for users arriving without the extension
 
 ---
@@ -197,8 +195,6 @@ Sent via background.js (bypasses CSP). User can opt out via popup. Default on.
 - **Frequently Returned badge** — bold only; red deferred until product.js re-enabled
 - **actuallyuseful.net** — not yet pointed at GitHub Pages
 - **compare.html soldBy/shipsFrom/returnPolicy/prime** — blank until product.js re-enabled
-- **Affiliate note position** — currently above Share button; should be below. Minor CSS, deferred.
-- **Feedback form pre-fill** — browser/version info not yet captured automatically
 
 ---
 
@@ -212,7 +208,7 @@ Sent via background.js (bypasses CSP). User can opt out via popup. Default on.
 | Supabase | Actually Useful / actually-useful, free tier |
 | Greasy Fork | v5.19.0 — frozen, no further updates |
 | Usage log | Google Sheet — payload relayed via background.js |
-| Feedback form | https://forms.gle/J3AECVTDHWKDZZKE7 |
+| Feedback form | https://forms.gle/XU8RpYM3cGFTwQQ86 |
 | Ko-fi | ko-fi.com/butactuallyuseful |
 | Contact | amazon.butactuallyuseful@gmail.com |
 
@@ -229,7 +225,7 @@ Sent via background.js (bypasses CSP). User can opt out via popup. Default on.
 - Copy tone: warm, direct, personal. "doesn't" not "won't"
 - The website must work for users who arrive without the extension
 - Affiliate tags on website only — never in extension
-- Amazon Associates disclaimer on every page — whether or not affiliate links are live
+- Affiliate disclosure on every page — whether or not affiliate links are live
 - search.js sends raw numbers to compare.html — compare.html handles all formatting
 
 ---

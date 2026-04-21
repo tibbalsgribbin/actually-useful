@@ -4,16 +4,16 @@
 
 ---
 
-## Current version: v0.6.1.9
+## Current version: v0.6.1.10
 
 ---
 
 ## Known issues / needs testing
 
-- **Best-value star tie handling** — appears to be working with test data; keep an eye on with more varied PPU values
+- **Best-value star tie handling** — appears to be working; keep an eye on with more varied PPU values
 - **Page limit** — 7 pages confirmed in practice but not definitively. Research whether limit varies by category/result count before committing to a higher UI cap.
 - Verify logging still reaching Google Sheet (confirmed working Chat 15)
-- actuallyuseful.net not yet pointed at GitHub Pages — currently resolves to tibbalsgribbin.github.io/actually-useful/
+- actuallyuseful.net not yet pointed at GitHub Pages
 
 ---
 
@@ -49,7 +49,7 @@ When removing JS visibility toggling from an element, always check and update th
 Pause between "files produced" and "push to GitHub." Test first, commit after.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.9 (internal AU_VERSION / search.js header)
+- Current: v0.6.1 (manifest) / v0.6.1.8 (search.js) / v0.6.1.10 (compare.html)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
@@ -64,8 +64,8 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 - Amazon policy explicitly forbids affiliate tags in browser extensions
 
 **Amazon Associates disclaimer (from Chat 16):**
-- Every page gets this disclaimer at the bottom, whether or not affiliate links are live:
-- "As an Amazon Associate I earn from qualifying purchases. Links on this page support Actually Useful — and don't cost you anything extra."
+- Every page gets: "This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you."
+- Standing rule: goes on every page whether or not affiliate links are live
 
 **Data format between extension and compare.html:**
 - search.js sends raw numbers for price and ppu (not formatted strings)
@@ -76,6 +76,11 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 - Table: `comparisons` — id (int8), created_at (timestamptz), data (text), RLS disabled
 - Publishable key and URL are in compare.html config constants
 - Never use the secret key in browser code
+
+**Feedback form (from Chat 19):**
+- Form URL: https://forms.gle/XU8RpYM3cGFTwQQ86
+- Entry IDs: version = entry.1362282898 · browser = entry.1312500883
+- Pre-fill uses full viewform URL — forms.gle shortlinks don't support pre-fill
 
 **How to know this session is going wrong:**
 - Melissa is being asked to hold multiple things in her head at once
@@ -95,9 +100,9 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **Affiliate note position** — move it below the Share button (minor CSS tweak, bundle with next change)
-2. **Pre-fill feedback form with browser/version info** — extension opens form URL with query params pre-filling version + browser fields
-3. **Alpha tester recruitment** — decide timing and approach
+1. **Alpha tester recruitment** — decide timing and approach
+2. **Test extension on a different setup** (Mac or Chrome vs Edge)
+3. **Decide: Chrome Web Store submission before or after alpha?**
 
 ---
 
@@ -118,15 +123,14 @@ Two of these = stop and wrap up.
 - [x] Manifest warning fixed (Chat 15)
 - [x] Landing page live (Chat 15)
 - [x] compare.html built (Chat 16)
-- [x] Affiliate disclaimer corrected to Amazon Associates required wording (Chat 16)
+- [x] Affiliate disclaimer on every page (Chat 16)
 - [x] Compare button added to shortlist bar; open-in-tabs removed (Chat 17)
 - [x] Gmail-style select-all dropdown (Chat 17)
 - [x] Price/PPU NaN bug fixed in compare.html (Chat 17)
 - [x] Best-value tie handling in compare.html (Chat 18)
 - [x] Supabase setup + shareable links (Chat 18)
-- [ ] Affiliate note position — below Share button (minor, bundle with next change)
-- [ ] Pre-fill feedback form with browser/version info
-- [ ] Amazon unit price flagging — deferred, needs diagnostic first
+- [x] Affiliate note reordered + reworded (Chat 19)
+- [x] Feedback form pre-fill — extension + comparison page (Chat 19)
 
 ### Alpha release — blockers
 - [ ] Test extension on a different setup (Mac or Chrome vs Edge)
@@ -158,7 +162,7 @@ Two of these = stop and wrap up.
 - [ ] "Start over" button — reset `selectedUnit`
 - [ ] Re-scan: preserve shortlist on same-term re-scans
 - [ ] Contribution nudge (30-day floor, usage trigger, permanent dismiss)
-- [ ] Wallet version
+- [ ] Walmart version
 - [ ] Settings/onboarding page
 - [ ] IIFE wrapping of scripts (pre-Web Store submission)
 - [ ] Replace `.innerHTML` row template with `document.createElement` (pre-Web Store submission)
@@ -172,7 +176,7 @@ Two of these = stop and wrap up.
 - [x] Price/PPU formatting fixed (Chat 17)
 - [x] Best-value star on all tied items (Chat 18)
 - [x] Shareable permanent links via Supabase (Chat 18)
-- [ ] Affiliate note position — below Share button
+- [x] Affiliate note reordered + reworded (Chat 19)
 - [ ] Per-item notes persisted to URL
 - [ ] Keepa price history link per item
 - [ ] soldBy / shipsFrom / returnPolicy / prime — populate when product.js re-enabled
@@ -209,27 +213,20 @@ Two of these = stop and wrap up.
 **Three website components:**
 - `index.html` — marketing/landing page ✅ live
 - `compare.html` — Actually Useful Comparisons ✅ live with shareable links
-- `search.html` — Actually Useful Searches
-
-**Sequencing:**
-1. Comparisons page first — closes monetization loop, drives share-induced installs ✅
-2. Supabase shareable links ✅
-3. Searches page third — validate with real users before building
+- `search.html` — Actually Useful Searches (post-alpha)
 
 ---
 
 ## Design principles
 
 - Fill gaps in Amazon's interface — don't duplicate what Amazon already does well
-- Don't duplicate what established tools do well — surface them instead
 - Wrong numbers are worse than no numbers
 - Never drop results — sort what is rendered
 - User intent matters more than physical precision
 - One continuous app — state flows naturally between pages
-- Consistent UI chrome — same header on every panel
 - Use Melissa's exact wording for UI copy
 - Copy tone: warm, direct, personal. "doesn't" not "won't"
 - The website must work for users who arrive without the extension
 - Affiliate tags on website only — never in extension
-- Amazon Associates disclaimer on every page — whether or not affiliate links are live
+- Affiliate disclosure on every page — whether or not affiliate links are live
 - search.js sends raw numbers to compare.html — compare.html handles all formatting

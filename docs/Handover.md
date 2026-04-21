@@ -1,36 +1,27 @@
-# Session Handover — April 20, 2026 (Chat 18)
+# Session Handover — April 20, 2026 (Chat 19)
 
 ## What we did this session
 
-1. **Supabase setup**
-   - Created Supabase account (via GitHub), organisation "Actually Useful", project "actually-useful", free tier
-   - Created `comparisons` table: id (int8), created_at (timestamptz), data (text), RLS disabled
-   - Obtained publishable key (`sb_publishable_h70-...`) and project URL
+1. **Affiliate note reordered and reworded (compare.html)**
+   - Share button now above affiliate note (was below)
+   - New wording: "This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you."
 
-2. **Shareable links added to compare.html**
-   - `saveComparison()` — POSTs items + searchTerm to Supabase, returns row id
-   - `loadComparison()` — fetches by id, returns stored comparison
-   - `init()` checks for `?id=` first; falls back to `?data=` decode
-   - Share button in meta bar (top) and below affiliate note (bottom)
-   - First click: saves, updates URL to `?id=xxx`, copies link
-   - Subsequent clicks: reuses existing id, re-copies — no duplicate writes
-   - Button resets to "Share this comparison" after 2.5s
-   - Duplicate event listener bug fixed via `data-share-attached` attribute
-   - `cursor: pointer` and `:active` press effect added to `.btn`
+2. **Feedback form pre-fill (search.js, compare.html)**
+   - New form URL: https://forms.gle/XU8RpYM3cGFTwQQ86
+   - Two new fields added to form: "Extension version" (entry.1362282898) and "Browser" (entry.1312500883)
+   - search.js: `auFeedbackUrl()` function added — detects AU_VERSION + browser (Edge/Chrome/Firefox/Safari/Other), builds pre-filled viewform URL
+   - compare.html: inline script sets feedback link href dynamically — pre-fills browser + "website" for version
+   - Full viewform URL used (not forms.gle shortlink) — required for pre-fill to work
+   - compare.html feedback link also updated to new form URL
 
-3. **Best-value tie handling fixed (compare.html)**
-   - `findBestPpuIndex` → `findBestPpuIndices` returning a Set
-   - Floating-point safe: rounds to 6dp before comparison
-   - Confirmed working in testing
-
-4. **Committed and pushed as v0.6.1.9**
+3. **Committed and pushed as v0.6.1.10**
 
 ---
 
 ## ⚠️ Start of next session
 
-1. Melissa uploads fresh compare.html from GitHub as actual file upload
-2. Claude confirms it contains `findBestPpuIndices` and Supabase config
+1. Melissa uploads fresh code files from GitHub as actual file uploads
+2. Claude confirms version strings: `0.6.1` (manifest) · `0.6.1.8` (search.js header) · `0.6.1.10` (compare.html — check for `auFeedbackUrl` inline script)
 3. Confirm scope before touching any files
 4. Ask Melissa if she has fresh testing observations
 
@@ -38,10 +29,8 @@
 
 ## Known issues to address
 
-- **Affiliate note position** — currently above the Share button; Melissa wants it below. Minor CSS tweak — bundle with next change rather than shipping alone.
-- **Best-value star ties** — appears to be working; keep an eye on with more varied PPU data.
 - **Page limit** — does Amazon cap at 7 pages? Varies by category? Research before committing to higher UI cap.
-- **Feedback form pre-fill** — browser + version info not yet captured. Pre-fill via query params on form URL (Google Forms supports this natively). On roadmap.
+- **Best-value star ties** — appears to be working; keep an eye on with more varied PPU data.
 
 ---
 
@@ -56,16 +45,16 @@
 - Price/PPU NaN bug fixed (Chat 17)
 - Best-value tie handling fixed (Chat 18)
 - Supabase shareable links (Chat 18)
+- Affiliate note reordered + reworded (Chat 19)
+- Feedback form pre-fill — extension + comparison page (Chat 19)
 
-### 🔜 Next up — Chat 19
-1. Affiliate note position fix (CSS only — bundle with something else)
-2. Feedback form pre-fill with browser/version info
-3. Alpha tester recruitment — decide timing and approach
+### 🔜 Next up — Chat 20
+1. Alpha tester recruitment — decide timing and approach
+2. Test extension on a different setup (Mac or Chrome vs Edge)
+3. Decide: Chrome Web Store submission before or after alpha?
 
 ### 🔭 Further out (pre-alpha)
 - Research page limit (7 pages confirmed in practice, not definitively)
-- Test extension on a different setup (Mac or Chrome vs Edge)
-- Decide: Chrome Web Store submission before or after alpha?
 
 ### 🔭 Further out (post-alpha)
 - Power search form (Jungle Search model)
@@ -89,7 +78,7 @@
 - Use AskUserQuestion widget for clarifying questions
 - All Google tasks: InPrivate Edge + butactuallyuseful@gmail.com
 - Context rot: stop and wrap up rather than pushing through
-- Version: manifest `0.6.1` · search.js `0.6.1.8` · compare.html `0.6.1.9`
+- Version: manifest `0.6.1` · search.js header `0.6.1.8` · compare.html `0.6.1.10`
 - Always provide a suggested GitHub commit message at end of session
 - Always include context/token status when asking "continue or wrap up?"
 - Bundle small changes together rather than shipping each one separately
@@ -102,12 +91,13 @@
 - compare.html is in the repo root (not in a subfolder)
 - search.js sends raw numbers to compare.html (not formatted strings)
 - Supabase secret key never goes in browser code — publishable key only
-- compare.html `data-share-attached` attribute prevents duplicate share event listeners
+- Feedback form pre-fill uses full viewform URL, not forms.gle shortlink
+- Feedback form entry IDs: version = entry.1362282898 · browser = entry.1312500883
 
 ---
 
 ## Suggested commit message
-`v0.6.1.9 — Supabase shareable links, best-value tie fix`
+`v0.6.1.10 — feedback form pre-fill, affiliate note reorder and rewording`
 
 ## End-of-session checklist
 - [x] Handover.md — written
