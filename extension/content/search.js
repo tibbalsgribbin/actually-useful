@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.12)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.13)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1603,16 +1603,26 @@ const ITEM_UNITS = [
         var items=asins.map(function(asin){
           var r=allData.find(function(d){return d.asin===asin;});
           if(!r) return null;
+          var el=document.querySelector('[data-asin="'+r.asin+'"]');
+          var isPrime=!!(el&&el.querySelector('.a-icon-prime,[aria-label="Amazon Prime"],[data-component-type*="prime"]'));
           return {
-            asin:     r.asin,
-            title:    r.title||'',
-            price:    (r.price!=null&&!isNaN(r.price))?r.price:null,
-            ppu:      (r.ppu!=null&&!isNaN(r.ppu))?r.ppu:null,
-            ppuUnit:  r.unit||'',
-            delivery: r.freeDate?r.freeDate.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'',
-            rating:   r.rating||'',
-            reviewCount: r.reviewCount||'',
-            coupon:   r.hasCoupon?'Coupon':r.couponPillOnly?'Coupon (check Amazon)':r.sns?'Subscribe & Save':r.savings?r.savings:''
+            asin:        r.asin,
+            title:       r.title||'',
+            price:       (r.price!=null&&!isNaN(r.price))?r.price:null,
+            ppu:         (r.ppu!=null&&!isNaN(r.ppu))?r.ppu:null,
+            ppuUnit:     r.unit||'',
+            isPrime:     isPrime,
+            isSponsored: !!r.isSponsored,
+            hasCoupon:   !!r.hasCoupon,
+            couponPillOnly: !!r.couponPillOnly,
+            sns:         r.sns||'',
+            savings:     r.savings||'',
+            freeDate:    r.freeDate?r.freeDate.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'',
+            fastDate:    r.fastDate?r.fastDate.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'',
+            freeQualifier: r.freeQualifier||'',
+            retailerKey: r.retailer?r.retailer.key:'standard',
+            rating:      r.rating||'',
+            reviewCount: r.reviewCount||''
           };
         }).filter(Boolean);
 

@@ -92,6 +92,85 @@
     }
 
     /* ── Meta bar ────────────────────────────────────────────── */
+    /* ── Filter bar ──────────────────────────────────────────── */
+    #filter-bar {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      background: #fdfbd4;
+      overflow: hidden;
+    }
+
+    #filter-bar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.9rem;
+      background: #CF6DFC;
+      color: #fff;
+    }
+
+    #filter-bar-title {
+      font-weight: 600;
+      font-size: 0.875rem;
+      letter-spacing: 0.02em;
+    }
+
+    #filter-bar-toggle {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      opacity: 0.85;
+    }
+    #filter-bar-toggle:hover { opacity: 1; }
+
+    #filter-bar-body {
+      padding: 0.75rem 0.9rem;
+    }
+
+    .fb-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-end;
+    }
+
+    .fb-label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #351E45;
+    }
+
+    .fb-label input[type="text"],
+    .fb-label input[type="number"],
+    .fb-label select {
+      padding: 0.3rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      background: #fff;
+      color: #351E45;
+      min-width: 140px;
+    }
+
+    .fb-label input[type="number"] { min-width: 80px; }
+
+    .fb-checkbox {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.4rem;
+      padding-bottom: 0.35rem;
+    }
+    .fb-checkbox input { width: 1rem; height: 1rem; cursor: pointer; }
+
+    /* ── Meta bar ────────────────────────────────────────────── */
     .meta-bar {
       display: flex;
       align-items: center;
@@ -421,6 +500,12 @@
   let sortCol = null;
   let sortDir = 'asc';
 
+  // ── Filter state ──────────────────────────────────────────────
+  let filterKeyword    = '';
+  let filterMinReviews = 0;
+  let filterRetailer   = '';   // '' = all; or a retailerKey value
+  let filterHideSponsored = false;
+
   function sortItems(items, col) {
     const sorted = [...items];
     sorted.sort((a, b) => {
@@ -444,6 +529,87 @@
     return sorted;
   }
 
+  // ── Retailer display helpers ──────────────────────────────────
+  const RETAILER_LABELS = {
+    'whole-foods': 'Whole Foods',
+    'fresh':       'Amazon Fresh',
+    'pharmacy':    'Amazon Pharmacy',
+    'standard':    'Amazon',
+    '':            'Amazon'
+  };
+
+  function retailerLabel(key) {
+    return RETAILER_LABELS[key] || key || 'Amazon';
+  }
+
+  // ── Filter helpers ────────────────────────────────────────────
+  function keywordMatchesItem(item, kwRaw) {
+    if (!kwRaw.trim()) return true;
+    const haystack = (item.title || '').toLowerCase();
+    const branches = kwRaw.split('·').map(s => s.trim()).filter(Boolean);
+    return branches.some(branch => {
+      const tokens = branch.split(/\s+/).filter(Boolean);
+      return tokens.every(tok => {
+        if (tok.startsWith('-') && tok.length > 1) {
+          return !haystack.includes(tok.slice(1).toLowerCase());
+        }
+        return haystack.includes(tok.toLowerCase());
+      });
+    });
+  }
+
+  function applyFilters(items) {
+    return items.filter(item => {
+      if (filterHideSponsored && item.isSponsored) return false;
+      if (filterRetailer && (item.retailerKey || 'standard') !== filterRetailer) return false;
+      if (filterMinReviews > 0 && (parseFloat(item.reviewCount) || 0) < filterMinReviews) return false;
+      if (filterKeyword && !keywordMatchesItem(item, filterKeyword)) return false;
+      return true;
+    });
+  }
+
+  // ── Render filter bar ─────────────────────────────────────────
+  function renderFilterBar(allItems) {
+    const keys = [...new Set(allItems.map(r => r.retailerKey || 'standard'))];
+    const hasMultiRetailer = keys.length > 1;
+    const hasSponsored = allItems.some(r => r.isSponsored);
+
+    const retailerOptions = hasMultiRetailer
+      ? `<label class="fb-label">Source
+          <select id="fb-retailer">
+            <option value="">All</option>
+            ${keys.map(k => `<option value="${k}"${filterRetailer===k?' selected':''}>${esc(retailerLabel(k))}</option>`).join('')}
+          </select>
+        </label>`
+      : '';
+
+    const sponsoredToggle = hasSponsored
+      ? `<label class="fb-label fb-checkbox">
+          <input type="checkbox" id="fb-hide-sponsored"${filterHideSponsored?' checked':''}> Hide sponsored
+        </label>`
+      : '';
+
+    return `<div id="filter-bar">
+      <div id="filter-bar-header">
+        <span id="filter-bar-title">Filters</span>
+        <button id="filter-bar-toggle" aria-expanded="true">▲ Collapse</button>
+      </div>
+      <div id="filter-bar-body">
+        <div class="fb-row">
+          <label class="fb-label">Keyword
+            <input type="text" id="fb-keyword" placeholder="e.g. unscented -refill" value="${esc(filterKeyword)}">
+          </label>
+          <label class="fb-label">Min reviews
+            <input type="number" id="fb-min-reviews" min="0" placeholder="0" value="${filterMinReviews||''}">
+          </label>
+          ${retailerOptions}
+          ${sponsoredToggle}
+          <button id="fb-clear" class="btn btn-ghost">Clear filters</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
   // ── Render table ──────────────────────────────────────────────
   function renderTable(items, searchTerm) {
     const bestIndices = findBestPpuIndices(items);
@@ -455,12 +621,9 @@
       { key: 'delivery',    label: 'Delivery' },
       { key: 'rating',      label: 'Rating' },
       { key: 'reviewCount', label: 'Reviews' },
-      { key: 'prime',       label: 'Prime' },
+      { key: 'isPrime',     label: 'Prime' },
       { key: 'coupon',      label: 'Coupon / promo' },
-      { key: 'soldBy',      label: 'Sold by' },
-      { key: 'shipsFrom',   label: 'Ships from' },
-      { key: 'returnPolicy',label: 'Returns' },
-      { key: 'note',        label: 'Your note' },
+      { key: 'retailerKey', label: 'Source' },
     ];
 
     const theadCells = colDefs.map(c => {
@@ -481,45 +644,78 @@
         return formatted;
       })();
 
-      const primeCell = item.prime
+      const primeCell = item.isPrime
         ? '<span class="pill pill-prime">Prime</span>'
         : '<span class="na">—</span>';
 
-      const couponCell = item.coupon
-        ? `<span class="pill pill-coupon">${esc(item.coupon)}</span>`
-        : '<span class="na">—</span>';
+      const couponCell = (() => {
+        if (item.hasCoupon) {
+          const wasStr = (item.listPrice && !isNaN(item.listPrice))
+            ? ` <span class="na">(was $${parseFloat(item.listPrice).toFixed(2)})</span>` : '';
+          return `<span class="pill pill-coupon">Coupon${wasStr}</span>`;
+        }
+        if (item.sns) {
+          const snsStr = item.sns === 'unknown' ? 'Subscribe &amp; Save' : esc(item.sns) + ' with S&amp;S';
+          return `<span class="pill pill-coupon">${snsStr}</span>`;
+        }
+        if (item.savings) return `<span class="pill pill-coupon">${esc(item.savings)}</span>`;
+        if (item.couponPillOnly) return '<span class="pill pill-coupon">Coupon — check Amazon</span>';
+        return '<span class="na">—</span>';
+      })();
 
-      const returnCell = item.returnPolicy
-        ? `<span class="pill pill-return">${esc(item.returnPolicy)}</span>`
-        : '<span class="na">—</span>';
+      const deliveryCell = (() => {
+        if (!item.freeDate && !item.fastDate) return '<span class="na">—</span>';
+        let parts = [];
+        if (item.freeDate) {
+          const q = item.freeQualifier ? ` <span class="na">(${esc(item.freeQualifier)})</span>` : '';
+          parts.push(`FREE: ${esc(item.freeDate)}${q}`);
+        }
+        if (item.fastDate) parts.push(`Fastest: ${esc(item.fastDate)}`);
+        return parts.join('<br>');
+      })();
 
       const priceCell = (item.price != null && !isNaN(item.price))
         ? `$${parseFloat(item.price).toFixed(2)}`
         : '<span class="na">—</span>';
 
+      const sourceCell = (() => {
+        const key = item.retailerKey || 'standard';
+        const label = retailerLabel(key);
+        if (key === 'standard') return '<span class="na">Amazon</span>';
+        return `<span class="pill" style="background:#e8e4f8;color:#351E45;border:1px solid #c1bfff;">${esc(label)}</span>`;
+      })();
+
+      const sponsoredBadge = item.isSponsored
+        ? ' <span class="pill" style="background:#f0f0f0;color:#888;border:1px solid #ddd;font-size:0.7em;">Ad</span>'
+        : '';
+
       return `<tr>
-        <td class="col-title"><a href="${affiliateUrl(item.asin)}" target="_blank" rel="noopener">${esc(item.title)}</a></td>
+        <td class="col-title"><a href="${affiliateUrl(item.asin)}" target="_blank" rel="noopener">${esc(item.title)}</a>${sponsoredBadge}</td>
         <td class="col-price">${priceCell}</td>
         <td class="col-ppu">${ppuCell}</td>
-        <td class="col-delivery">${na(item.delivery)}</td>
+        <td class="col-delivery">${deliveryCell}</td>
         <td class="col-rating">${renderStars(item.rating)}</td>
         <td class="col-reviews">${formatReviews(item.reviewCount)}</td>
         <td>${primeCell}</td>
         <td>${couponCell}</td>
-        <td>${na(item.soldBy)}</td>
-        <td>${na(item.shipsFrom)}</td>
-        <td>${returnCell}</td>
-        <td class="col-note">${na(item.note)}</td>
+        <td>${sourceCell}</td>
       </tr>`;
     }).join('');
+
+    const hiddenCount = currentItems.length - items.length;
+    const hiddenNote = hiddenCount > 0
+      ? `<span style="color:#877891;font-size:0.88em;">${hiddenCount} item${hiddenCount!==1?'s':'''} hidden by filters</span>`
+      : '';
 
     const termBadge = searchTerm
       ? `<span class="search-term-badge">${esc(searchTerm)}</span>`
       : '';
 
     return `
+      ${renderFilterBar(currentItems)}
       <div class="meta-bar">
         <span class="item-count">Comparing <strong>${items.length}</strong> item${items.length !== 1 ? 's' : ''}</span>
+        ${hiddenNote}
         ${termBadge}
         ${renderShareButton('top')}
       </div>
@@ -561,6 +757,17 @@
   // ── Column sort handler ───────────────────────────────────────
   let currentItems = [];
 
+  // Central re-render: applies filters then sort, then rewires handlers
+  function rerender() {
+    const filtered = applyFilters(currentItems);
+    const sorted = (sortCol && filtered.length) ? sortItems(filtered, sortCol) : filtered;
+    document.getElementById('main-content').innerHTML = renderTable(sorted, currentSearchTerm);
+    attachSortHandlers();
+    attachFilterHandlers();
+    attachShareHandler('top-share-btn');
+    attachShareHandler('bottom-share-btn');
+  }
+
   function attachSortHandlers() {
     document.querySelectorAll('#compare-table thead th').forEach(th => {
       th.addEventListener('click', () => {
@@ -571,13 +778,77 @@
           sortCol = col;
           sortDir = 'asc';
         }
-        const sorted = sortItems(currentItems, sortCol);
-        document.getElementById('main-content').innerHTML = renderTable(sorted, currentSearchTerm);
-        attachSortHandlers();
-        attachShareHandler('top-share-btn');
-        attachShareHandler('bottom-share-btn');
+        rerender();
       });
     });
+  }
+
+  function attachFilterHandlers() {
+    // Collapse/expand toggle
+    const toggle = document.getElementById('filter-bar-toggle');
+    const body   = document.getElementById('filter-bar-body');
+    if (toggle && body) {
+      toggle.addEventListener('click', () => {
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', String(!expanded));
+        toggle.textContent = expanded ? '▼ Expand' : '▲ Collapse';
+        body.style.display = expanded ? 'none' : '';
+      });
+    }
+
+    // Keyword — 250ms debounce
+    let kwTimer = null;
+    const kwInput = document.getElementById('fb-keyword');
+    if (kwInput) {
+      kwInput.addEventListener('input', () => {
+        clearTimeout(kwTimer);
+        kwTimer = setTimeout(() => {
+          filterKeyword = kwInput.value;
+          rerender();
+        }, 250);
+      });
+    }
+
+    // Min reviews
+    const mrInput = document.getElementById('fb-min-reviews');
+    if (mrInput) {
+      mrInput.addEventListener('change', () => {
+        filterMinReviews = parseInt(mrInput.value, 10) || 0;
+        rerender();
+      });
+    }
+
+    // Retailer select
+    const retSel = document.getElementById('fb-retailer');
+    if (retSel) {
+      retSel.addEventListener('change', () => {
+        filterRetailer = retSel.value;
+        rerender();
+      });
+    }
+
+    // Hide sponsored toggle
+    const sponChk = document.getElementById('fb-hide-sponsored');
+    if (sponChk) {
+      sponChk.addEventListener('change', () => {
+        filterHideSponsored = sponChk.checked;
+        rerender();
+      });
+    }
+
+    // Clear filters
+    const clearBtn = document.getElementById('fb-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        filterKeyword = '';
+        filterMinReviews = 0;
+        filterRetailer = '';
+        filterHideSponsored = false;
+        sortCol = null;
+        sortDir = 'asc';
+        rerender();
+      });
+    }
   }
 
   let currentSearchTerm = '';
@@ -674,10 +945,7 @@
         return;
       }
       if (!currentItems.length) { main.innerHTML = renderError('load-failed'); return; }
-      main.innerHTML = renderTable(currentItems, currentSearchTerm);
-      attachSortHandlers();
-      attachShareHandler('top-share-btn');
-      attachShareHandler('bottom-share-btn');
+      rerender();
       return;
     }
 
@@ -709,10 +977,7 @@
     }
 
     currentItems = items;
-    main.innerHTML = renderTable(items, currentSearchTerm);
-    attachSortHandlers();
-    attachShareHandler('top-share-btn');
-    attachShareHandler('bottom-share-btn');
+    rerender();
   }
 
   init();
