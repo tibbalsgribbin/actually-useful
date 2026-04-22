@@ -457,14 +457,6 @@
     <p>Your shortlisted items, side by side.</p>
   </div>
 
-  <!-- Action bar — shown when rows are checked -->
-  <div id="action-bar">
-    <span class="action-count" id="action-count-label"></span>
-    <button class="btn-action" id="action-open-tabs">Open checked in tabs</button>
-    <button class="btn-action-ghost" id="action-send-extension">Send to extension</button>
-    <button class="btn-action-ghost" id="action-deselect-all">Deselect all</button>
-  </div>
-
   <!-- Main -->
   <main id="main-content">
     <!-- Populated by JS -->
@@ -640,7 +632,8 @@
   }
 
   // ── Filter state ──────────────────────────────────────────────
-  let filterKeyword    = '';
+  let filterInclude    = '';  // include terms; supports OR with | or ·
+  let filterExclude    = '';  // exclude terms (space-separated)
   let filterMinReviews = 0;
   let filterMinRating  = 0;
   let filterRetailer   = '';   // '' = all; or a retailerKey value
@@ -678,6 +671,18 @@
         return sortDir === 'asc' ? tsA - tsB : tsB - tsA;
       }
 
+      // Notes: checked items first, then alphabetical by note text
+      if (col === 'note') {
+        const cbA = checkedAsins[a.asin] ? 1 : 0;
+        const cbB = checkedAsins[b.asin] ? 1 : 0;
+        if (cbA !== cbB) return sortDir === 'asc' ? cbB - cbA : cbA - cbB;
+        va = (a.note || '').toLowerCase();
+        vb = (b.note || '').toLowerCase();
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      }
+
       // String columns
       va = (va || '').toString().toLowerCase();
       vb = (vb || '').toString().toLowerCase();
@@ -702,18 +707,27 @@
   }
 
   // ── Filter helpers ────────────────────────────────────────────
-  function keywordMatchesItem(item, kwRaw) {
-    if (!kwRaw.trim()) return true;
+  // Include filter: supports OR branches via | or · separator
+  // Each branch is a set of space-separated terms that must ALL appear (AND within branch)
+  function includeMatchesItem(item, raw) {
+    if (!raw.trim()) return true;
     var haystack = (item.title || '').toLowerCase();
-    var branches = kwRaw.split('·').map(function(s) { return s.trim(); }).filter(Boolean);
+    var branches = raw.split(/[|·]/).map(function(s) { return s.trim(); }).filter(Boolean);
     return branches.some(function(branch) {
       var tokens = branch.split(/\s+/).filter(Boolean);
       return tokens.every(function(tok) {
-        if (tok.startsWith('-') && tok.length > 1) {
-          return !haystack.includes(tok.slice(1).toLowerCase());
-        }
         return haystack.includes(tok.toLowerCase());
       });
+    });
+  }
+
+  // Exclude filter: space-separated terms — item is hidden if ANY term matches
+  function excludeMatchesItem(item, raw) {
+    if (!raw.trim()) return false;
+    var haystack = (item.title || '').toLowerCase();
+    var tokens = raw.split(/\s+/).filter(Boolean);
+    return tokens.some(function(tok) {
+      return haystack.includes(tok.toLowerCase());
     });
   }
 
@@ -723,7 +737,8 @@
       if (filterRetailer && (item.retailerKey || 'standard') !== filterRetailer) return false;
       if (filterMinReviews > 0 && (parseFloat(item.reviewCount) || 0) < filterMinReviews) return false;
       if (filterMinRating > 0 && (parseFloat(item.rating) || 0) < filterMinRating) return false;
-      if (filterKeyword && !keywordMatchesItem(item, filterKeyword)) return false;
+      if (filterInclude && !includeMatchesItem(item, filterInclude)) return false;
+      if (filterExclude && excludeMatchesItem(item, filterExclude)) return false;
       if (filterMinPrice !== '' && !isNaN(filterMinPrice) && (parseFloat(item.price) || 0) < parseFloat(filterMinPrice)) return false;
       if (filterMaxPrice !== '' && !isNaN(filterMaxPrice) && (parseFloat(item.price) || 0) > parseFloat(filterMaxPrice)) return false;
       return true;
@@ -755,7 +770,8 @@
       sponsoredToggle = '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-hide-sponsored"' + chk + '> Hide sponsored</label>';
     }
 
-    var kwVal = esc(filterKeyword);
+    var inclVal = esc(filterInclude);
+    var exclVal = esc(filterExclude);
     var mrVal = filterMinReviews || '';
     var ratingVal = filterMinRating || '';
 
@@ -769,7 +785,8 @@
       + '</div>'
       + '<div id="filter-bar-body">'
       + '<div class="fb-row">'
-      + '<label class="fb-label">Keyword<input type="text" id="fb-keyword" placeholder="e.g. unscented -refill" value="' + kwVal + '"></label>'
+      + '<label class="fb-label">Include<span style="font-size:0.75em;color:#877891;font-weight:400;margin-left:0.3em;">(use | or OR for alternatives)</span><input type="text" id="fb-include" placeholder="e.g. unscented | fragrance free" value="' + inclVal + '" style="min-width:260px;"></label>'
+      + '<label class="fb-label">Exclude<input type="text" id="fb-exclude" placeholder="e.g. refill travel" value="' + exclVal + '" style="min-width:180px;"></label>'
       + '<label class="fb-label">Minimum reviews<input type="number" id="fb-min-reviews" min="0" placeholder="0" value="' + mrVal + '"></label>'
       + '<label class="fb-label">Minimum rating<input type="number" id="fb-min-rating" min="0" max="5" step="0.1" placeholder="0" value="' + ratingVal + '"></label>'
       + '<label class="fb-label">Minimum price ($)<input type="number" id="fb-min-price" min="0" placeholder="0" value="' + minPriceVal + '"></label>'
@@ -807,7 +824,7 @@
       { key: 'isPrime',     label: 'Prime' },
       { key: 'coupon',      label: 'Coupon / promo' },
       { key: 'retailerKey', label: 'Source' },
-      { key: 'note',        label: 'Notes', nosort: true },
+      { key: 'note',        label: 'Notes' },
     ];
 
     var theadCells = colDefs.map(function(c) {
@@ -957,6 +974,7 @@
       + renderShareButton('top')
       + '</div>'
       + liquidToggle
+      + renderActionBar()
       + '<div class="table-wrapper">'
       + '<table id="compare-table">'
       + '<thead><tr>' + theadCells + '</tr></thead>'
@@ -997,16 +1015,30 @@
   let currentItems = [];
   let checkedAsins = {}; // asin → item object (for open-tabs and send-to-extension)
 
-  function updateActionBar() {
-    var bar = document.getElementById('action-bar');
-    var label = document.getElementById('action-count-label');
+  function renderActionBar() {
     var keys = Object.keys(checkedAsins);
-    if (!bar) return;
-    if (keys.length === 0) {
-      bar.classList.remove('visible');
-    } else {
-      bar.classList.add('visible');
-      if (label) label.textContent = keys.length + ' item' + (keys.length !== 1 ? 's' : '') + ' selected';
+    if (!keys.length) return '';
+    var label = keys.length + ' item' + (keys.length !== 1 ? 's' : '') + ' selected';
+    return '<div id="action-bar" class="visible">'
+      + '<span class="action-count">' + label + '</span>'
+      + '<button class="btn-action" id="action-open-tabs">Open checked in tabs</button>'
+      + '<button class="btn-action-ghost" id="action-deselect-all">Deselect all</button>'
+      + '</div>';
+  }
+
+  function updateActionBar() {
+    // Replaces action bar in DOM if it exists; otherwise triggers a table-only rerender
+    var existing = document.getElementById('action-bar');
+    var keys = Object.keys(checkedAsins);
+    if (existing) {
+      if (keys.length === 0) {
+        existing.remove();
+      } else {
+        existing.querySelector('.action-count').textContent =
+          keys.length + ' item' + (keys.length !== 1 ? 's' : '') + ' selected';
+      }
+    } else if (keys.length > 0) {
+      rerenderTableOnly();
     }
   }
 
@@ -1035,6 +1067,7 @@
     attachFilterHandlers();
     attachLiquidToggleHandlers();
     attachRowHandlers();
+    attachActionBarButtons();
     attachShareHandler('top-share-btn');
     attachShareHandler('bottom-share-btn');
   }
@@ -1118,43 +1151,26 @@
   }
 
   // ── Action bar button handlers — wired once at init ───────────
-  function attachActionBarHandlers() {
+  // Called after every render — wires buttons that live inside #meta-and-table
+  function attachActionBarButtons() {
     var openTabsBtn = document.getElementById('action-open-tabs');
     if (openTabsBtn) {
       openTabsBtn.addEventListener('click', function() {
         var keys = Object.keys(checkedAsins);
         if (!keys.length) return;
-        keys.forEach(function(asin) {
+        // Open first tab immediately (avoids popup blocker), then rest with short delays
+        keys.forEach(function(asin, idx) {
           var item = checkedAsins[asin];
-          if (item && item.asin) {
-            window.open('https://www.amazon.com/dp/' + encodeURIComponent(item.asin), '_blank', 'noopener');
+          if (!item || !item.asin) return;
+          var url = 'https://www.amazon.com/dp/' + encodeURIComponent(item.asin);
+          if (idx === 0) {
+            window.open(url, '_blank', 'noopener');
+          } else {
+            setTimeout(function() {
+              window.open(url, '_blank', 'noopener');
+            }, idx * 150);
           }
         });
-      });
-    }
-
-    var sendExtBtn = document.getElementById('action-send-extension');
-    if (sendExtBtn) {
-      sendExtBtn.addEventListener('click', function() {
-        var keys = Object.keys(checkedAsins);
-        if (!keys.length) return;
-        if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
-          try {
-            chrome.runtime.sendMessage({
-              type: 'AU_SET_SHORTLIST',
-              items: keys.map(function(a) { return checkedAsins[a]; })
-            }, function(resp) {
-              sendExtBtn.textContent = 'Sent to extension!';
-              setTimeout(function() { sendExtBtn.textContent = 'Send to extension'; }, 2000);
-            });
-          } catch(e) {
-            sendExtBtn.textContent = 'Extension not found';
-            setTimeout(function() { sendExtBtn.textContent = 'Send to extension'; }, 2000);
-          }
-        } else {
-          sendExtBtn.textContent = 'Extension not found';
-          setTimeout(function() { sendExtBtn.textContent = 'Send to extension'; }, 2000);
-        }
       });
     }
 
@@ -1162,11 +1178,13 @@
     if (deselectBtn) {
       deselectBtn.addEventListener('click', function() {
         checkedAsins = {};
-        updateActionBar();
         rerenderTableOnly();
       });
     }
   }
+
+  // Stub — action bar is rendered dynamically; buttons wired by attachActionBarButtons()
+  function attachActionBarHandlers() {}
   // Used by the keyword input to avoid destroying the input and dropping focus.
   function rerenderTableOnly() {
     const filtered = applyFilters(currentItems);
@@ -1193,7 +1211,7 @@
       { key: 'isPrime',     label: 'Prime' },
       { key: 'coupon',      label: 'Coupon / promo' },
       { key: 'retailerKey', label: 'Source' },
-      { key: 'note',        label: 'Notes', nosort: true },
+      { key: 'note',        label: 'Notes' },
     ];
 
     var theadCells = colDefs.map(function(c) {
@@ -1341,6 +1359,7 @@
         + renderShareButton('top')
         + '</div>'
         + liquidToggle
+        + renderActionBar()
         + '<div class="table-wrapper">'
         + '<table id="compare-table">'
         + '<thead><tr>' + theadCells + '</tr></thead>'
@@ -1352,6 +1371,7 @@
       attachSortHandlers();
       attachLiquidToggleHandlers();
       attachRowHandlers();
+      attachActionBarButtons();
       attachShareHandler('top-share-btn');
       attachShareHandler('bottom-share-btn');
     } else {
@@ -1373,14 +1393,24 @@
       });
     }
 
-    // Keyword — 250ms debounce, table-only rerender to preserve focus
+    // Include / Exclude — 250ms debounce, table-only rerender to preserve focus
     let kwTimer = null;
-    const kwInput = document.getElementById('fb-keyword');
-    if (kwInput) {
-      kwInput.addEventListener('input', () => {
+    const inclInput = document.getElementById('fb-include');
+    if (inclInput) {
+      inclInput.addEventListener('input', () => {
         clearTimeout(kwTimer);
         kwTimer = setTimeout(() => {
-          filterKeyword = kwInput.value;
+          filterInclude = inclInput.value;
+          rerenderTableOnly();
+        }, 250);
+      });
+    }
+    const exclInput = document.getElementById('fb-exclude');
+    if (exclInput) {
+      exclInput.addEventListener('input', () => {
+        clearTimeout(kwTimer);
+        kwTimer = setTimeout(() => {
+          filterExclude = exclInput.value;
           rerenderTableOnly();
         }, 250);
       });
@@ -1444,7 +1474,8 @@
     const clearBtn = document.getElementById('fb-clear');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
-        filterKeyword = '';
+        filterInclude = '';
+        filterExclude = '';
         filterMinReviews = 0;
         filterMinRating = 0;
         filterMinPrice = '';
