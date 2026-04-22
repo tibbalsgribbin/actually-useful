@@ -525,21 +525,14 @@
     return Number(n).toLocaleString();
   }
 
-  // Format a delivery date string, appending time if it's today
-  function formatDeliveryDate(dateStr, ts) {
+  // Format a delivery date string, appending time window if available
+  function formatDeliveryDate(dateStr, ts, windowMinutes) {
     if (!dateStr) return '';
-    if (!ts) return esc(dateStr);
-    var d = new Date(ts);
-    var now = new Date();
-    var isToday = d.getFullYear() === now.getFullYear()
-               && d.getMonth() === now.getMonth()
-               && d.getDate() === now.getDate();
-    if (isToday) {
-      var hr = d.getHours();
-      var min = d.getMinutes().toString().padStart(2, '0');
-      var ampm = hr >= 12 ? 'pm' : 'am';
-      var hr12 = hr % 12 || 12;
-      return esc(dateStr) + ' by ' + hr12 + ':' + min + ' ' + ampm;
+    if (windowMinutes != null) {
+      var h = Math.floor(windowMinutes / 60);
+      var meridiem = h < 12 ? 'AM' : 'PM';
+      var h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return esc(dateStr) + ' by ' + h12 + ' ' + meridiem;
     }
     return esc(dateStr);
   }
@@ -896,9 +889,9 @@
       var deliveryParts = [];
       if (item.freeDate) {
         var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
-        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs) + q);
+        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs, item.freeWindowMinutes != null ? item.freeWindowMinutes : null) + q);
       }
-      if (item.fastDate) deliveryParts.push('Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs));
+      if (item.fastDate) deliveryParts.push('Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs, null));
       var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
 
       var sourceKey = item.retailerKey || 'standard';
@@ -1316,9 +1309,9 @@
       var deliveryParts = [];
       if (item.freeDate) {
         var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
-        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs) + q);
+        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs, item.freeWindowMinutes != null ? item.freeWindowMinutes : null) + q);
       }
-      if (item.fastDate) deliveryParts.push('Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs));
+      if (item.fastDate) deliveryParts.push('Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs, null));
       var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
 
       var sourceKey = item.retailerKey || 'standard';

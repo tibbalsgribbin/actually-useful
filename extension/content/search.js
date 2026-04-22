@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.15)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.17)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1147,7 +1147,13 @@ const ITEM_UNITS = [
         '.ppu-price-input{width:72px;padding:3px 6px;border:1px solid #c8c0e8;border-radius:4px;font-size:13px;background:#fff;color:#351E45;}' +
         '.ppu-price-prefix{font-size:13px;color:#351E45;}' +
         '.ppu-price-sep{font-size:13px;color:#877891;margin:0 2px;}' +
-        '.ppu-item-note{display:block;width:100%;margin-top:5px;padding:4px 6px;border:1px solid #c8c0e8;border-radius:4px;font-size:12px;font-family:inherit;resize:vertical;color:#351E45;background:#fff;min-height:38px;}' +
+        '.ppu-note-widget{margin-top:5px;}' +
+        '.ppu-note-add-link{font-size:11px;color:#877891;cursor:pointer;text-decoration:none;user-select:none;}' +
+        '.ppu-note-add-link:hover{color:#CF6DFC;}' +
+        '.ppu-note-preview{font-size:11px;color:#351E45;font-style:italic;margin-right:6px;word-break:break-word;}' +
+        '.ppu-note-edit-link{font-size:11px;color:#877891;cursor:pointer;text-decoration:none;user-select:none;white-space:nowrap;}' +
+        '.ppu-note-edit-link:hover{color:#CF6DFC;}' +
+        '.ppu-item-note{display:block;width:100%;margin-top:4px;padding:4px 6px;border:1px solid #c8c0e8;border-radius:4px;font-size:12px;font-family:inherit;resize:vertical;color:#351E45;background:#fff;min-height:38px;box-sizing:border-box;}' +
         '.ppu-item-note:focus{outline:none;border-color:#CF6DFC;}';
       document.head.appendChild(styleEl);
     }
@@ -1284,6 +1290,55 @@ const ITEM_UNITS = [
     // ── Helper: save filters ──────────────────────────────────────────────
     function persistFilters() {
       saveFilters(searchTerm);
+    }
+
+    // ── Note widget helper ───────────────────────────────────────────────
+    function auShowNoteTextarea(widget, asin) {
+      widget.innerHTML = '';
+      var ta = document.createElement('textarea');
+      ta.className = 'ppu-item-note';
+      ta.setAttribute('data-asin', asin);
+      ta.placeholder = 'Add a note…';
+      ta.rows = 2;
+      ta.value = itemNotes[asin] || '';
+      ta.addEventListener('input', function() { itemNotes[asin] = ta.value; });
+      ta.addEventListener('click', function(e) { e.stopPropagation(); });
+      ta.addEventListener('blur', function() {
+        itemNotes[asin] = ta.value;
+        auRefreshNoteWidget(widget, asin);
+      });
+      widget.appendChild(ta);
+      ta.focus();
+    }
+
+    function auRefreshNoteWidget(widget, asin) {
+      var note = itemNotes[asin] || '';
+      widget.innerHTML = '';
+      if (note) {
+        var preview = note.length > 80 ? note.slice(0, 80) + '…' : note;
+        var previewSpan = document.createElement('span');
+        previewSpan.className = 'ppu-note-preview';
+        previewSpan.textContent = preview;
+        var editLink = document.createElement('span');
+        editLink.className = 'ppu-note-edit-link';
+        editLink.textContent = 'Edit';
+        editLink.addEventListener('click', function(e) { e.stopPropagation(); auShowNoteTextarea(widget, asin); });
+        widget.appendChild(previewSpan);
+        widget.appendChild(editLink);
+      } else {
+        var addLink = document.createElement('span');
+        addLink.className = 'ppu-note-add-link';
+        addLink.textContent = '＋ Add a note…';
+        addLink.addEventListener('click', function(e) { e.stopPropagation(); auShowNoteTextarea(widget, asin); });
+        widget.appendChild(addLink);
+      }
+    }
+
+    function auInjectNoteWidget(row, asin) {
+      var widget = document.createElement('div');
+      widget.className = 'ppu-note-widget';
+      auRefreshNoteWidget(widget, asin);
+      row.querySelector('.ppu-row-content').appendChild(widget);
     }
 
     // ── Render ────────────────────────────────────────────────────────────
@@ -1521,9 +1576,16 @@ const ITEM_UNITS = [
         var safeAsin=r.asin.replace(/"/g,'&quot;');
         var titleHtml=(hasKw&&r.kwMatch)?highlightKeywords(r.title,r.cardText,kw):escapeHtml(r.title);
         var thumbHtml=r.imgUrl?'<img class="ppu-thumb" src="'+r.imgUrl+'" loading="lazy" alt="">':'';
-        var noteFieldHtml=isChecked
-          ? '<textarea class="ppu-item-note" data-asin="'+safeAsin+'" placeholder="Add a note\u2026" rows="2">'+escapeHtml(itemNotes[r.asin]||'')+'</textarea>'
-          : '';
+        var noteFieldHtml='';
+        if(isChecked){
+          var existingNote=itemNotes[r.asin]||'';
+          if(existingNote){
+            var preview=existingNote.length>80?existingNote.slice(0,80)+'\u2026':existingNote;
+            noteFieldHtml='<div class="ppu-note-widget"><span class="ppu-note-preview">'+escapeHtml(preview)+'</span><span class="ppu-note-edit-link" data-asin="'+safeAsin+'">Edit</span></div>';
+          } else {
+            noteFieldHtml='<div class="ppu-note-widget"><span class="ppu-note-add-link" data-asin="'+safeAsin+'">＋ Add a note…</span></div>';
+          }
+        }
         html+=
           '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
             '<div class="ppu-cb-wrap"><input type="checkbox" class="ppu-cb"'+(isChecked?' checked':'')+' title="Add to shortlist"></div>'+
@@ -1543,11 +1605,18 @@ const ITEM_UNITS = [
       document.querySelectorAll('.ppu-cb').forEach(function(cb){
         cb.addEventListener('change',function(){
           var row=this.closest('.ppu-row'),asin=row.getAttribute('data-asin');
-          if(this.checked){checkedAsins[asin]=true;row.classList.add('checked');maybeShowNudge();}
-          else{
-            // Preserve note before unchecking (textarea will be removed by next render)
+          if(this.checked){
+            checkedAsins[asin]=true;
+            row.classList.add('checked');
+            maybeShowNudge();
+            // Inject note widget directly — no re-render needed
+            if(!row.querySelector('.ppu-note-widget')){
+              auInjectNoteWidget(row,asin);
+            }
+          } else{
+            // Preserve note before removing textarea
             var ta=row.querySelector('.ppu-item-note');
-            if(ta) itemNotes[asin]=ta.value;
+            if(ta){itemNotes[asin]=ta.value;ta.parentNode.removeChild(ta);}
             delete checkedAsins[asin];
             row.classList.remove('checked');
           }
@@ -1561,15 +1630,7 @@ const ITEM_UNITS = [
           if(compareHint){ compareHint.style.display=cnt>0?'none':'block'; }
         });
       });
-      // Save note text as user types (no debounce needed — stored in memory only)
-      document.querySelectorAll('.ppu-item-note').forEach(function(ta){
-        ta.addEventListener('input',function(){
-          itemNotes[this.getAttribute('data-asin')]=this.value;
-        });
-        // Prevent checkbox toggle when clicking inside the textarea
-        ta.addEventListener('click',function(e){e.stopPropagation();});
-      });
-      scheduleLog();
+            scheduleLog();
       persistFilters();
     } // end render
 
@@ -1706,11 +1767,13 @@ const ITEM_UNITS = [
             fastDate:    r.fastDate?r.fastDate.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'',
             freeDateTs:  r.freeDate?r.freeDate.getTime():null,
             fastDateTs:  r.fastDate?r.fastDate.getTime():null,
+            freeWindowMinutes: (r.freeWindowMinutes!=null&&r.freeWindowMinutes!==Infinity)?r.freeWindowMinutes:null,
             freeQualifier: r.freeQualifier||'',
             retailerKey: r.retailer?r.retailer.key:'standard',
             rating:      r.rating||'',
             reviewCount: r.reviewCount||'',
-            note:        itemNotes[r.asin]||''
+            note:        itemNotes[r.asin]||'',
+            imgUrl:      r.imgUrl||''
           };
         }).filter(Boolean);
 
