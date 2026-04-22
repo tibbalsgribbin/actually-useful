@@ -712,7 +712,7 @@
   function includeMatchesItem(item, raw) {
     if (!raw.trim()) return true;
     var haystack = (item.title || '').toLowerCase();
-    var branches = raw.split(/[|·]/).map(function(s) { return s.trim(); }).filter(Boolean);
+    var branches = raw.split(/\bOR\b|[|·]/).map(function(s) { return s.trim(); }).filter(Boolean);
     return branches.some(function(branch) {
       var tokens = branch.split(/\s+/).filter(Boolean);
       return tokens.every(function(tok) {
@@ -733,6 +733,7 @@
 
   function applyFilters(items) {
     return items.filter(function(item) {
+      if (showCheckedOnly && !checkedAsins[item.asin]) return false;
       if (filterHideSponsored && item.isSponsored) return false;
       if (filterRetailer && (item.retailerKey || 'standard') !== filterRetailer) return false;
       if (filterMinReviews > 0 && (parseFloat(item.reviewCount) || 0) < filterMinReviews) return false;
@@ -1013,33 +1014,37 @@
 
   // ── Column sort handler ───────────────────────────────────────
   let currentItems = [];
-  let checkedAsins = {}; // asin → item object (for open-tabs and send-to-extension)
+  let checkedAsins = {}; // asin → item object
+  let showCheckedOnly = false;
+
+  // Updates action bar label and buttons in-place without re-sorting the table
+  function refreshActionBarInPlace() {
+    var keys = Object.keys(checkedAsins);
+    var existing = document.getElementById('action-bar');
+    if (keys.length === 0) {
+      showCheckedOnly = false;
+      if (existing) rerenderTableOnly(); // removes bar and restores all rows
+    } else if (existing) {
+      existing.querySelector('.action-count').textContent =
+        keys.length + ' item' + (keys.length !== 1 ? 's' : '') + ' selected';
+    } else {
+      rerenderTableOnly(); // bar not yet in DOM — render it in
+    }
+  }
 
   function renderActionBar() {
     var keys = Object.keys(checkedAsins);
     if (!keys.length) return '';
     var label = keys.length + ' item' + (keys.length !== 1 ? 's' : '') + ' selected';
+    var showLabel = showCheckedOnly ? 'Show all' : 'Show checked only';
     return '<div id="action-bar" class="visible">'
       + '<span class="action-count">' + label + '</span>'
       + '<button class="btn-action" id="action-open-tabs">Open checked in tabs</button>'
+      + '<span style="font-size:0.75em;opacity:0.75;white-space:nowrap;">Your browser may ask you to allow pop-ups.</span>'
+      + '<button class="btn-action-ghost" id="action-show-checked">' + showLabel + '</button>'
+      + '<button class="btn-action-ghost" id="action-share-checked">Share checked items</button>'
       + '<button class="btn-action-ghost" id="action-deselect-all">Deselect all</button>'
       + '</div>';
-  }
-
-  function updateActionBar() {
-    // Replaces action bar in DOM if it exists; otherwise triggers a table-only rerender
-    var existing = document.getElementById('action-bar');
-    var keys = Object.keys(checkedAsins);
-    if (existing) {
-      if (keys.length === 0) {
-        existing.remove();
-      } else {
-        existing.querySelector('.action-count').textContent =
-          keys.length + ' item' + (keys.length !== 1 ? 's' : '') + ' selected';
-      }
-    } else if (keys.length > 0) {
-      rerenderTableOnly();
-    }
   }
 
   function attachSortHandlers() {
@@ -1094,7 +1099,7 @@
         } else {
           delete checkedAsins[asin];
         }
-        updateActionBar();
+        refreshActionBarInPlace();
         // Update select-all checkbox state
         var allCbs = document.querySelectorAll('.compare-row-cb');
         var allChecked = Array.from(allCbs).every(function(c) { return c.checked; });
@@ -1104,6 +1109,7 @@
           sa.checked = allChecked;
           sa.indeterminate = !allChecked && anyChecked;
         }
+        if (showCheckedOnly) rerenderTableOnly();
       });
     });
 
@@ -1123,7 +1129,8 @@
           if (check) { if (item) checkedAsins[asin] = item; }
           else { delete checkedAsins[asin]; }
         });
-        updateActionBar();
+        refreshActionBarInPlace();
+        if (showCheckedOnly) rerenderTableOnly();
       });
     }
 
@@ -1158,7 +1165,6 @@
       openTabsBtn.addEventListener('click', function() {
         var keys = Object.keys(checkedAsins);
         if (!keys.length) return;
-        // Open first tab immediately (avoids popup blocker), then rest with short delays
         keys.forEach(function(asin, idx) {
           var item = checkedAsins[asin];
           if (!item || !item.asin) return;
@@ -1174,10 +1180,41 @@
       });
     }
 
+    var showCheckedBtn = document.getElementById('action-show-checked');
+    if (showCheckedBtn) {
+      showCheckedBtn.addEventListener('click', function() {
+        showCheckedOnly = !showCheckedOnly;
+        rerenderTableOnly();
+      });
+    }
+
+    var shareCheckedBtn = document.getElementById('action-share-checked');
+    if (shareCheckedBtn) {
+      shareCheckedBtn.addEventListener('click', async function() {
+        var keys = Object.keys(checkedAsins);
+        if (!keys.length) return;
+        var checkedItems = keys.map(function(a) { return checkedAsins[a]; });
+        shareCheckedBtn.textContent = 'Saving…';
+        try {
+          var id = await saveComparison(checkedItems, currentSearchTerm);
+          var shareUrl = new URL(window.location.href);
+          shareUrl.search = '';
+          shareUrl.searchParams.set('id', id);
+          await navigator.clipboard.writeText(shareUrl.toString());
+          shareCheckedBtn.textContent = 'Link copied!';
+          setTimeout(function() { shareCheckedBtn.textContent = 'Share checked items'; }, 2500);
+        } catch(e) {
+          shareCheckedBtn.textContent = 'Share failed — try again';
+          setTimeout(function() { shareCheckedBtn.textContent = 'Share checked items'; }, 2500);
+        }
+      });
+    }
+
     var deselectBtn = document.getElementById('action-deselect-all');
     if (deselectBtn) {
       deselectBtn.addEventListener('click', function() {
         checkedAsins = {};
+        showCheckedOnly = false;
         rerenderTableOnly();
       });
     }
