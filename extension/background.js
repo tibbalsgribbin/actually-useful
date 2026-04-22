@@ -55,4 +55,31 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     });
     return true;
   }
+
+  // compare.html calls this when "Send to extension" is clicked.
+  // Replaces the shortlist in chrome.storage.local with the checked items.
+  if (msg.type === 'AU_SET_SHORTLIST') {
+    var items = (msg.items || []).map(function(item) {
+      return Object.assign({}, item, { capturedAt: new Date().toISOString() });
+    });
+    chrome.storage.local.set({ au_shortlist: items }, function() {
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
+  // compare.html calls this when a note textarea is edited.
+  // Updates the note on the matching shortlist item without replacing the whole list.
+  if (msg.type === 'AU_UPDATE_NOTE') {
+    var asin = msg.asin;
+    var note = msg.note;
+    chrome.storage.local.get('au_shortlist', function(result) {
+      var list = result['au_shortlist'] || [];
+      list.forEach(function(item) {
+        if (item.asin === asin) item.note = note;
+      });
+      chrome.storage.local.set({ au_shortlist: list });
+    });
+    return false;
+  }
 });

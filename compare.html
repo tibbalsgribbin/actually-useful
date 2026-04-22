@@ -160,7 +160,57 @@
       min-width: 140px;
     }
 
-    .fb-label input[type="number"] { min-width: 80px; }
+    .fb-label input[type="text"]   { min-width: 220px; }
+    .fb-label input[type="number"] { width: 80px; min-width: 0; }
+
+    /* ── Action bar (appears when rows are checked) ───────────── */
+    #action-bar {
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding: 0.6rem 1rem;
+      background: #3B1F5A;
+      color: #FDFBF7;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      font-size: 0.875rem;
+    }
+    #action-bar.visible { display: flex; }
+    #action-bar .action-count { flex: 1; font-weight: 600; }
+    #action-bar .btn-action {
+      background: #CF6DFC; color: #fff; border: none;
+      padding: 0.35rem 0.85rem; border-radius: 4px; cursor: pointer;
+      font-size: 0.82rem; font-weight: 600; font-family: inherit;
+      white-space: nowrap;
+    }
+    #action-bar .btn-action:hover { background: #b84de0; }
+    #action-bar .btn-action-ghost {
+      background: transparent; color: #FDFBF7;
+      border: 1px solid rgba(255,255,255,0.4);
+      padding: 0.35rem 0.85rem; border-radius: 4px; cursor: pointer;
+      font-size: 0.82rem; font-weight: 600; font-family: inherit;
+      white-space: nowrap;
+    }
+    #action-bar .btn-action-ghost:hover { background: rgba(255,255,255,0.1); }
+
+    /* ── Row checkbox column ─────────────────────────────────── */
+    .col-cb { width: 32px; padding: 0.75rem 0.5rem; text-align: center; }
+    .col-cb input[type="checkbox"] { width: 1rem; height: 1rem; cursor: pointer; accent-color: #CF6DFC; }
+    thead .col-cb input[type="checkbox"] { accent-color: #CF6DFC; }
+
+    /* ── Thumbnail ───────────────────────────────────────────── */
+    .col-thumb { width: 64px; padding: 0.5rem; }
+    .col-thumb img { width: 56px; height: 56px; object-fit: contain; border-radius: 4px; display: block; }
+
+    /* ── Editable note textarea ──────────────────────────────── */
+    .note-textarea {
+      width: 100%; min-height: 40px; resize: vertical;
+      border: 1px solid #c8c0e8; border-radius: 4px;
+      padding: 4px 6px; font-size: 0.8rem; font-family: inherit;
+      color: #351E45; background: #fff; box-sizing: border-box;
+    }
+    .note-textarea:focus { outline: none; border-color: #CF6DFC; }
 
     .fb-checkbox {
       flex-direction: row;
@@ -407,6 +457,14 @@
     <p>Your shortlisted items, side by side.</p>
   </div>
 
+  <!-- Action bar — shown when rows are checked -->
+  <div id="action-bar">
+    <span class="action-count" id="action-count-label"></span>
+    <button class="btn-action" id="action-open-tabs">Open checked in tabs</button>
+    <button class="btn-action-ghost" id="action-send-extension">Send to extension</button>
+    <button class="btn-action-ghost" id="action-deselect-all">Deselect all</button>
+  </div>
+
   <!-- Main -->
   <main id="main-content">
     <!-- Populated by JS -->
@@ -584,6 +642,7 @@
   // ── Filter state ──────────────────────────────────────────────
   let filterKeyword    = '';
   let filterMinReviews = 0;
+  let filterMinRating  = 0;
   let filterRetailer   = '';   // '' = all; or a retailerKey value
   let filterHideSponsored = false;
   let filterMinPrice   = '';
@@ -663,6 +722,7 @@
       if (filterHideSponsored && item.isSponsored) return false;
       if (filterRetailer && (item.retailerKey || 'standard') !== filterRetailer) return false;
       if (filterMinReviews > 0 && (parseFloat(item.reviewCount) || 0) < filterMinReviews) return false;
+      if (filterMinRating > 0 && (parseFloat(item.rating) || 0) < filterMinRating) return false;
       if (filterKeyword && !keywordMatchesItem(item, filterKeyword)) return false;
       if (filterMinPrice !== '' && !isNaN(filterMinPrice) && (parseFloat(item.price) || 0) < parseFloat(filterMinPrice)) return false;
       if (filterMaxPrice !== '' && !isNaN(filterMaxPrice) && (parseFloat(item.price) || 0) > parseFloat(filterMaxPrice)) return false;
@@ -697,6 +757,7 @@
 
     var kwVal = esc(filterKeyword);
     var mrVal = filterMinReviews || '';
+    var ratingVal = filterMinRating || '';
 
     var minPriceVal = filterMinPrice !== '' ? esc(String(filterMinPrice)) : '';
     var maxPriceVal = filterMaxPrice !== '' ? esc(String(filterMaxPrice)) : '';
@@ -709,9 +770,10 @@
       + '<div id="filter-bar-body">'
       + '<div class="fb-row">'
       + '<label class="fb-label">Keyword<input type="text" id="fb-keyword" placeholder="e.g. unscented -refill" value="' + kwVal + '"></label>'
-      + '<label class="fb-label">Min reviews<input type="number" id="fb-min-reviews" min="0" placeholder="0" value="' + mrVal + '"></label>'
-      + '<label class="fb-label">Min price ($)<input type="number" id="fb-min-price" min="0" placeholder="0" value="' + minPriceVal + '"></label>'
-      + '<label class="fb-label">Max price ($)<input type="number" id="fb-max-price" min="0" placeholder="any" value="' + maxPriceVal + '"></label>'
+      + '<label class="fb-label">Minimum reviews<input type="number" id="fb-min-reviews" min="0" placeholder="0" value="' + mrVal + '"></label>'
+      + '<label class="fb-label">Minimum rating<input type="number" id="fb-min-rating" min="0" max="5" step="0.1" placeholder="0" value="' + ratingVal + '"></label>'
+      + '<label class="fb-label">Minimum price ($)<input type="number" id="fb-min-price" min="0" placeholder="0" value="' + minPriceVal + '"></label>'
+      + '<label class="fb-label">Maximum price ($)<input type="number" id="fb-max-price" min="0" placeholder="any" value="' + maxPriceVal + '"></label>'
       + retailerOptions
       + sponsoredToggle
       + '<button id="fb-clear" class="btn btn-ghost">Clear filters</button>'
@@ -729,7 +791,13 @@
     var hasLiquidMix = liquidItems.length > 1 && liquidItems.some(function(it) { return it.ppuUnit !== liquidItems[0].ppuUnit; });
     var hasAnyLiquid = liquidItems.length > 0;
 
+    var allChecked = items.length > 0 && items.every(function(it) { return checkedAsins[it.asin]; });
+    var anyChecked = items.some(function(it) { return checkedAsins[it.asin]; });
+    var selectAllChk = '<input type="checkbox" id="compare-select-all" title="Select all"' + (allChecked ? ' checked' : (anyChecked ? ' indeterminate-state' : '')) + '>';
+
     var colDefs = [
+      { key: '_cb',         label: selectAllChk, nosort: true, cls: 'col-cb' },
+      { key: '_thumb',      label: '',           nosort: true, cls: 'col-thumb' },
       { key: 'title',       label: 'Product' },
       { key: 'price',       label: 'Price' },
       { key: 'ppu',         label: 'Per unit' },
@@ -743,14 +811,16 @@
     ];
 
     var theadCells = colDefs.map(function(c) {
-      var cls = '';
-      if (sortCol === c.key) cls = sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc';
+      var cls = c.cls || '';
+      if (sortCol === c.key) cls += (cls ? ' ' : '') + (sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
       var style = c.nosort ? ' style="cursor:default"' : '';
       return '<th data-col="' + c.key + '" class="' + cls + '"' + style + '>' + c.label + '</th>';
     }).join('');
 
     var rows = items.map(function(item, i) {
       var isBest = bestIndices.has(i);
+      var isChecked = !!checkedAsins[item.asin];
+      var safeAsin = esc(item.asin);
 
       // PPU — normalize liquid units if toggle is active
       var ppuCell;
@@ -777,7 +847,33 @@
         ? '<span class="pill pill-prime">Prime</span>'
         : '<span class="na">—</span>';
 
-      var couponCell = renderCouponCell(item);
+      // Coupon/promo column — label only, no prices
+      var couponLabel;
+      if (item.hasCoupon) {
+        couponLabel = '<span class="pill pill-coupon">Coupon</span>';
+      } else if (item.sns) {
+        couponLabel = '<span class="pill pill-coupon">S&amp;S</span>';
+      } else if (item.savings) {
+        couponLabel = '<span class="pill pill-coupon">' + esc(item.savings) + '</span>';
+      } else if (item.couponPillOnly) {
+        couponLabel = '<span class="pill pill-coupon">Check Amazon</span>';
+      } else {
+        couponLabel = '<span class="na">—</span>';
+      }
+
+      // Price column — two lines when coupon price available
+      var priceCell;
+      if (item.price != null && !isNaN(item.price)) {
+        var basePrice = parseFloat(item.price);
+        if (item.hasCoupon && item.listPrice && !isNaN(item.listPrice)) {
+          priceCell = '$' + basePrice.toFixed(2) + ' with coupon'
+            + '<br><span style="text-decoration:line-through;color:#877891;font-size:0.85em;">was $' + parseFloat(item.listPrice).toFixed(2) + '</span>';
+        } else {
+          priceCell = '$' + basePrice.toFixed(2);
+        }
+      } else {
+        priceCell = '<span class="na">—</span>';
+      }
 
       var deliveryParts = [];
       if (item.freeDate) {
@@ -786,10 +882,6 @@
       }
       if (item.fastDate) deliveryParts.push('Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs));
       var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
-
-      var priceCell = (item.price != null && !isNaN(item.price))
-        ? '$' + parseFloat(item.price).toFixed(2)
-        : '<span class="na">—</span>';
 
       var sourceKey = item.retailerKey || 'standard';
       var sourceCell = sourceKey === 'standard'
@@ -800,11 +892,16 @@
         ? ' <span class="pill" style="background:#f0f0f0;color:#888;border:1px solid #ddd;font-size:0.7em;">Ad</span>'
         : '';
 
-      var noteCell = item.note
-        ? '<span style="font-size:0.85em;color:#351E45;font-style:italic;">' + esc(item.note) + '</span>'
-        : '<span class="na">—</span>';
+      var thumbCell = item.imgUrl
+        ? '<img src="' + esc(item.imgUrl) + '" loading="lazy" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:4px;display:block;">'
+        : '';
 
-      return '<tr>'
+      var noteVal = esc(item.note || '');
+      var noteCell = '<textarea class="note-textarea" data-asin="' + safeAsin + '" placeholder="Add a note…" rows="2">' + noteVal + '</textarea>';
+
+      return '<tr data-asin="' + safeAsin + '">'
+        + '<td class="col-cb"><input type="checkbox" class="compare-row-cb" data-asin="' + safeAsin + '"' + (isChecked ? ' checked' : '') + '></td>'
+        + '<td class="col-thumb">' + thumbCell + '</td>'
         + '<td class="col-title"><a href="' + affiliateUrl(item.asin) + '" target="_blank" rel="noopener">' + esc(item.title) + '</a>' + sponsoredBadge + '</td>'
         + '<td class="col-price">' + priceCell + '</td>'
         + '<td class="col-ppu">' + ppuCell + '</td>'
@@ -812,7 +909,7 @@
         + '<td class="col-rating">' + renderStars(item.rating) + '</td>'
         + '<td class="col-reviews">' + formatReviews(item.reviewCount) + '</td>'
         + '<td>' + primeCell + '</td>'
-        + '<td>' + couponCell + '</td>'
+        + '<td>' + couponLabel + '</td>'
         + '<td>' + sourceCell + '</td>'
         + '<td class="col-note">' + noteCell + '</td>'
         + '</tr>';
@@ -898,6 +995,20 @@
 
   // ── Column sort handler ───────────────────────────────────────
   let currentItems = [];
+  let checkedAsins = {}; // asin → item object (for open-tabs and send-to-extension)
+
+  function updateActionBar() {
+    var bar = document.getElementById('action-bar');
+    var label = document.getElementById('action-count-label');
+    var keys = Object.keys(checkedAsins);
+    if (!bar) return;
+    if (keys.length === 0) {
+      bar.classList.remove('visible');
+    } else {
+      bar.classList.add('visible');
+      if (label) label.textContent = keys.length + ' item' + (keys.length !== 1 ? 's' : '') + ' selected';
+    }
+  }
 
   function attachSortHandlers() {
     document.querySelectorAll('#compare-table thead th').forEach(th => {
@@ -923,6 +1034,7 @@
     attachSortHandlers();
     attachFilterHandlers();
     attachLiquidToggleHandlers();
+    attachRowHandlers();
     attachShareHandler('top-share-btn');
     attachShareHandler('bottom-share-btn');
   }
@@ -937,7 +1049,124 @@
     });
   }
 
-  // Partial re-render: only replaces the meta-bar + table, leaves filter bar untouched.
+  // ── Row checkboxes, notes, and action bar ─────────────────────
+  function attachRowHandlers() {
+    // Individual row checkboxes
+    document.querySelectorAll('.compare-row-cb').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var asin = this.getAttribute('data-asin');
+        var item = currentItems.find(function(it) { return it.asin === asin; });
+        if (this.checked) {
+          if (item) checkedAsins[asin] = item;
+        } else {
+          delete checkedAsins[asin];
+        }
+        updateActionBar();
+        // Update select-all checkbox state
+        var allCbs = document.querySelectorAll('.compare-row-cb');
+        var allChecked = Array.from(allCbs).every(function(c) { return c.checked; });
+        var anyChecked = Array.from(allCbs).some(function(c) { return c.checked; });
+        var sa = document.getElementById('compare-select-all');
+        if (sa) {
+          sa.checked = allChecked;
+          sa.indeterminate = !allChecked && anyChecked;
+        }
+      });
+    });
+
+    // Select-all header checkbox
+    var selectAll = document.getElementById('compare-select-all');
+    if (selectAll) {
+      var allCbs = document.querySelectorAll('.compare-row-cb');
+      var allChecked = allCbs.length > 0 && Array.from(allCbs).every(function(c) { return c.checked; });
+      var anyChecked = Array.from(allCbs).some(function(c) { return c.checked; });
+      selectAll.indeterminate = !allChecked && anyChecked;
+      selectAll.addEventListener('change', function() {
+        var check = this.checked;
+        document.querySelectorAll('.compare-row-cb').forEach(function(cb) {
+          cb.checked = check;
+          var asin = cb.getAttribute('data-asin');
+          var item = currentItems.find(function(it) { return it.asin === asin; });
+          if (check) { if (item) checkedAsins[asin] = item; }
+          else { delete checkedAsins[asin]; }
+        });
+        updateActionBar();
+      });
+    }
+
+    // Editable note textareas — update currentItems in memory and try to sync to extension
+    document.querySelectorAll('.note-textarea').forEach(function(ta) {
+      ta.addEventListener('input', function() {
+        var asin = this.getAttribute('data-asin');
+        var note = this.value;
+        // Update in-memory items so rerenders preserve the note
+        currentItems.forEach(function(it) { if (it.asin === asin) it.note = note; });
+        if (checkedAsins[asin]) checkedAsins[asin].note = note;
+        // Try to sync back to extension
+        if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+          try {
+            chrome.runtime.sendMessage({ type: 'AU_UPDATE_NOTE', asin: asin, note: note });
+          } catch(e) {}
+        }
+      });
+      // Prevent sort-header click from interfering
+      ta.addEventListener('click', function(e) { e.stopPropagation(); });
+    });
+
+    // Action bar buttons — wire once on page load, not per rerender
+    // (buttons are in static HTML, not re-rendered)
+  }
+
+  // ── Action bar button handlers — wired once at init ───────────
+  function attachActionBarHandlers() {
+    var openTabsBtn = document.getElementById('action-open-tabs');
+    if (openTabsBtn) {
+      openTabsBtn.addEventListener('click', function() {
+        var keys = Object.keys(checkedAsins);
+        if (!keys.length) return;
+        keys.forEach(function(asin) {
+          var item = checkedAsins[asin];
+          if (item && item.asin) {
+            window.open('https://www.amazon.com/dp/' + encodeURIComponent(item.asin), '_blank', 'noopener');
+          }
+        });
+      });
+    }
+
+    var sendExtBtn = document.getElementById('action-send-extension');
+    if (sendExtBtn) {
+      sendExtBtn.addEventListener('click', function() {
+        var keys = Object.keys(checkedAsins);
+        if (!keys.length) return;
+        if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+          try {
+            chrome.runtime.sendMessage({
+              type: 'AU_SET_SHORTLIST',
+              items: keys.map(function(a) { return checkedAsins[a]; })
+            }, function(resp) {
+              sendExtBtn.textContent = 'Sent to extension!';
+              setTimeout(function() { sendExtBtn.textContent = 'Send to extension'; }, 2000);
+            });
+          } catch(e) {
+            sendExtBtn.textContent = 'Extension not found';
+            setTimeout(function() { sendExtBtn.textContent = 'Send to extension'; }, 2000);
+          }
+        } else {
+          sendExtBtn.textContent = 'Extension not found';
+          setTimeout(function() { sendExtBtn.textContent = 'Send to extension'; }, 2000);
+        }
+      });
+    }
+
+    var deselectBtn = document.getElementById('action-deselect-all');
+    if (deselectBtn) {
+      deselectBtn.addEventListener('click', function() {
+        checkedAsins = {};
+        updateActionBar();
+        rerenderTableOnly();
+      });
+    }
+  }
   // Used by the keyword input to avoid destroying the input and dropping focus.
   function rerenderTableOnly() {
     const filtered = applyFilters(currentItems);
@@ -948,7 +1177,13 @@
     var liquidItems = filtered.filter(function(it) { return it.ppu && isLiquidUnit(it.ppuUnit); });
     var hasAnyLiquid = liquidItems.length > 0;
 
+    var allChecked = sorted.length > 0 && sorted.every(function(it) { return checkedAsins[it.asin]; });
+    var anyChecked = sorted.some(function(it) { return checkedAsins[it.asin]; });
+    var selectAllChk = '<input type="checkbox" id="compare-select-all" title="Select all"' + (allChecked ? ' checked' : (anyChecked ? ' indeterminate-state' : '')) + '>';
+
     var colDefs = [
+      { key: '_cb',         label: selectAllChk, nosort: true, cls: 'col-cb' },
+      { key: '_thumb',      label: '',           nosort: true, cls: 'col-thumb' },
       { key: 'title',       label: 'Product' },
       { key: 'price',       label: 'Price' },
       { key: 'ppu',         label: 'Per unit' },
@@ -962,14 +1197,16 @@
     ];
 
     var theadCells = colDefs.map(function(c) {
-      var cls = '';
-      if (sortCol === c.key) cls = sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc';
+      var cls = c.cls || '';
+      if (sortCol === c.key) cls += (cls ? ' ' : '') + (sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
       var style = c.nosort ? ' style="cursor:default"' : '';
       return '<th data-col="' + c.key + '" class="' + cls + '"' + style + '>' + c.label + '</th>';
     }).join('');
 
     var rows = sorted.map(function(item, i) {
       var isBest = bestIndices.has(i);
+      var isChecked = !!checkedAsins[item.asin];
+      var safeAsin = esc(item.asin);
 
       var ppuV = parseFloat(item.ppu);
       var ppuCell;
@@ -993,7 +1230,33 @@
 
       var primeCell = item.isPrime ? '<span class="pill pill-prime">Prime</span>' : '<span class="na">—</span>';
 
-      var couponCell = renderCouponCell(item);
+      // Coupon/promo column — label only
+      var couponLabel;
+      if (item.hasCoupon) {
+        couponLabel = '<span class="pill pill-coupon">Coupon</span>';
+      } else if (item.sns) {
+        couponLabel = '<span class="pill pill-coupon">S&amp;S</span>';
+      } else if (item.savings) {
+        couponLabel = '<span class="pill pill-coupon">' + esc(item.savings) + '</span>';
+      } else if (item.couponPillOnly) {
+        couponLabel = '<span class="pill pill-coupon">Check Amazon</span>';
+      } else {
+        couponLabel = '<span class="na">—</span>';
+      }
+
+      // Price column — two lines when coupon
+      var priceCell;
+      if (item.price != null && !isNaN(item.price)) {
+        var basePrice = parseFloat(item.price);
+        if (item.hasCoupon && item.listPrice && !isNaN(item.listPrice)) {
+          priceCell = '$' + basePrice.toFixed(2) + ' with coupon'
+            + '<br><span style="text-decoration:line-through;color:#877891;font-size:0.85em;">was $' + parseFloat(item.listPrice).toFixed(2) + '</span>';
+        } else {
+          priceCell = '$' + basePrice.toFixed(2);
+        }
+      } else {
+        priceCell = '<span class="na">—</span>';
+      }
 
       var deliveryParts = [];
       if (item.freeDate) {
@@ -1002,9 +1265,6 @@
       }
       if (item.fastDate) deliveryParts.push('Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs));
       var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
-
-      var priceCell = (item.price != null && !isNaN(item.price))
-        ? '$' + parseFloat(item.price).toFixed(2) : '<span class="na">—</span>';
 
       var sourceKey = item.retailerKey || 'standard';
       var sourceCell = sourceKey === 'standard'
@@ -1015,11 +1275,16 @@
         ? ' <span class="pill" style="background:#f0f0f0;color:#888;border:1px solid #ddd;font-size:0.7em;">Ad</span>'
         : '';
 
-      var noteCell = item.note
-        ? '<span style="font-size:0.85em;color:#351E45;font-style:italic;">' + esc(item.note) + '</span>'
-        : '<span class="na">—</span>';
+      var thumbCell = item.imgUrl
+        ? '<img src="' + esc(item.imgUrl) + '" loading="lazy" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:4px;display:block;">'
+        : '';
 
-      return '<tr>'
+      var noteVal = esc(item.note || '');
+      var noteCell = '<textarea class="note-textarea" data-asin="' + safeAsin + '" placeholder="Add a note…" rows="2">' + noteVal + '</textarea>';
+
+      return '<tr data-asin="' + safeAsin + '">'
+        + '<td class="col-cb"><input type="checkbox" class="compare-row-cb" data-asin="' + safeAsin + '"' + (isChecked ? ' checked' : '') + '></td>'
+        + '<td class="col-thumb">' + thumbCell + '</td>'
         + '<td class="col-title"><a href="' + affiliateUrl(item.asin) + '" target="_blank" rel="noopener">' + esc(item.title) + '</a>' + sponsoredBadge + '</td>'
         + '<td class="col-price">' + priceCell + '</td>'
         + '<td class="col-ppu">' + ppuCell + '</td>'
@@ -1027,7 +1292,7 @@
         + '<td class="col-rating">' + renderStars(item.rating) + '</td>'
         + '<td class="col-reviews">' + formatReviews(item.reviewCount) + '</td>'
         + '<td>' + primeCell + '</td>'
-        + '<td>' + couponCell + '</td>'
+        + '<td>' + couponLabel + '</td>'
         + '<td>' + sourceCell + '</td>'
         + '<td class="col-note">' + noteCell + '</td>'
         + '</tr>';
@@ -1086,6 +1351,7 @@
         + '<p class="affiliate-note">This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you.</p>';
       attachSortHandlers();
       attachLiquidToggleHandlers();
+      attachRowHandlers();
       attachShareHandler('top-share-btn');
       attachShareHandler('bottom-share-btn');
     } else {
@@ -1125,6 +1391,15 @@
     if (mrInput) {
       mrInput.addEventListener('change', () => {
         filterMinReviews = parseInt(mrInput.value, 10) || 0;
+        rerender();
+      });
+    }
+
+    // Minimum rating
+    const ratingInput = document.getElementById('fb-min-rating');
+    if (ratingInput) {
+      ratingInput.addEventListener('change', () => {
+        filterMinRating = parseFloat(ratingInput.value) || 0;
         rerender();
       });
     }
@@ -1171,6 +1446,7 @@
       clearBtn.addEventListener('click', () => {
         filterKeyword = '';
         filterMinReviews = 0;
+        filterMinRating = 0;
         filterMinPrice = '';
         filterMaxPrice = '';
         filterRetailer = '';
@@ -1314,6 +1590,7 @@
   }
 
   init();
+  attachActionBarHandlers();
 </script>
 </body>
 </html>
