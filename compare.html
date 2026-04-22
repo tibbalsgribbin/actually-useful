@@ -11,15 +11,15 @@
   <style>
     /* ── Variables ───────────────────────────────────────────── */
     :root {
-      --cream:   #FDFBF7;    /* warm neutral background */
-      --navy:    #3B1F5A;    /* deep plum — brand primary */
-      --teal:    #2D7A5F;    /* sage green — links & actions */
-      --teal-lt: #C8C0E8;    /* soft periwinkle */
-      --gold:    #B89000;    /* amber — star ratings only */
-      --muted:   #7A6890;    /* muted plum */
-      --border:  #DDD4EC;    /* lavender border */
+      --cream:   #eaecfd;    /* 10 — lightest indigo, background */
+      --navy:    #512bd3;    /* 1  — deep indigo, headers & nav */
+      --teal:    #5d49da;    /* 2  — medium indigo, links & buttons */
+      --teal-lt: #c2c5f7;    /* 8  — light indigo, pills */
+      --gold:    #BDB96A;    /* gold — star ratings */
+      --muted:   #6B5FA0;    /* muted indigo */
+      --border:  #afb2f4;    /* 7  — indigo border */
       --red:     #c94b2e;
-      --green:   #2a7a5f;
+      --green:   #D4920A;    /* amber — best value */
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,7 +27,7 @@
     body {
       font-family: 'DM Sans', sans-serif;
       background: var(--cream);
-      color: var(--navy);
+      color: #1A1035;
       min-height: 100vh;
     }
 
@@ -55,7 +55,7 @@
     }
 
     .nav-links a {
-      color: rgba(253,251,247,0.65);
+      color: rgba(255,255,255,0.75);
       text-decoration: none;
       font-size: 0.875rem;
       font-weight: 500;
@@ -80,7 +80,7 @@
     }
 
     .page-header p {
-      color: rgba(253,251,247,0.65);
+      color: rgba(255,255,255,0.75);
       font-size: 0.9rem;
     }
 
@@ -97,7 +97,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       margin-bottom: 1rem;
-      background: #fdfbd4;
+      background: #eaecfd;
       overflow: hidden;
     }
 
@@ -111,7 +111,7 @@
     }
 
     #filter-bar-title {
-      font-weight: 600;
+      font-weight: 400;
       font-size: 0.875rem;
       letter-spacing: 0.02em;
     }
@@ -144,8 +144,8 @@
       flex-direction: column;
       gap: 0.25rem;
       font-size: 0.78rem;
-      font-weight: 600;
-      color: #351E45;
+      font-weight: 400;
+      color: #1A1035;
     }
 
     .fb-label input[type="text"],
@@ -156,7 +156,7 @@
       border-radius: 4px;
       font-size: 0.85rem;
       background: #fff;
-      color: #351E45;
+      color: #1A1035;
       min-width: 140px;
     }
 
@@ -170,34 +170,34 @@
       gap: 0.75rem;
       flex-wrap: wrap;
       padding: 0.6rem 1rem;
-      background: #3B1F5A;
+      background: #512bd3;
       color: #FDFBF7;
       border-radius: 8px;
       margin-bottom: 0.75rem;
       font-size: 0.875rem;
     }
     #action-bar.visible { display: flex; }
-    #action-bar .action-count { flex: 1; font-weight: 600; }
+    #action-bar .action-count { flex: 1; font-weight: 400; }
     #action-bar .btn-action {
-      background: #CF6DFC; color: #fff; border: none;
+      background: #6b60e0; color: #ffffff; border: none;
       padding: 0.35rem 0.85rem; border-radius: 4px; cursor: pointer;
-      font-size: 0.82rem; font-weight: 600; font-family: inherit;
+      font-size: 0.82rem; font-weight: 400; font-family: inherit;
       white-space: nowrap;
     }
-    #action-bar .btn-action:hover { background: #b84de0; }
+    #action-bar .btn-action:hover { background: #5d49da; }
     #action-bar .btn-action-ghost {
       background: transparent; color: #FDFBF7;
       border: 1px solid rgba(255,255,255,0.4);
       padding: 0.35rem 0.85rem; border-radius: 4px; cursor: pointer;
-      font-size: 0.82rem; font-weight: 600; font-family: inherit;
+      font-size: 0.82rem; font-weight: 400; font-family: inherit;
       white-space: nowrap;
     }
     #action-bar .btn-action-ghost:hover { background: rgba(255,255,255,0.1); }
 
     /* ── Row checkbox column ─────────────────────────────────── */
     .col-cb { width: 32px; padding: 0.75rem 0.5rem; text-align: center; }
-    .col-cb input[type="checkbox"] { width: 1rem; height: 1rem; cursor: pointer; accent-color: #CF6DFC; }
-    thead .col-cb input[type="checkbox"] { accent-color: #CF6DFC; }
+    .col-cb input[type="checkbox"] { width: 1rem; height: 1rem; cursor: pointer; accent-color: #6b60e0; }
+    thead .col-cb input[type="checkbox"] { accent-color: #6b60e0; }
 
     /* ── Thumbnail ───────────────────────────────────────────── */
     .col-thumb { width: 64px; padding: 0.5rem; }
@@ -206,11 +206,11 @@
     /* ── Editable note textarea ──────────────────────────────── */
     .note-textarea {
       width: 100%; min-height: 40px; resize: vertical;
-      border: 1px solid #c8c0e8; border-radius: 4px;
+      border: 1px solid #afb2f4; border-radius: 4px;
       padding: 4px 6px; font-size: 0.8rem; font-family: inherit;
-      color: #351E45; background: #fff; box-sizing: border-box;
+      color: #1A1035; background: #fff; box-sizing: border-box;
     }
-    .note-textarea:focus { outline: none; border-color: #CF6DFC; }
+    .note-textarea:focus { outline: none; border-color: #6b60e0; }
 
     .fb-checkbox {
       flex-direction: row;
@@ -241,12 +241,12 @@
 
     .search-term-badge {
       background: #C1BFFF;
-      color: #351E45;
+      color: #1A1035;
       border: 1px solid #aba8eb;
       border-radius: 4px;
       padding: 0.2rem 0.6rem;
       font-size: 0.8rem;
-      font-weight: 600;
+      font-weight: 400;
     }
 
     /* ── Table wrapper ───────────────────────────────────────── */
@@ -254,7 +254,7 @@
       overflow-x: auto;
       border: 1px solid var(--border);
       border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(53,30,69,0.08);
+      box-shadow: 0 2px 8px rgba(26,16,53,0.08);
     }
 
     table {
@@ -275,7 +275,7 @@
     thead th {
       padding: 0.75rem 1rem;
       text-align: left;
-      font-weight: 600;
+      font-weight: 400;
       font-size: 0.78rem;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -284,7 +284,7 @@
       user-select: none;
     }
 
-    thead th:hover { background: rgba(253,251,247,0.1); }
+    thead th:hover { background: rgba(255,255,255,0.1); }
 
     thead th.sorted-asc::after  { content: ' ▲'; font-size: 0.65rem; }
     thead th.sorted-desc::after { content: ' ▼'; font-size: 0.65rem; }
@@ -295,7 +295,7 @@
     }
 
     tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: #EDE8F5; }
+    tbody tr:hover { background: #d6d8fa; }
 
     td {
       padding: 0.75rem 1rem;
@@ -318,7 +318,7 @@
 
     .col-title a:hover { text-decoration: underline; }
 
-    .col-price { white-space: nowrap; font-weight: 600; }
+    .col-price { white-space: nowrap; font-weight: 400; }
 
     .col-ppu {
       white-space: nowrap;
@@ -326,7 +326,7 @@
 
     .best-value {
       color: var(--green);
-      font-weight: 700;
+      font-weight: 500;
     }
 
     .best-value-star {
@@ -345,12 +345,12 @@
       padding: 0.15rem 0.5rem;
       border-radius: 999px;
       font-size: 0.75rem;
-      font-weight: 600;
+      font-weight: 400;
       white-space: nowrap;
     }
 
-    .pill-prime   { background: #C1BFFF; color: #351E45; border: 1px solid #aba8eb; }
-    .pill-coupon  { background: #98DBC6; color: #1b4d3c; border: 1px solid #81C9B2; }
+    .pill-prime   { background: #C1BFFF; color: #1A1035; border: 1px solid #aba8eb; }
+    .pill-coupon  { background: #c2c5f7; color: #1A1035; border: 1px solid #9d9eef; }
     .pill-return  { background: #FFA590; color: #5c2415; border: 1px solid #F28B73; }
 
     .stars {
@@ -360,7 +360,7 @@
 
     .rating-num {
       color: var(--navy);
-      font-weight: 600;
+      font-weight: 400;
     }
 
     .na { color: #877891; font-size: 0.8rem; }
@@ -398,7 +398,7 @@
       padding: 0.6rem 1.4rem;
       border-radius: 6px;
       font-family: 'DM Sans', sans-serif;
-      font-weight: 600;
+      font-weight: 400;
       font-size: 0.875rem;
       text-decoration: none;
       transition: opacity 0.15s;
@@ -408,13 +408,13 @@
     .btn:hover { opacity: 0.85; }
     .btn:active { transform: translateY(1px); opacity: 0.75; }
 
-    .btn-primary { background: var(--navy); color: var(--cream); }
+    .btn-primary { background: var(--navy); color: #ffffff; }
     .btn-ghost   { background: transparent; color: var(--teal); border: 1.5px solid var(--teal); margin-left: 0.75rem; }
 
     /* ── Footer ──────────────────────────────────────────────── */
     footer {
       background: var(--navy);
-      color: rgba(253,251,247,0.65);
+      color: rgba(255,255,255,0.75);
       text-align: center;
       padding: 1.5rem;
       font-size: 0.8rem;
@@ -422,11 +422,11 @@
     }
 
     footer a {
-      color: rgba(253,251,247,0.65);
+      color: rgba(255,255,255,0.75);
       text-decoration: none;
     }
 
-    footer a:hover { color: var(--cream); }
+    footer a:hover { color: #ffffff; }
 
     .footer-sep { margin: 0 0.5rem; }
 
@@ -542,7 +542,7 @@
     if (item.hasCoupon) {
       var withLine = '$' + parseFloat(item.price).toFixed(2) + ' with coupon';
       var wasLine = (item.listPrice != null && !isNaN(item.listPrice) && parseFloat(item.listPrice) !== parseFloat(item.price))
-        ? '<br><s style="color:#877891;font-size:0.85em;">was $' + parseFloat(item.listPrice).toFixed(2) + '</s>'
+        ? '<br><s style="color:#6B5FA0;font-size:0.85em;">was $' + parseFloat(item.listPrice).toFixed(2) + '</s>'
         : '';
       return '<span class="pill pill-coupon">' + withLine + wasLine + '</span>';
     }
@@ -779,7 +779,7 @@
       + '</div>'
       + '<div id="filter-bar-body">'
       + '<div class="fb-row">'
-      + '<label class="fb-label">Include<span style="font-size:0.75em;color:#877891;font-weight:400;margin-left:0.3em;">(use | or OR for alternatives)</span><input type="text" id="fb-include" placeholder="e.g. unscented | fragrance free" value="' + inclVal + '" style="min-width:260px;"></label>'
+      + '<label class="fb-label">Include<span style="font-size:0.75em;color:#6B5FA0;font-weight:400;margin-left:0.3em;">(use | or OR for alternatives)</span><input type="text" id="fb-include" placeholder="e.g. unscented | fragrance free" value="' + inclVal + '" style="min-width:260px;"></label>'
       + '<label class="fb-label">Exclude<input type="text" id="fb-exclude" placeholder="e.g. refill travel" value="' + exclVal + '" style="min-width:180px;"></label>'
       + '<label class="fb-label">Minimum reviews<input type="number" id="fb-min-reviews" min="0" placeholder="0" value="' + mrVal + '"></label>'
       + '<label class="fb-label">Minimum rating<input type="number" id="fb-min-rating" min="0" max="5" step="0.1" placeholder="0" value="' + ratingVal + '"></label>'
@@ -878,7 +878,7 @@
         var basePrice = parseFloat(item.price);
         if (item.hasCoupon && item.listPrice && !isNaN(item.listPrice)) {
           priceCell = '$' + basePrice.toFixed(2) + ' with coupon'
-            + '<br><span style="text-decoration:line-through;color:#877891;font-size:0.85em;">was $' + parseFloat(item.listPrice).toFixed(2) + '</span>';
+            + '<br><span style="text-decoration:line-through;color:#6B5FA0;font-size:0.85em;">was $' + parseFloat(item.listPrice).toFixed(2) + '</span>';
         } else {
           priceCell = '$' + basePrice.toFixed(2);
         }
@@ -897,7 +897,7 @@
       var sourceKey = item.retailerKey || 'standard';
       var sourceCell = sourceKey === 'standard'
         ? '<span class="na">Amazon</span>'
-        : '<span class="pill" style="background:#e8e4f8;color:#351E45;border:1px solid #c1bfff;">' + esc(retailerLabel(sourceKey)) + '</span>';
+        : '<span class="pill" style="background:#e8e4f8;color:#1A1035;border:1px solid #c1bfff;">' + esc(retailerLabel(sourceKey)) + '</span>';
 
       var sponsoredBadge = item.isSponsored
         ? ' <span class="pill" style="background:#f0f0f0;color:#888;border:1px solid #ddd;font-size:0.7em;">Ad</span>'
@@ -928,14 +928,14 @@
 
     var hiddenCount = currentItems.length - items.length;
     var hiddenNote = hiddenCount > 0
-      ? '<span style="color:#877891;font-size:0.88em;">' + hiddenCount + ' item' + (hiddenCount !== 1 ? 's' : '') + ' hidden by filters</span>'
+      ? '<span style="color:#6B5FA0;font-size:0.88em;">' + hiddenCount + ' item' + (hiddenCount !== 1 ? 's' : '') + ' hidden by filters</span>'
       : '';
 
     var termBadge = searchTerm
       ? '<span class="search-term-badge">'
         + 'Amazon search: '
         + (currentSearchUrl
-            ? '<a href="' + esc(currentSearchUrl) + '" target="_blank" rel="noopener" style="color:#351E45;">' + esc(searchTerm) + '</a>'
+            ? '<a href="' + esc(currentSearchUrl) + '" target="_blank" rel="noopener" style="color:#1A1035;">' + esc(searchTerm) + '</a>'
             : esc(searchTerm))
         + '</span>'
       : '';
@@ -948,12 +948,12 @@
         { val: 'ml',    label: 'ml' },
       ];
       liquidToggle = '<div style="margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">'
-        + '<span style="font-size:0.8rem;font-weight:600;color:#351E45;">Liquid units:</span>'
+        + '<span style="font-size:0.8rem;font-weight:600;color:#1A1035;">Liquid units:</span>'
         + opts.map(function(o) {
             var active = (liquidDisplayUnit || '') === o.val;
             var style = active
-              ? 'background:#3B1F5A;color:#FDFBF7;border:1px solid #3B1F5A;'
-              : 'background:#fff;color:#351E45;border:1px solid #DDD4EC;';
+              ? 'background:#512bd3;color:#ffffff;border:1px solid #512bd3;'
+              : 'background:#fff;color:#1A1035;border:1px solid #DDD4EC;';
             return '<button class="liquid-unit-btn" data-unit="' + o.val + '" style="' + style + 'padding:0.2rem 0.6rem;border-radius:4px;font-size:0.8rem;cursor:pointer;font-family:inherit;">' + o.label + '</button>';
           }).join('')
         + '</div>';
@@ -1298,7 +1298,7 @@
         var basePrice = parseFloat(item.price);
         if (item.hasCoupon && item.listPrice && !isNaN(item.listPrice)) {
           priceCell = '$' + basePrice.toFixed(2) + ' with coupon'
-            + '<br><span style="text-decoration:line-through;color:#877891;font-size:0.85em;">was $' + parseFloat(item.listPrice).toFixed(2) + '</span>';
+            + '<br><span style="text-decoration:line-through;color:#6B5FA0;font-size:0.85em;">was $' + parseFloat(item.listPrice).toFixed(2) + '</span>';
         } else {
           priceCell = '$' + basePrice.toFixed(2);
         }
@@ -1317,7 +1317,7 @@
       var sourceKey = item.retailerKey || 'standard';
       var sourceCell = sourceKey === 'standard'
         ? '<span class="na">Amazon</span>'
-        : '<span class="pill" style="background:#e8e4f8;color:#351E45;border:1px solid #c1bfff;">' + esc(retailerLabel(sourceKey)) + '</span>';
+        : '<span class="pill" style="background:#e8e4f8;color:#1A1035;border:1px solid #c1bfff;">' + esc(retailerLabel(sourceKey)) + '</span>';
 
       var sponsoredBadge = item.isSponsored
         ? ' <span class="pill" style="background:#f0f0f0;color:#888;border:1px solid #ddd;font-size:0.7em;">Ad</span>'
@@ -1348,7 +1348,7 @@
 
     var hiddenCount = currentItems.length - filtered.length;
     var hiddenNote = hiddenCount > 0
-      ? '<span style="color:#877891;font-size:0.88em;">' + hiddenCount + ' item' + (hiddenCount !== 1 ? 's' : '') + ' hidden by filters</span>'
+      ? '<span style="color:#6B5FA0;font-size:0.88em;">' + hiddenCount + ' item' + (hiddenCount !== 1 ? 's' : '') + ' hidden by filters</span>'
       : '';
 
     var searchTerm = currentSearchTerm;
@@ -1356,7 +1356,7 @@
       ? '<span class="search-term-badge">'
         + 'Amazon search: '
         + (currentSearchUrl
-            ? '<a href="' + esc(currentSearchUrl) + '" target="_blank" rel="noopener" style="color:#351E45;">' + esc(searchTerm) + '</a>'
+            ? '<a href="' + esc(currentSearchUrl) + '" target="_blank" rel="noopener" style="color:#1A1035;">' + esc(searchTerm) + '</a>'
             : esc(searchTerm))
         + '</span>'
       : '';
@@ -1369,12 +1369,12 @@
         { val: 'ml',    label: 'ml' },
       ];
       liquidToggle = '<div style="margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">'
-        + '<span style="font-size:0.8rem;font-weight:600;color:#351E45;">Liquid units:</span>'
+        + '<span style="font-size:0.8rem;font-weight:600;color:#1A1035;">Liquid units:</span>'
         + opts.map(function(o) {
             var active = (liquidDisplayUnit || '') === o.val;
             var style = active
-              ? 'background:#3B1F5A;color:#FDFBF7;border:1px solid #3B1F5A;'
-              : 'background:#fff;color:#351E45;border:1px solid #DDD4EC;';
+              ? 'background:#512bd3;color:#ffffff;border:1px solid #512bd3;'
+              : 'background:#fff;color:#1A1035;border:1px solid #DDD4EC;';
             return '<button class="liquid-unit-btn" data-unit="' + o.val + '" style="' + style + 'padding:0.2rem 0.6rem;border-radius:4px;font-size:0.8rem;cursor:pointer;font-family:inherit;">' + o.label + '</button>';
           }).join('')
         + '</div>';
@@ -1603,7 +1603,7 @@
 
     // Load from Supabase if ?id= is present
     if (shareId) {
-      main.innerHTML = '<p style="text-align:center;padding:3rem;color:#877891;">Loading comparison…</p>';
+      main.innerHTML = '<p style="text-align:center;padding:3rem;color:#6B5FA0;">Loading comparison…</p>';
       try {
         const parsed = await loadComparison(shareId);
         currentItems = parsed.items || [];
