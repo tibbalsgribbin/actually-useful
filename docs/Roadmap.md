@@ -4,7 +4,7 @@
 
 ---
 
-## Current version: v0.6.1.14
+## Current version: v0.6.1.15
 
 ---
 
@@ -54,7 +54,7 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 Never use Python heredoc string escaping to write JavaScript template literals — it produces `\'` sequences that are invalid in .html files. Use string concatenation (`+`) for all HTML-building JS in compare.html.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.14 (search.js) / v0.6.1.14 (compare.html)
+- Current: v0.6.1 (manifest) / v0.6.1.15 (search.js) / v0.6.1.15 (compare.html)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
@@ -101,7 +101,7 @@ Two of these = stop and wrap up.
 1. **Palette redesign** — use Claude Design tool, then apply to CSS
 2. **Screenshots** — blocked on palette
 3. **Chrome Web Store submission** — blocked on screenshots
-4. **Persistent research session** (compare.html) — localStorage, inline notes, tab messaging, Save & share button
+4. **Persistent research session** (compare.html) — localStorage, inline notes editing directly in table, tab messaging, Save & share button
 
 ---
 
@@ -137,6 +137,14 @@ Two of these = stop and wrap up.
 - [x] Keyword focus fixed — table-only rerender preserves input focus (Chat 23)
 - [x] Price range filter — min/max price inputs on compare.html (Chat 23)
 - [x] searchUrl + freeDateTs/fastDateTs added to compare payload (Chat 23)
+- [x] Notes field per item in extension panel — textarea shown when checked (Chat 25)
+- [x] Notes in compare payload — travel to compare.html (Chat 25)
+- [x] listPrice in compare payload — enables two-line coupon display (Chat 25)
+- [x] Price range filter in extension panel — min/max $ inputs in Filters section (Chat 25)
+- [x] Coupon display on compare.html — two lines: price with coupon + strikethrough original (Chat 25)
+- [x] Delivery times on compare.html — same-day items show time appended to date (Chat 25)
+- [x] Liquid unit toggle on compare.html — As listed / fl oz / ml; recalculates best-value star (Chat 25)
+- [x] Notes column on compare.html — italic note text, not sortable (Chat 25)
 
 ### Alpha release — blockers
 - [ ] Palette redesign (Claude Design tool)
@@ -156,9 +164,9 @@ Two of these = stop and wrap up.
 - [ ] Create Amazon account (prerequisite for Associates)
 - [ ] Apply for Amazon Associates (after real user base established)
 
-### Persistent research session — Chat 23
+### Persistent research session — post-alpha
 - [ ] localStorage for working comparison state on compare.html
-- [ ] Inline notes editing on compare.html
+- [ ] Inline notes editing directly in compare.html table (notes arrive from extension; editable in table)
 - [ ] Tab messaging: extension appends items to open compare tab
 - [ ] "Save & share" button → Supabase → permanent link
 

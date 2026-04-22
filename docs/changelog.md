@@ -4,6 +4,35 @@
 
 ---
 
+## **v0.6.1.15 — April 21, 2026 (Chat 25)**
+
+### Notes field added (search.js)
+- Per-item textarea appears when an item is checked in the extension panel
+- Notes persist through re-renders and re-sorts (stored in memory by ASIN)
+- Clicking inside the textarea does not toggle the checkbox
+- Note text travels to compare.html via the compare payload
+
+### Compare payload expanded (search.js)
+- `listPrice` (raw float) added — enables two-line coupon display on compare.html
+- `note` (string) added — user-entered note per item
+
+### Price range filter added (search.js)
+- Min $ / Max $ number inputs in the Filters section
+- Items outside the range are hidden (`.price-hidden` class)
+- Excluded from best-value calculation
+- Count shown in footer: "N outside price range"
+- Cleared by Start over button
+- Persists within session via `saveFilters` / `loadFilters`
+- CSS for new inputs and notes textarea injected inline on panel build
+
+### Compare table updated (compare.html)
+- **Notes column** — shows note text in italic; not sortable
+- **Coupon display** — two lines when coupon price present: price with coupon, then strikethrough original price
+- **Delivery times** — same-day items show time appended to date (e.g. "Apr 21 by 9:00 pm"), derived from `freeDateTs`/`fastDateTs` timestamps
+- **Liquid unit toggle** — "Liquid units: As listed / fl oz / ml" appears above table when any item has a liquid unit; toggles re-normalize all liquid PPUs and recalculate best-value star; `findBestPpuIndices` updated to normalize liquids to fl oz for fair comparison regardless of toggle state
+
+---
+
 ## **v0.6.1.14 — April 21, 2026 (Chat 23)**
 
 ### Compare payload expanded (search.js)

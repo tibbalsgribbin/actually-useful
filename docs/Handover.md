@@ -1,26 +1,32 @@
-# Session Handover — April 21, 2026 (Chat 24)
+# Session Handover — April 21, 2026 (Chat 26)
 
-## What we did this session (Chat 23)
+## What we did this session (Chat 25)
 
-Coding session. Two files changed. All five issues from Melissa's Chat 22 testing addressed.
+Coding session across three chat continuations. Two files changed. Seven features added.
 
-**search.js (v0.6.1.14):**
-- Added `freeDateTs` and `fastDateTs` (epoch ms from Date objects) to compare payload — enables time-precise delivery sort
-- Added `searchUrl: window.location.href` to compare payload — enables clickable Amazon link in compare.html
+**search.js (v0.6.1.15):**
+- Notes field — textarea appears per checked item; persists through re-renders; note saved on uncheck
+- Notes travel to compare.html via compare payload
+- `listPrice` added to compare payload (needed for two-line coupon display)
+- Price range filter — Min $ / Max $ inputs in Filters section; hides rows, excludes from best-value, resets with Start over, persists in session
+- CSS for new elements injected inline on panel build (price inputs, notes textarea) — belongs in styles.css long-term
+- `minPrice`/`maxPrice` added to `saveFilters`/`loadFilters` and `anyFilterActive` check
 
-**compare.html (v0.6.1.14):**
-- Coupon sort fixed — was alphabetizing strings; now boolean sort on any promo presence; couponed items sort to top
-- Delivery sort fixed — now uses `freeDateTs`/`fastDateTs` timestamps; items with no delivery date go last
-- Search term badge — now reads "Amazon search: [clickable link to Amazon results]"; only works for new comparisons
-- Keyword focus fixed — keyword input now calls `rerenderTableOnly()` which replaces only `#meta-and-table`, leaving filter bar DOM (and the input) untouched
-- Price range filter added — Min price / Max price number inputs in filter bar; applied in `applyFilters()`; cleared by Clear filters
+**compare.html (v0.6.1.15):**
+- Notes column — italic note text, not sortable (cursor:default, click guarded in attachSortHandlers)
+- Coupon display — two lines when coupon: "$X.XX with coupon" / ~~was $Y.YY~~
+- Delivery times — same-day items show time appended (e.g. "Apr 21 by 9:00 pm"), derived from freeDateTs/fastDateTs
+- Liquid unit toggle — "As listed / fl oz / ml" buttons above table when liquid items present; re-normalizes PPUs and recalculates best-value star
+- `findBestPpuIndices` updated to normalize liquids to fl oz for fair comparison regardless of toggle state
+- `renderCouponCell` and `formatDeliveryDate` extracted as shared helpers (used by both renderTable and rerenderTableOnly)
+- `attachLiquidToggleHandlers` added; called after rerender and rerenderTableOnly
 
 ---
 
-## ⚠️ Start of next session (Chat 24)
+## ⚠️ Start of next session (Chat 26)
 
 1. Melissa uploads fresh search.js and compare.html from GitHub as actual file uploads
-2. Claude confirms version strings: manifest `0.6.1` · search.js `0.6.1.14` · compare.html `0.6.1.14`
+2. Claude confirms version strings: manifest `0.6.1` · search.js `0.6.1.15` · compare.html `0.6.1.15`
 3. Confirm scope before touching any files
 
 ---
@@ -28,39 +34,44 @@ Coding session. Two files changed. All five issues from Melissa's Chat 22 testin
 ## Known issues / bugs
 
 - **Palette not working well on actual extension** — needs redesign session using Claude Design tool before screenshots can be taken
+- **CSS for notes/price inputs is injected inline** — should be moved to styles.css before Web Store submission
 - **Laundry pods show wrong unit ($/lb instead of $/ct)** — ongoing
 - **Mixed units in results** — cross-family sort may be occurring
-- **"Amazon search" link** — only works for comparisons created after v0.6.1.14; old Supabase rows lack `searchUrl`
+- **"Amazon search" link in compare.html** — only works for comparisons created after v0.6.1.14; old Supabase rows lack `searchUrl`
 
 ---
 
-## Next session agenda (Chat 24)
+## Next session agenda (Chat 26)
 
-1. Palette redesign (Claude Design tool) — this is the blocker for everything below
-2. Screenshots (5) — blocked on palette
-3. Chrome Web Store submission — blocked on screenshots
-4. If all above done: persistent research session on compare.html (localStorage, inline notes, tab messaging, Save & share)
+1. **Test v0.6.1.15** — notes, price range, coupon display, delivery times, liquid toggle
+2. **Palette redesign** (Claude Design tool) — blocker for everything below
+3. **Screenshots** (5) — blocked on palette
+4. **Chrome Web Store submission** — blocked on screenshots
 
 ---
 
 ## Progress snapshot
 
 ### ✅ Recently done
+- Notes field in extension + notes column on compare.html (Chat 25)
+- Price range filter in extension (Chat 25)
+- Two-line coupon display on compare.html (Chat 25)
+- Delivery times for same-day items on compare.html (Chat 25)
+- Liquid unit normalization toggle on compare.html (Chat 25)
 - All five Chat 22 testing issues fixed (Chat 23)
-- Compare payload expanded — searchUrl, freeDateTs, fastDateTs (Chat 23)
-- Coupon/delivery sort fixed, keyword focus fixed, price range filter added (Chat 23)
-- Compare payload expanded — all panel data survives trip to compare.html (Chat 22)
-- Compare table updated — new columns, blank columns removed (Chat 22)
+- Compare payload fully expanded — all panel data survives trip to compare.html (Chats 22–23)
 - Filter bar on compare.html (Chat 22)
 - Supabase compare — no item limit (Chat 21)
 
-### 🔜 Next up — Chat 24
-1. Palette redesign (Claude Design tool)
-2. Screenshots — blocked on palette
-3. Chrome Web Store submission — blocked on screenshots
+### 🔜 Next up — Chat 26
+1. Test v0.6.1.15
+2. Palette redesign (Claude Design tool)
+3. Screenshots
+4. Chrome Web Store submission
 
 ### 🔭 Further out
-- Persistent research session (compare.html)
+- Move injected CSS to styles.css (pre-Web Store)
+- Persistent research session (compare.html) — localStorage, inline notes editing in table, tab messaging, Save & share
 - Power search form
 - Product page re-enabled
 - Cross-page shortlist persistence
@@ -77,7 +88,7 @@ Coding session. Two files changed. All five issues from Melissa's Chat 22 testin
 - Use AskUserQuestion widget for clarifying questions
 - All Google tasks: InPrivate Edge + butactuallyuseful@gmail.com
 - Context rot: stop and wrap up rather than pushing through
-- Version: manifest `0.6.1` · search.js `0.6.1.14` · compare.html `0.6.1.14`
+- Version: manifest `0.6.1` · search.js `0.6.1.15` · compare.html `0.6.1.15`
 - Always provide a suggested GitHub commit message at end of session
 - Always include context/token status when asking "continue or wrap up?"
 - Bundle small changes together rather than shipping each one separately
@@ -101,6 +112,9 @@ Coding session. Two files changed. All five issues from Melissa's Chat 22 testin
 - All data that appears in the extension panel listing should be in the compare.html payload — no exceptions
 - rerenderTableOnly() leaves filter bar DOM untouched — keyword input uses this to avoid focus loss
 - #meta-and-table is the stable wrapper div for the meta bar + table (does not include filter bar)
+- Notes CSS (ppu-item-note, ppu-price-input, ppu-price-range-row, price-hidden) is currently injected inline — move to styles.css before Web Store submission
+- liquid-unit-btn handlers wired by attachLiquidToggleHandlers(), called after rerender and rerenderTableOnly
+- Notes column (key: 'note') has nosort:true — sort handler guards against cursor:default headers
 
 ---
 
@@ -109,7 +123,7 @@ Coding session. Two files changed. All five issues from Melissa's Chat 22 testin
 - [x] Roadmap.md — updated
 - [x] Changelog.md — updated
 - [x] Project_Briefing.md — updated
-- [x] Changed code files presented (search.js v0.6.1.14, compare.html v0.6.1.14)
+- [x] Changed code files presented (search.js v0.6.1.15, compare.html v0.6.1.15)
 - [ ] Melissa puts updated docs in `docs/` folder in GitHub
 - [ ] Melissa commits and pushes via GitHub Desktop (pull → stage → commit → push)
 - [ ] Melissa updates project files in Claude Project (upload new versions)

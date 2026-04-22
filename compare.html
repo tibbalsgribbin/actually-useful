@@ -475,14 +475,71 @@
     return Number(n).toLocaleString();
   }
 
+  // Format a delivery date string, appending time if it's today
+  function formatDeliveryDate(dateStr, ts) {
+    if (!dateStr) return '';
+    if (!ts) return esc(dateStr);
+    var d = new Date(ts);
+    var now = new Date();
+    var isToday = d.getFullYear() === now.getFullYear()
+               && d.getMonth() === now.getMonth()
+               && d.getDate() === now.getDate();
+    if (isToday) {
+      var hr = d.getHours();
+      var min = d.getMinutes().toString().padStart(2, '0');
+      var ampm = hr >= 12 ? 'pm' : 'am';
+      var hr12 = hr % 12 || 12;
+      return esc(dateStr) + ' by ' + hr12 + ':' + min + ' ' + ampm;
+    }
+    return esc(dateStr);
+  }
+
+  // Render coupon cell: two lines when we have a coupon with was-price
+  function renderCouponCell(item) {
+    if (item.hasCoupon) {
+      var withLine = '$' + parseFloat(item.price).toFixed(2) + ' with coupon';
+      var wasLine = (item.listPrice != null && !isNaN(item.listPrice) && parseFloat(item.listPrice) !== parseFloat(item.price))
+        ? '<br><s style="color:#877891;font-size:0.85em;">was $' + parseFloat(item.listPrice).toFixed(2) + '</s>'
+        : '';
+      return '<span class="pill pill-coupon">' + withLine + wasLine + '</span>';
+    }
+    if (item.sns) {
+      var snsStr = item.sns === 'unknown' ? 'Subscribe &amp; Save' : esc(item.sns) + ' with S&amp;S';
+      return '<span class="pill pill-coupon">' + snsStr + '</span>';
+    }
+    if (item.savings) {
+      return '<span class="pill pill-coupon">' + esc(item.savings) + '</span>';
+    }
+    if (item.couponPillOnly) {
+      return '<span class="pill pill-coupon">Coupon — check Amazon</span>';
+    }
+    return '<span class="na">—</span>';
+  }
+
   // Find all indices that share the best (lowest) PPU value, for highlighting.
+  // Normalizes liquid units (ml/fl oz) to fl oz for fair comparison.
   // Round to 6dp before comparing to avoid floating-point mismatch on equal values.
   function findBestPpuIndices(items) {
     const round = v => Math.round(v * 1e6) / 1e6;
+    function getNormalizedPPU(item) {
+      const v = parseFloat(item.ppu);
+      if (isNaN(v) || v <= 0) return null;
+      // If a liquid display unit is active, normalize through that unit
+      if (liquidDisplayUnit && isLiquidUnit(item.ppuUnit)) {
+        const conv = convertLiquidPPU(v, item.ppuUnit, liquidDisplayUnit);
+        return conv != null ? conv : v;
+      }
+      // Otherwise normalize all liquids to fl oz for comparison
+      if (isLiquidUnit(item.ppuUnit)) {
+        const conv = convertLiquidPPU(v, item.ppuUnit, 'fl oz');
+        return conv != null ? conv : v;
+      }
+      return v;
+    }
     let bestVal = Infinity;
     items.forEach(item => {
-      const v = parseFloat(item.ppu);
-      if (!isNaN(v) && v > 0) {
+      const v = getNormalizedPPU(item);
+      if (v != null) {
         const r = round(v);
         if (r < bestVal) bestVal = r;
       }
@@ -490,8 +547,8 @@
     const result = new Set();
     if (bestVal === Infinity) return result;
     items.forEach((item, i) => {
-      const v = parseFloat(item.ppu);
-      if (!isNaN(v) && round(v) === bestVal) result.add(i);
+      const v = getNormalizedPPU(item);
+      if (v != null && round(v) === bestVal) result.add(i);
     });
     return result;
   }
@@ -499,6 +556,30 @@
   // ── Sort state ────────────────────────────────────────────────
   let sortCol = null;
   let sortDir = 'asc';
+
+  // ── Liquid unit display state ─────────────────────────────────
+  // null = as listed; 'fl oz' = normalize all liquids to fl oz; 'ml' = normalize to ml
+  let liquidDisplayUnit = null;
+
+  const LIQUID_UNITS_SET = new Set(['fl oz','ml','l','liter','liters','milliliter','milliliters','fluid ounce','fluid ounces']);
+
+  function isLiquidUnit(u) { return u && LIQUID_UNITS_SET.has(u.toLowerCase().trim()); }
+
+  // Convert a raw PPU value from one liquid unit to another
+  function convertLiquidPPU(ppu, fromUnit, toUnit) {
+    if (!ppu || !fromUnit || !toUnit) return null;
+    var from = fromUnit.toLowerCase().trim();
+    var to   = toUnit.toLowerCase().trim();
+    if (from === to) return ppu;
+    // All values normalized through fl oz
+    var toFlOz = {
+      'fl oz':1,'fluid ounce':1,'fluid ounces':1,
+      'ml':1/29.5735,'milliliter':1/29.5735,'milliliters':1/29.5735,
+      'l':33.814,'liter':33.814,'liters':33.814
+    };
+    if (toFlOz[from] === undefined || toFlOz[to] === undefined) return null;
+    return ppu / toFlOz[from] * toFlOz[to];
+  }
 
   // ── Filter state ──────────────────────────────────────────────
   let filterKeyword    = '';
@@ -643,6 +724,11 @@
   function renderTable(items, searchTerm) {
     var bestIndices = findBestPpuIndices(items);
 
+    // Liquid unit toggle label
+    var liquidItems = items.filter(function(it) { return it.ppu && isLiquidUnit(it.ppuUnit); });
+    var hasLiquidMix = liquidItems.length > 1 && liquidItems.some(function(it) { return it.ppuUnit !== liquidItems[0].ppuUnit; });
+    var hasAnyLiquid = liquidItems.length > 0;
+
     var colDefs = [
       { key: 'title',       label: 'Product' },
       { key: 'price',       label: 'Price' },
@@ -653,58 +739,52 @@
       { key: 'isPrime',     label: 'Prime' },
       { key: 'coupon',      label: 'Coupon / promo' },
       { key: 'retailerKey', label: 'Source' },
+      { key: 'note',        label: 'Notes', nosort: true },
     ];
 
     var theadCells = colDefs.map(function(c) {
       var cls = '';
       if (sortCol === c.key) cls = sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc';
-      return '<th data-col="' + c.key + '" class="' + cls + '">' + c.label + '</th>';
+      var style = c.nosort ? ' style="cursor:default"' : '';
+      return '<th data-col="' + c.key + '" class="' + cls + '"' + style + '>' + c.label + '</th>';
     }).join('');
 
     var rows = items.map(function(item, i) {
       var isBest = bestIndices.has(i);
 
-      var ppuStr = '';
-      var ppuV = parseFloat(item.ppu);
+      // PPU — normalize liquid units if toggle is active
       var ppuCell;
+      var ppuV = parseFloat(item.ppu);
       if (isNaN(ppuV) || ppuV <= 0) {
         ppuCell = '<span class="na">—</span>';
       } else {
-        ppuStr = ppuV < 0.10 ? '$' + ppuV.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0') : '$' + ppuV.toFixed(2);
-        var ppuFormatted = ppuStr + (item.ppuUnit ? ' / ' + item.ppuUnit : '');
-        if (isBest) {
-          ppuCell = '<span class="best-value">' + ppuFormatted + '<span class="best-value-star" title="Best value">★</span></span>';
-        } else {
-          ppuCell = ppuFormatted;
+        var displayPPU = ppuV;
+        var displayUnit = item.ppuUnit || '';
+        if (liquidDisplayUnit && isLiquidUnit(item.ppuUnit)) {
+          var converted = convertLiquidPPU(ppuV, item.ppuUnit, liquidDisplayUnit);
+          if (converted != null) { displayPPU = converted; displayUnit = liquidDisplayUnit; }
         }
+        var ppuStr = displayPPU < 0.10
+          ? '$' + displayPPU.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0')
+          : '$' + displayPPU.toFixed(2);
+        var ppuFormatted = ppuStr + (displayUnit ? ' / ' + displayUnit : '');
+        ppuCell = isBest
+          ? '<span class="best-value">' + ppuFormatted + '<span class="best-value-star" title="Best value">★</span></span>'
+          : ppuFormatted;
       }
 
       var primeCell = item.isPrime
         ? '<span class="pill pill-prime">Prime</span>'
         : '<span class="na">—</span>';
 
-      var couponCell;
-      if (item.hasCoupon) {
-        var wasStr = (item.listPrice && !isNaN(item.listPrice))
-          ? ' <span class="na">(was $' + parseFloat(item.listPrice).toFixed(2) + ')</span>' : '';
-        couponCell = '<span class="pill pill-coupon">Coupon' + wasStr + '</span>';
-      } else if (item.sns) {
-        var snsStr = item.sns === 'unknown' ? 'Subscribe &amp; Save' : esc(item.sns) + ' with S&amp;S';
-        couponCell = '<span class="pill pill-coupon">' + snsStr + '</span>';
-      } else if (item.savings) {
-        couponCell = '<span class="pill pill-coupon">' + esc(item.savings) + '</span>';
-      } else if (item.couponPillOnly) {
-        couponCell = '<span class="pill pill-coupon">Coupon — check Amazon</span>';
-      } else {
-        couponCell = '<span class="na">—</span>';
-      }
+      var couponCell = renderCouponCell(item);
 
       var deliveryParts = [];
       if (item.freeDate) {
         var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
-        deliveryParts.push('FREE: ' + esc(item.freeDate) + q);
+        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs) + q);
       }
-      if (item.fastDate) deliveryParts.push('Fastest: ' + esc(item.fastDate));
+      if (item.fastDate) deliveryParts.push('Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs));
       var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
 
       var priceCell = (item.price != null && !isNaN(item.price))
@@ -720,6 +800,10 @@
         ? ' <span class="pill" style="background:#f0f0f0;color:#888;border:1px solid #ddd;font-size:0.7em;">Ad</span>'
         : '';
 
+      var noteCell = item.note
+        ? '<span style="font-size:0.85em;color:#351E45;font-style:italic;">' + esc(item.note) + '</span>'
+        : '<span class="na">—</span>';
+
       return '<tr>'
         + '<td class="col-title"><a href="' + affiliateUrl(item.asin) + '" target="_blank" rel="noopener">' + esc(item.title) + '</a>' + sponsoredBadge + '</td>'
         + '<td class="col-price">' + priceCell + '</td>'
@@ -730,6 +814,7 @@
         + '<td>' + primeCell + '</td>'
         + '<td>' + couponCell + '</td>'
         + '<td>' + sourceCell + '</td>'
+        + '<td class="col-note">' + noteCell + '</td>'
         + '</tr>';
     }).join('');
 
@@ -747,6 +832,25 @@
         + '</span>'
       : '';
 
+    var liquidToggle = '';
+    if (hasAnyLiquid) {
+      var opts = [
+        { val: '',      label: 'As listed' },
+        { val: 'fl oz', label: 'fl oz' },
+        { val: 'ml',    label: 'ml' },
+      ];
+      liquidToggle = '<div style="margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">'
+        + '<span style="font-size:0.8rem;font-weight:600;color:#351E45;">Liquid units:</span>'
+        + opts.map(function(o) {
+            var active = (liquidDisplayUnit || '') === o.val;
+            var style = active
+              ? 'background:#3B1F5A;color:#FDFBF7;border:1px solid #3B1F5A;'
+              : 'background:#fff;color:#351E45;border:1px solid #DDD4EC;';
+            return '<button class="liquid-unit-btn" data-unit="' + o.val + '" style="' + style + 'padding:0.2rem 0.6rem;border-radius:4px;font-size:0.8rem;cursor:pointer;font-family:inherit;">' + o.label + '</button>';
+          }).join('')
+        + '</div>';
+    }
+
     return renderFilterBar(currentItems)
       + '<div id="meta-and-table">'
       + '<div class="meta-bar">'
@@ -755,6 +859,7 @@
       + termBadge
       + renderShareButton('top')
       + '</div>'
+      + liquidToggle
       + '<div class="table-wrapper">'
       + '<table id="compare-table">'
       + '<thead><tr>' + theadCells + '</tr></thead>'
@@ -798,6 +903,7 @@
     document.querySelectorAll('#compare-table thead th').forEach(th => {
       th.addEventListener('click', () => {
         const col = th.dataset.col;
+        if (!col || th.style.cursor === 'default') return;
         if (sortCol === col) {
           sortDir = sortDir === 'asc' ? 'desc' : 'asc';
         } else {
@@ -816,8 +922,19 @@
     document.getElementById('main-content').innerHTML = renderTable(sorted, currentSearchTerm);
     attachSortHandlers();
     attachFilterHandlers();
+    attachLiquidToggleHandlers();
     attachShareHandler('top-share-btn');
     attachShareHandler('bottom-share-btn');
+  }
+
+  function attachLiquidToggleHandlers() {
+    document.querySelectorAll('.liquid-unit-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var val = this.getAttribute('data-unit');
+        liquidDisplayUnit = val === '' ? null : val;
+        rerenderTableOnly();
+      });
+    });
   }
 
   // Partial re-render: only replaces the meta-bar + table, leaves filter bar untouched.
@@ -827,6 +944,9 @@
     const sorted = (sortCol && filtered.length) ? sortItems(filtered, sortCol) : filtered;
 
     var bestIndices = findBestPpuIndices(filtered);
+
+    var liquidItems = filtered.filter(function(it) { return it.ppu && isLiquidUnit(it.ppuUnit); });
+    var hasAnyLiquid = liquidItems.length > 0;
 
     var colDefs = [
       { key: 'title',       label: 'Product' },
@@ -838,12 +958,14 @@
       { key: 'isPrime',     label: 'Prime' },
       { key: 'coupon',      label: 'Coupon / promo' },
       { key: 'retailerKey', label: 'Source' },
+      { key: 'note',        label: 'Notes', nosort: true },
     ];
 
     var theadCells = colDefs.map(function(c) {
       var cls = '';
       if (sortCol === c.key) cls = sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc';
-      return '<th data-col="' + c.key + '" class="' + cls + '">' + c.label + '</th>';
+      var style = c.nosort ? ' style="cursor:default"' : '';
+      return '<th data-col="' + c.key + '" class="' + cls + '"' + style + '>' + c.label + '</th>';
     }).join('');
 
     var rows = sorted.map(function(item, i) {
@@ -854,8 +976,16 @@
       if (isNaN(ppuV) || ppuV <= 0) {
         ppuCell = '<span class="na">—</span>';
       } else {
-        var ppuStr = ppuV < 0.10 ? '$' + ppuV.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0') : '$' + ppuV.toFixed(2);
-        var ppuFormatted = ppuStr + (item.ppuUnit ? ' / ' + item.ppuUnit : '');
+        var displayPPU = ppuV;
+        var displayUnit = item.ppuUnit || '';
+        if (liquidDisplayUnit && isLiquidUnit(item.ppuUnit)) {
+          var converted = convertLiquidPPU(ppuV, item.ppuUnit, liquidDisplayUnit);
+          if (converted != null) { displayPPU = converted; displayUnit = liquidDisplayUnit; }
+        }
+        var ppuStr = displayPPU < 0.10
+          ? '$' + displayPPU.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0')
+          : '$' + displayPPU.toFixed(2);
+        var ppuFormatted = ppuStr + (displayUnit ? ' / ' + displayUnit : '');
         ppuCell = isBest
           ? '<span class="best-value">' + ppuFormatted + '<span class="best-value-star" title="Best value">★</span></span>'
           : ppuFormatted;
@@ -863,28 +993,14 @@
 
       var primeCell = item.isPrime ? '<span class="pill pill-prime">Prime</span>' : '<span class="na">—</span>';
 
-      var couponCell;
-      if (item.hasCoupon) {
-        var wasStr = (item.listPrice && !isNaN(item.listPrice))
-          ? ' <span class="na">(was $' + parseFloat(item.listPrice).toFixed(2) + ')</span>' : '';
-        couponCell = '<span class="pill pill-coupon">Coupon' + wasStr + '</span>';
-      } else if (item.sns) {
-        var snsStr = item.sns === 'unknown' ? 'Subscribe &amp; Save' : esc(item.sns) + ' with S&amp;S';
-        couponCell = '<span class="pill pill-coupon">' + snsStr + '</span>';
-      } else if (item.savings) {
-        couponCell = '<span class="pill pill-coupon">' + esc(item.savings) + '</span>';
-      } else if (item.couponPillOnly) {
-        couponCell = '<span class="pill pill-coupon">Coupon — check Amazon</span>';
-      } else {
-        couponCell = '<span class="na">—</span>';
-      }
+      var couponCell = renderCouponCell(item);
 
       var deliveryParts = [];
       if (item.freeDate) {
         var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
-        deliveryParts.push('FREE: ' + esc(item.freeDate) + q);
+        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs) + q);
       }
-      if (item.fastDate) deliveryParts.push('Fastest: ' + esc(item.fastDate));
+      if (item.fastDate) deliveryParts.push('Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs));
       var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
 
       var priceCell = (item.price != null && !isNaN(item.price))
@@ -899,6 +1015,10 @@
         ? ' <span class="pill" style="background:#f0f0f0;color:#888;border:1px solid #ddd;font-size:0.7em;">Ad</span>'
         : '';
 
+      var noteCell = item.note
+        ? '<span style="font-size:0.85em;color:#351E45;font-style:italic;">' + esc(item.note) + '</span>'
+        : '<span class="na">—</span>';
+
       return '<tr>'
         + '<td class="col-title"><a href="' + affiliateUrl(item.asin) + '" target="_blank" rel="noopener">' + esc(item.title) + '</a>' + sponsoredBadge + '</td>'
         + '<td class="col-price">' + priceCell + '</td>'
@@ -909,6 +1029,7 @@
         + '<td>' + primeCell + '</td>'
         + '<td>' + couponCell + '</td>'
         + '<td>' + sourceCell + '</td>'
+        + '<td class="col-note">' + noteCell + '</td>'
         + '</tr>';
     }).join('');
 
@@ -927,6 +1048,25 @@
         + '</span>'
       : '';
 
+    var liquidToggle = '';
+    if (hasAnyLiquid) {
+      var opts = [
+        { val: '',      label: 'As listed' },
+        { val: 'fl oz', label: 'fl oz' },
+        { val: 'ml',    label: 'ml' },
+      ];
+      liquidToggle = '<div style="margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">'
+        + '<span style="font-size:0.8rem;font-weight:600;color:#351E45;">Liquid units:</span>'
+        + opts.map(function(o) {
+            var active = (liquidDisplayUnit || '') === o.val;
+            var style = active
+              ? 'background:#3B1F5A;color:#FDFBF7;border:1px solid #3B1F5A;'
+              : 'background:#fff;color:#351E45;border:1px solid #DDD4EC;';
+            return '<button class="liquid-unit-btn" data-unit="' + o.val + '" style="' + style + 'padding:0.2rem 0.6rem;border-radius:4px;font-size:0.8rem;cursor:pointer;font-family:inherit;">' + o.label + '</button>';
+          }).join('')
+        + '</div>';
+    }
+
     var metaAndTable = document.getElementById('meta-and-table');
     if (metaAndTable) {
       metaAndTable.innerHTML = '<div class="meta-bar">'
@@ -935,6 +1075,7 @@
         + termBadge
         + renderShareButton('top')
         + '</div>'
+        + liquidToggle
         + '<div class="table-wrapper">'
         + '<table id="compare-table">'
         + '<thead><tr>' + theadCells + '</tr></thead>'
@@ -944,6 +1085,7 @@
         + '<div style="text-align:center;margin-top:1rem;">' + renderShareButton('bottom') + '</div>'
         + '<p class="affiliate-note">This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you.</p>';
       attachSortHandlers();
+      attachLiquidToggleHandlers();
       attachShareHandler('top-share-btn');
       attachShareHandler('bottom-share-btn');
     } else {

@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.14 (overall) · v0.6.1 (manifest) · v0.6.1.14 (search.js) · v0.6.1.14 (compare.html) · Updated April 21, 2026 (Chat 23)*
+*Current version: v0.6.1.15 (overall) · v0.6.1 (manifest) · v0.6.1.15 (search.js) · v0.6.1.15 (compare.html) · Updated April 21, 2026 (Chat 25)*
 
 ---
 
@@ -42,14 +42,14 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 
 The **persistent shortlist** is the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-**Shortlist item object shape sent to compare.html (current — v0.6.1.14):**
+**Shortlist item object shape sent to compare.html (current — v0.6.1.15):**
 ```
-{ asin, title, price (raw float), ppu (raw float), ppuUnit,
+{ asin, title, price (raw float), listPrice (raw float), ppu (raw float), ppuUnit,
   isPrime (bool), isSponsored (bool),
   hasCoupon (bool), couponPillOnly (bool), sns (string), savings (string),
   freeDate (formatted string), fastDate (formatted string),
   freeDateTs (epoch ms), fastDateTs (epoch ms), freeQualifier (string),
-  retailerKey (string), rating, reviewCount }
+  retailerKey (string), rating, reviewCount, note (string) }
 ```
 Payload also includes: `searchTerm` (string), `searchUrl` (string).
 

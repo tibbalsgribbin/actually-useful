@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.14)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.15)
 'use strict';
 
 function auFeedbackUrl() {
@@ -85,6 +85,8 @@ const ITEM_UNITS = [
         sortVal:       sortVal,
         minReviews:    minReviews,
         minRating:     minRating,
+        minPrice:      minPrice,
+        maxPrice:      maxPrice,
         sponsoredMode: sponsoredMode,
         selectedUnit:  selectedUnit,
         srcFilter:     srcFilter
@@ -792,6 +794,9 @@ const ITEM_UNITS = [
   var selectedUnit     = null;
   var sortVal          = 'ppu-asc';
   var checkedAsins     = {};
+  var itemNotes        = {};   // asin → note string
+  var minPrice         = '';
+  var maxPrice         = '';
   var allData          = [];
   var loadedPages      = 1;
   var nextPageUrl      = null;
@@ -918,6 +923,8 @@ const ITEM_UNITS = [
       sortVal       = savedFilters.sortVal       || 'ppu-asc';
       minReviews    = savedFilters.minReviews    || 0;
       minRating     = savedFilters.minRating     || 0;
+      minPrice      = savedFilters.minPrice      || '';
+      maxPrice      = savedFilters.maxPrice      || '';
       sponsoredMode = savedFilters.sponsoredMode || 'show';
       selectedUnit  = savedFilters.selectedUnit  || null;
       // srcFilter restored after detectedRetailers is built below
@@ -927,6 +934,8 @@ const ITEM_UNITS = [
       sortVal       = 'ppu-asc';
       minReviews    = 0;
       minRating     = 0;
+      minPrice      = '';
+      maxPrice      = '';
       sponsoredMode = 'show';
       selectedUnit  = null;
     }
@@ -1078,6 +1087,12 @@ const ITEM_UNITS = [
               '</div>'+
             '</div>'+
           '</div>'+
+          '<div id="ppu-price-range-row">'+
+            '<span class="ppu-slider-label">Price: </span>'+
+            '<span class="ppu-price-prefix">$</span><input id="ppu-min-price" type="number" class="ppu-price-input" min="0" placeholder="min" value="'+(minPrice||'')+'">'+
+            '<span class="ppu-price-sep">\u2013</span>'+
+            '<span class="ppu-price-prefix">$</span><input id="ppu-max-price" type="number" class="ppu-price-input" min="0" placeholder="max" value="'+(maxPrice||'')+'">'+
+          '</div>'+
           (hasNonStandard?
             '<div id="ppu-source-row">'+
               '<span class="label">Sources:</span>'+
@@ -1120,6 +1135,22 @@ const ITEM_UNITS = [
       '</div>';
 
     document.body.appendChild(panel);
+
+    // Inject styles for elements added in v0.6.1.15 (price range, notes, price-hidden)
+    // These belong in styles.css but are injected here to avoid a separate file upload
+    if (!document.getElementById('ppu-extra-styles')) {
+      var styleEl = document.createElement('style');
+      styleEl.id = 'ppu-extra-styles';
+      styleEl.textContent =
+        '.price-hidden{display:none!important}' +
+        '#ppu-price-range-row{display:flex;align-items:center;gap:6px;padding:4px 14px 6px;flex-wrap:wrap;}' +
+        '.ppu-price-input{width:72px;padding:3px 6px;border:1px solid #c8c0e8;border-radius:4px;font-size:13px;background:#fff;color:#351E45;}' +
+        '.ppu-price-prefix{font-size:13px;color:#351E45;}' +
+        '.ppu-price-sep{font-size:13px;color:#877891;margin:0 2px;}' +
+        '.ppu-item-note{display:block;width:100%;margin-top:5px;padding:4px 6px;border:1px solid #c8c0e8;border-radius:4px;font-size:12px;font-family:inherit;resize:vertical;color:#351E45;background:#fff;min-height:38px;}' +
+        '.ppu-item-note:focus{outline:none;border-color:#CF6DFC;}';
+      document.head.appendChild(styleEl);
+    }
 
     // ── Position panel ────────────────────────────────────────────────────
     var DEFAULT_WIDTH  = 390;
@@ -1274,6 +1305,7 @@ const ITEM_UNITS = [
       resortBtn.textContent='Re-sort all by '+(sortLabels[sortVal]||'current sort')+' \u21c5';
 
       var anyFilterActive = keyword.trim().length>0 || minReviews>0 || minRating>0 ||
+        minPrice!=='' || maxPrice!=='' ||
         Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; }) ||
         sortVal!=='ppu-asc' || sponsoredMode!=='show';
       resetFiltersBtn.classList.toggle('btn-danger',anyFilterActive);
@@ -1335,6 +1367,14 @@ const ITEM_UNITS = [
       var sponCount=allData.filter(function(r){return r.isSponsored;}).length;
       var revHiddenCt=minReviews>0?allData.filter(function(r){return r.reviewCount!=null&&r.reviewCount<minReviews;}).length:0;
       var ratingHiddenCt=minRating>0?allData.filter(function(r){return r.rating!=null&&r.rating<minRating;}).length:0;
+      var minPriceF=minPrice!==''?parseFloat(minPrice):null;
+      var maxPriceF=maxPrice!==''?parseFloat(maxPrice):null;
+      var priceHiddenCt=(minPriceF!=null||maxPriceF!=null)?allData.filter(function(r){
+        if(r.price==null)return false;
+        if(minPriceF!=null&&r.price<minPriceF)return true;
+        if(maxPriceF!=null&&r.price>maxPriceF)return true;
+        return false;
+      }).length:0;
       var matchCt=hasKw?displayData.filter(function(r){return r.kwMatch;}).length:null;
       var info=withData+'/'+allData.length+' have unit data';
       if(loadedPages>1){
@@ -1349,6 +1389,7 @@ const ITEM_UNITS = [
       if(sponsoredMode==='hide'&&sponCount>0)   info+=' \u00b7 '+sponCount+' ads hidden';
       if(revHiddenCt>0)            info+=' \u00b7 '+revHiddenCt+' below min reviews';
       if(ratingHiddenCt>0)         info+=' \u00b7 '+ratingHiddenCt+' below min rating';
+      if(priceHiddenCt>0)          info+=' \u00b7 '+priceHiddenCt+' outside price range';
       document.getElementById('ppu-info').textContent=info;
 
       var sortNoteEl=document.getElementById('ppu-sort-note');
@@ -1377,6 +1418,8 @@ const ITEM_UNITS = [
                !(sponsoredMode==='hide'&&r.isSponsored)&&
                !(minReviews>0&&r.reviewCount!=null&&r.reviewCount<minReviews)&&
                !(minRating>0&&r.rating!=null&&r.rating<minRating)&&
+               !(minPriceF!=null&&r.price!=null&&r.price<minPriceF)&&
+               !(maxPriceF!=null&&r.price!=null&&r.price>maxPriceF)&&
                getCompPPU(r)!=null;
       }).map(function(r){return getCompPPU(r);});
       var bestPPU=ppuVals.length?Math.min.apply(null,ppuVals):null;
@@ -1392,6 +1435,7 @@ const ITEM_UNITS = [
         var sponDem=sponsoredMode==='demote'&&r.isSponsored;
         var revHid=minReviews>0&&r.reviewCount!=null&&r.reviewCount<minReviews;
         var ratingHid=minRating>0&&r.rating!=null&&r.rating<minRating;
+        var priceHid=(minPriceF!=null&&r.price!=null&&r.price<minPriceF)||(maxPriceF!=null&&r.price!=null&&r.price>maxPriceF);
         var priceStr=r.price!=null?'$'+r.price.toFixed(2):'\u2014';
         var countStr=r.count?r.count+' ct':'';
         var badge='',noteStr='',deliveryStr='',srcTag='';
@@ -1409,7 +1453,7 @@ const ITEM_UNITS = [
         if(r.ppu!=null){
           var compPPU=getCompPPU(r);
           var isBest=bestPPU!=null&&r.kwMatch&&r.source!=='amazon-container'&&
-            srcFilter[r.retailer?r.retailer.key:'standard']&&!sponHid&&!revHid&&!ratingHid&&
+            srcFilter[r.retailer?r.retailer.key:'standard']&&!sponHid&&!revHid&&!ratingHid&&!priceHid&&
             compPPU!=null&&Math.abs(compPPU-bestPPU)<0.000001;
           var isCont=r.source==='amazon-container';
           var warn=isCont?' <span style="font-size:10px;color:#aaa;" title="Amazon is reporting the price per container (box/pack), not per item \u2014 actual per-item cost may differ">\u26a0\ufe0f price is per pack, not per item</span>':'';
@@ -1471,13 +1515,17 @@ const ITEM_UNITS = [
         var sponC=sponHid?' sponsored-hidden':(sponDem?' sponsored-demoted':'');
         var revC=revHid?' reviews-hidden':'';
         var ratingC=ratingHid?' rating-hidden':'';
+        var priceC=priceHid?' price-hidden':'';
         var chkC=isChecked?' checked':'';
         var wfC=(r.wfFreeFlag&&effectiveSort==='delivery-free')?' wf-excluded':'';
         var safeAsin=r.asin.replace(/"/g,'&quot;');
         var titleHtml=(hasKw&&r.kwMatch)?highlightKeywords(r.title,r.cardText,kw):escapeHtml(r.title);
         var thumbHtml=r.imgUrl?'<img class="ppu-thumb" src="'+r.imgUrl+'" loading="lazy" alt="">':'';
+        var noteFieldHtml=isChecked
+          ? '<textarea class="ppu-item-note" data-asin="'+safeAsin+'" placeholder="Add a note\u2026" rows="2">'+escapeHtml(itemNotes[r.asin]||'')+'</textarea>'
+          : '';
         html+=
-          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
+          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
             '<div class="ppu-cb-wrap"><input type="checkbox" class="ppu-cb"'+(isChecked?' checked':'')+' title="Add to shortlist"></div>'+
             '<div class="ppu-thumb-wrap">'+thumbHtml+'</div>'+
             '<div class="ppu-row-content">'+
@@ -1485,6 +1533,7 @@ const ITEM_UNITS = [
               srcTag+
               '<div class="ppu-meta"><span class="ppu-price">'+priceStr+'</span>'+(countStr?'<span class="ppu-count">'+countStr+'</span>':'')+badge+'</div>'+
               deliveryStr+noteStr+
+              noteFieldHtml+
             '</div>'+
           '</div>';
       });
@@ -1495,7 +1544,13 @@ const ITEM_UNITS = [
         cb.addEventListener('change',function(){
           var row=this.closest('.ppu-row'),asin=row.getAttribute('data-asin');
           if(this.checked){checkedAsins[asin]=true;row.classList.add('checked');maybeShowNudge();}
-          else{delete checkedAsins[asin];row.classList.remove('checked');}
+          else{
+            // Preserve note before unchecking (textarea will be removed by next render)
+            var ta=row.querySelector('.ppu-item-note');
+            if(ta) itemNotes[asin]=ta.value;
+            delete checkedAsins[asin];
+            row.classList.remove('checked');
+          }
           var cnt=Object.keys(checkedAsins).length;
           var total=allData.length;
           if(selectAllBox){
@@ -1505,6 +1560,14 @@ const ITEM_UNITS = [
           if(compareBtn){ compareBtn.style.display=cnt>0?'block':'none'; }
           if(compareHint){ compareHint.style.display=cnt>0?'none':'block'; }
         });
+      });
+      // Save note text as user types (no debounce needed — stored in memory only)
+      document.querySelectorAll('.ppu-item-note').forEach(function(ta){
+        ta.addEventListener('input',function(){
+          itemNotes[this.getAttribute('data-asin')]=this.value;
+        });
+        // Prevent checkbox toggle when clicking inside the textarea
+        ta.addEventListener('click',function(e){e.stopPropagation();});
       });
       scheduleLog();
       persistFilters();
@@ -1548,6 +1611,11 @@ const ITEM_UNITS = [
       if(minRatingSlider){ minRatingSlider.value=0; updateSliderFill(minRatingSlider,0,5); }
       var rtLabel=document.getElementById('ppu-min-rating-val');
       if(rtLabel) rtLabel.textContent='Any';
+      minPrice=''; maxPrice='';
+      var minPriceEl=document.getElementById('ppu-min-price');
+      var maxPriceEl=document.getElementById('ppu-max-price');
+      if(minPriceEl) minPriceEl.value='';
+      if(maxPriceEl) maxPriceEl.value='';
       Object.keys(srcFilter).forEach(function(k){ srcFilter[k]=true; });
       panel.querySelectorAll('.ppu-source-toggle').forEach(function(btn){ btn.classList.remove('off'); });
       sponsoredMode='show';
@@ -1555,6 +1623,22 @@ const ITEM_UNITS = [
       sortVal='ppu-asc'; sortEl.value='ppu-asc';
       render();
     });
+
+    // ── Price range inputs ────────────────────────────────────────────────
+    var minPriceInput=document.getElementById('ppu-min-price');
+    var maxPriceInput=document.getElementById('ppu-max-price');
+    if(minPriceInput){
+      minPriceInput.addEventListener('input',function(){
+        minPrice=this.value.trim();
+        render();
+      });
+    }
+    if(maxPriceInput){
+      maxPriceInput.addEventListener('input',function(){
+        maxPrice=this.value.trim();
+        render();
+      });
+    }
 
     // ── Shortlist bar: select-all dropdown ───────────────────────────────
     function applySelectAll(action){
@@ -1609,6 +1693,7 @@ const ITEM_UNITS = [
             asin:        r.asin,
             title:       r.title||'',
             price:       (r.price!=null&&!isNaN(r.price))?r.price:null,
+            listPrice:   (r.listPrice!=null&&!isNaN(r.listPrice))?r.listPrice:null,
             ppu:         (r.ppu!=null&&!isNaN(r.ppu))?r.ppu:null,
             ppuUnit:     r.unit||'',
             isPrime:     isPrime,
@@ -1624,7 +1709,8 @@ const ITEM_UNITS = [
             freeQualifier: r.freeQualifier||'',
             retailerKey: r.retailer?r.retailer.key:'standard',
             rating:      r.rating||'',
-            reviewCount: r.reviewCount||''
+            reviewCount: r.reviewCount||'',
+            note:        itemNotes[r.asin]||''
           };
         }).filter(Boolean);
 
