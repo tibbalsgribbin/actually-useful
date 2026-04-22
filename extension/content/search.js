@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.17)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.18)
 'use strict';
 
 function auFeedbackUrl() {
@@ -867,7 +867,9 @@ const ITEM_UNITS = [
   function updateLoadMoreRow() {
     var lmRow = document.getElementById('ppu-load-more-row');
     var lmBtn = document.getElementById('ppu-btn-load-more');
+    var pagesRow = document.getElementById('ppu-pages-row');
     if (!lmRow) return;
+    if (pagesRow) pagesRow.style.display = nextPageUrl ? '' : 'none';
     if (nextPageUrl) {
       lmRow.style.display = '';
       if (lmBtn) lmBtn.textContent = '\u2193 Load page '+(loadedPages+1)+' results';
