@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.20)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.26)
 'use strict';
 
 function auFeedbackUrl() {
@@ -31,7 +31,8 @@ const AU_FILTERS_KEY = 'au_search_filters'; // persists filter state per search 
     'chip','chips','chew','chews','oat','oatmeal','cereal','granola',
     'jerky','gummy','gummies','candy','chocolate','snack','snacks',
     'powder','capsule','capsules','tablet','tablets','pill','pills',
-    'supplement','vitamin','protein powder','coffee','pod','pods','k-cup','kcup'
+    'supplement','vitamin','protein powder','coffee','pod','pods','k-cup','kcup',
+    'sheet','sheets','strip','strips'
   ];
 
   const LIQUID_UNITS  = ['fl oz','fluid ounce','fluid ounces','ml','milliliter','milliliters','l','liter','liters'];
@@ -161,6 +162,7 @@ const ITEM_UNITS = [
     if (u==='ounce'||u==='ounces') return 'oz';
     if (u==='count') return 'ct';
     if (u==='pound'||u==='pounds') return 'lb';
+    if (u==='load'||u==='loads'||u==='sheet per load'||u==='sheets per load'||u==='load of laundry') return 'load';
     if (u==='gram'||u==='grams') return 'g';
     if (u==='kilogram'||u==='kilograms') return 'kg';
     if (u==='milliliter'||u==='milliliters') return 'ml';
@@ -373,16 +375,28 @@ const ITEM_UNITS = [
 
   // ── Delivery date parsing ─────────────────────────────────────────────────
   function parseDeliveryDates(el) {
-    var result={freeDate:null,fastDate:null,freeCutoff:null,fastCutoff:null};
+    var result={freeDate:null,fastDate:null,freeCutoff:null,fastCutoff:null,paidDate:null,paidCutoff:null,paidPrice:null};
     var allDivs=Array.from(el.querySelectorAll('.udm-secondary-delivery-message,.a-color-base.a-text-normal,[class*="delivery"],.a-column.a-span12'));
     var seen=new Set();
     allDivs.forEach(function(div){
       if(seen.has(div)) return; seen.add(div);
       var text=div.textContent||'';
+      var lower=text.toLowerCase();
+      // Paid express delivery: "Or $4.99 delivery in N hours" — no bold date, relative time
+      if(!result.paidDate && lower.includes('delivery') && !lower.includes('free') && !lower.includes('fastest')) {
+        var priceM=text.match(/\$(\d+(?:\.\d+)?)\s+delivery/i);
+        var hoursM=text.match(/in\s+(\d+)\s+hours?/i);
+        if(priceM && hoursM) {
+          var hrs=parseInt(hoursM[1],10);
+          result.paidDate=new Date(Date.now()+hrs*3600000);
+          result.paidCutoff='in '+hrs+' hr'+(hrs!==1?'s':'');
+          result.paidPrice='$'+parseFloat(priceM[1]).toFixed(2);
+          return;
+        }
+      }
       var boldEl=div.querySelector('.a-text-bold');
       var dateStr=boldEl?boldEl.textContent.trim():'';
       if(!dateStr) return;
-      var lower=text.toLowerCase();
       var parsed=parseDateString(dateStr);
       if(!parsed) return;
       var cutoff=null;
@@ -410,12 +424,32 @@ const ITEM_UNITS = [
     else { return hour === 12 ? 720 : (hour + 12) * 60; }
   }
 
+  function parseDeliveryWindowEnd(el) {
+    var msgEl = el.querySelector('.udm-primary-delivery-message');
+    if (!msgEl) return null;
+    var text = msgEl.textContent || '';
+    var m = text.match(/\d{1,2}\s*(?:AM|PM)\s*[-–]\s*(\d{1,2})\s*(AM|PM)/i);
+    if (!m) return null;
+    var hour = parseInt(m[1], 10);
+    var meridiem = m[2].toUpperCase();
+    if (meridiem === 'AM') { return hour === 12 ? 0 : hour * 60; }
+    else { return hour === 12 ? 720 : (hour + 12) * 60; }
+  }
+
   function formatWindowMinutes(mins) {
     if (mins === Infinity || mins == null) return '';
     var h = Math.floor(mins / 60);
     var meridiem = h < 12 ? 'AM' : 'PM';
     var display = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return 'by ' + display + ' ' + meridiem;
+    return display + ' ' + meridiem;
+  }
+
+  function formatWindowRange(startMins, endMins) {
+    if (startMins === Infinity || startMins == null) return '';
+    var start = formatWindowMinutes(startMins);
+    if (endMins == null) return start;
+    var end = formatWindowMinutes(endMins);
+    return start + '–' + end;
   }
 
   function parseDeliveryQualifier(el) {
@@ -622,6 +656,7 @@ const ITEM_UNITS = [
       /(\d[\d,]*)\s*-?\s*bars?\b/i,
       /pack\s+of\s+(\d[\d,]*)/i,/box\s+of\s+(\d[\d,]*)/i,
       /(\d[\d,]*)\s+\w+\s+\w+\s+bars?\b/i,
+      /(\d[\d,]*)\s+loads?\b/i,/(\d[\d,]*)\s*-?\s*sheets?/i,/(\d[\d,]*)\s*-?\s*strips?\b/i,
     ];
     for(var i=0;i<pats.length;i++){var m=text.match(pats[i]);if(m){var n=parseInt(m[1].replace(/,/g,''),10);if(n>1&&n<10000)return n;}}
     return null;
@@ -631,6 +666,8 @@ const ITEM_UNITS = [
     if(/\d[\d,]*\s*-?\s*rolls?/i.test(text))    return 'roll';
     if(/\d[\d,]*\s*-?\s*bags?/i.test(text))     return 'bag';
     if(/\d[\d,]*\s*-?\s*sheets?/i.test(text))   return 'sheet';
+    if(/\d[\d,]*\s*-?\s*strips?\b/i.test(text)) return 'strip';
+    if(/\d[\d,]*\s+loads?\b/i.test(text))       return 'load';
     if(/\d[\d,]*\s*-?\s*wipes?/i.test(text))    return 'wipe';
     if(/\d[\d,]*\s*-?\s*pads?/i.test(text))     return 'pad';
     if(/\d[\d,]*\s*-?\s*tablets?/i.test(text))  return 'tablet';
@@ -706,6 +743,7 @@ const ITEM_UNITS = [
     var rating=parseRating(el);
     var cardText=scrapeCardText(el,hasCoupon,delivery.freeDate,delivery.fastDate);
     var freeWindowMinutes=parseDeliveryWindowMinutes(el);
+    var freeWindowEnd=parseDeliveryWindowEnd(el);
     var freeQualifier=parseDeliveryQualifier(el);
     var imgEl=el.querySelector('img.s-image');
     var imgUrl=imgEl?imgEl.src:'';
@@ -713,7 +751,26 @@ const ITEM_UNITS = [
               couponPillOnly,sns,savings,cardText,reviewCount,rating,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff,
-              freeWindowMinutes:freeWindowMinutes,freeQualifier:freeQualifier,imgUrl:imgUrl};
+              freeWindowMinutes:freeWindowMinutes,freeWindowEnd:freeWindowEnd,freeQualifier:freeQualifier,imgUrl:imgUrl,
+              paidDate:delivery.paidDate,paidCutoff:delivery.paidCutoff,paidPrice:delivery.paidPrice};
+
+    // Override: if Amazon reported a weight unit but the item title indicates a countable
+    // solid product (pods, sheets, strips, loads, etc.), ignore the weight unit and
+    // calculate from count instead. Fixes $/lb appearing on laundry pods/sheets.
+    var COUNTABLE_SOLID_TITLE_KEYWORDS = [
+      'pod','pods','pac','pacs','fling','flings','tab','tabs',
+      'sheet','sheets','strip','strips','load','loads'
+    ];
+    var titleLower = title.toLowerCase();
+    var titleIsSolid = COUNTABLE_SOLID_TITLE_KEYWORDS.some(function(kw){ return titleLower.includes(kw); });
+    var solidUnitIsWrong = ap && titleIsSolid && count && price && (
+      WEIGHT_UNITS.includes(ap.unit) ||
+      (ap.unit === 'ct' && ap.ppu === price)
+    );
+    if(solidUnitIsWrong) {
+      var solidUnit = guessCountUnit(title) || guessUnitFromTitle(title) || 'ct';
+      return Object.assign(base,{ppu:price/count,unit:solidUnit,source:'calc',note:'Amazon said '+formatPPU(ap.ppu)+'/'+ap.unit+'; overridden (solid product)'});
+    }
 
     if(ap&&ITEM_UNITS.includes(ap.unit)) {
       if(ap.unit==='ct'&&count&&price) {
@@ -1012,13 +1069,20 @@ const ITEM_UNITS = [
             '<button id="ppu-close" title="Close">\u00d7</button>'+
           '</div>'+
         '</div>'+
+        (localStorage.getItem('au-banner-dismissed')==='1' ? '' :
+        '<div id="ppu-workflow-banner">'+
+          '<div id="ppu-workflow-banner-text">'+
+            '<strong>New to Actually Useful?</strong> For best results: set Amazon\u2019s filters first, then load more pages to expand your results, then use Actually Useful filters and sorting to find the best value. When you\u2019re ready, shortlist items and compare.'+
+            ' <a href="https://actuallyuseful.net" target="_blank" id="ppu-workflow-learn">Learn more \u2197</a>'+
+          '</div>'+
+          '<button id="ppu-workflow-dismiss" title="Dismiss">\u00d7</button>'+
+        '</div>')+
         '<div id="ppu-filter-row">'+
           '<label for="ppu-keyword">Keywords:</label>'+
           '<input id="ppu-keyword" type="text" placeholder="e.g. unscented -refill \u00b7 6ft OR 72 inches \u00b7 organic -sponsored" value="'+keyword.replace(/"/g,'&quot;')+'">'+
           '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
-          '<button id="ppu-btn-reset-filters" class="ppu-btn">Start over</button>'+
+          '<button id="ppu-btn-reset-filters" class="ppu-btn" title="Clears all filters, sorting, and returns to page 1 results.">Clear all</button>'+
         '</div>'+
-        '<div id="ppu-keyword-hint">Actually Useful works best in conjunction with Amazon\u2019s existing filters. Make your selections in the left sidebar of the results page before refining with Actually Useful.</div>'+
         pillHtml+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-sort-toggle" data-target="ppu-sort-collapsible">'+
           '<span>Sort <span class="ppu-chevron">\u25be</span></span>'+
@@ -1032,8 +1096,6 @@ const ITEM_UNITS = [
               '<option value="delivery-any">Soonest ANY delivery</option>'+
               '<option value="default">As shown in Amazon results</option>'+
             '</select>'+
-            '<button id="ppu-btn-refresh" class="ppu-btn">\u21ba Re-scan page</button>'+
-            '<button id="ppu-btn-resort" class="ppu-btn btn-teal">Re-sort all \u21c5</button>'+
             '<button id="ppu-btn-hide-sponsored" class="ppu-btn">Move ads to end of results</button>'+
           '</div>'+
           '<div id="ppu-pages-row">'+
@@ -1051,6 +1113,7 @@ const ITEM_UNITS = [
               '<span class="ppu-slider-endlabel">10</span>'+
             '</div>'+
             '<span id="ppu-pages-status"></span>'+
+            '<button id="ppu-btn-refresh" class="ppu-btn" style="margin-left:6px;flex-shrink:0;" title="Re-syncs with the Amazon page. Use this if you changed Amazon\u2019s filters or categories. Extra pages loaded will be lost.">\u21ba Re-sync</button>'+
           '</div>'+
           '<div id="ppu-pages-warning" style="margin:0 14px 6px;display:none;">\u26a0\ufe0f Amazon sometimes limits results beyond 7 pages, and those results may be less relevant to your search.</div>'+
         '</div>'+
@@ -1267,7 +1330,6 @@ const ITEM_UNITS = [
     var sortEl=document.getElementById('ppu-sort'); sortEl.value=sortVal;
     var kwInput=document.getElementById('ppu-keyword');
     var clearKw=document.getElementById('ppu-btn-clear-kw');
-    var resortBtn=document.getElementById('ppu-btn-resort');
     var hideSponsoredBtn=document.getElementById('ppu-btn-hide-sponsored');
     var resetFiltersBtn=document.getElementById('ppu-btn-reset-filters');
     var minReviewsSlider=document.getElementById('ppu-min-reviews-slider');
@@ -1357,15 +1419,12 @@ const ITEM_UNITS = [
       if(compareBtn){ compareBtn.style.display=cc>0?'block':'none'; }
       if(compareHint){ compareHint.style.display=cc>0?'none':'block'; }
       var sortLabels={'ppu-asc':'best value','price-asc':'price','delivery-free':'soonest free delivery','delivery-any':'soonest delivery','default':'Amazon order'};
-      resortBtn.style.display=needsResort?'block':'none';
-      resortBtn.textContent='Re-sort all by '+(sortLabels[sortVal]||'current sort')+' \u21c5';
 
       var anyFilterActive = keyword.trim().length>0 || minReviews>0 || minRating>0 ||
         minPrice!=='' || maxPrice!=='' ||
         Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; }) ||
         sortVal!=='ppu-asc' || sponsoredMode!=='show';
       resetFiltersBtn.classList.toggle('btn-danger',anyFilterActive);
-      resetFiltersBtn.classList.toggle('btn-muted',!anyFilterActive);
 
       var unitDataAvail=allData.filter(function(r){return r.ppu!=null;}).length;
       var isSparse=sortVal==='ppu-asc'&&unitDataAvail<Math.ceil(allData.length*0.1);
@@ -1394,8 +1453,10 @@ const ITEM_UNITS = [
           return (a.freeWindowMinutes||Infinity)-(b.freeWindowMinutes||Infinity);
         }
         if(effectiveSort==='delivery-any'){
-          var da=a.freeDate&&a.fastDate?new Date(Math.min(a.freeDate,a.fastDate)):a.freeDate||a.fastDate||FAR;
-          var db=b.freeDate&&b.fastDate?new Date(Math.min(b.freeDate,b.fastDate)):b.freeDate||b.fastDate||FAR;
+          var aDates=[a.freeDate,a.fastDate,a.paidDate].filter(Boolean);
+          var bDates=[b.freeDate,b.fastDate,b.paidDate].filter(Boolean);
+          var da=aDates.length?new Date(Math.min.apply(null,aDates)):FAR;
+          var db=bDates.length?new Date(Math.min.apply(null,bDates)):FAR;
           var dateDiffAny=da-db;
           if(dateDiffAny!==0) return dateDiffAny;
           return (a.freeWindowMinutes||Infinity)-(b.freeWindowMinutes||Infinity);
@@ -1406,11 +1467,6 @@ const ITEM_UNITS = [
 
       if(!needsResort){
         displayData.sort(sortFn);
-      } else {
-        var pages={};
-        displayData.forEach(function(r){if(!pages[r.page])pages[r.page]=[];pages[r.page].push(r);});
-        displayData=[];
-        Object.keys(pages).map(Number).sort(function(a,b){return a-b;}).forEach(function(pg){pages[pg].sort(sortFn);displayData=displayData.concat(pages[pg]);});
       }
 
       var hasKw=kw.trim().length>0;
@@ -1482,10 +1538,6 @@ const ITEM_UNITS = [
 
       var html='',curPage=0;
       displayData.forEach(function(r){
-        if(needsResort&&r.page!==curPage){
-          if(r.page>1) html+='<div class="ppu-divider">\u2500\u2500 Page '+r.page+' results \u2500\u2500</div>';
-          curPage=r.page;
-        }
         var srcHid=(r.retailer&&!srcFilter[r.retailer.key]);
         var sponHid=sponsoredMode==='hide'&&r.isSponsored;
         var sponDem=sponsoredMode==='demote'&&r.isSponsored;
@@ -1542,12 +1594,12 @@ const ITEM_UNITS = [
         else if(r.sns==='unknown') noteStr+='<div class="ppu-note-deal ppu-note-sns">\uD83D\uDCE6 Subscribe &amp; Save available \u2014 check Amazon for amount</div>';
         if(r.savings) noteStr+='<div class="ppu-note-deal ppu-note-sns">\uD83C\uDF81 '+r.savings+'</div>';
 
-        if(r.freeDate||r.fastDate){
+        if(r.freeDate||r.fastDate||r.paidDate){
           var parts=[];
           if(r.freeDate){
             var fc=r.wfFreeFlag?'ppu-delivery wf-fee':'ppu-delivery';
             var ftParts=[formatDate(r.freeDate)];
-            if(r.freeWindowMinutes!==Infinity) ftParts.push('<span style="font-size:12px;">'+formatWindowMinutes(r.freeWindowMinutes)+'</span>');
+            if(r.freeWindowMinutes!==Infinity) ftParts.push('<span style="font-size:12px;">'+formatWindowRange(r.freeWindowMinutes,r.freeWindowEnd)+'</span>');
             else if(r.freeCutoff) ftParts.push('<span style="font-size:12px;">'+r.freeCutoff+'</span>');
             if(r.freeQualifier) ftParts.push('<span style="font-size:12px;">'+r.freeQualifier+'</span>');
             var ft=ftParts.join(' <span style="font-size:12px;">·</span> ');
@@ -1560,6 +1612,10 @@ const ITEM_UNITS = [
           if(r.fastDate){
             var fst=formatDate(r.fastDate)+(r.fastCutoff?' <span style="font-size:10px;color:#888;">('+r.fastCutoff+')</span>':'');
             parts.push('<span class="ppu-delivery fast">Fastest: '+fst+'</span>');
+          }
+          if(r.paidDate){
+            var pst=r.paidCutoff||formatDate(r.paidDate);
+            parts.push('<span class="ppu-delivery paid">'+r.paidPrice+': '+pst+'</span>');
           }
           deliveryStr='<div class="ppu-meta" style="margin-top:2px;">'+parts.join(' &nbsp; ')+'</div>';
         } else if(effectiveSort==='delivery-free'||effectiveSort==='delivery-any'){
@@ -1666,10 +1722,8 @@ const ITEM_UNITS = [
       if(needsResort)needsResort=false;
       render();
     });
-    resortBtn.addEventListener('click',function(){needsResort=false;render();});
 
     resetFiltersBtn.addEventListener('click',function(){
-      if(!this.classList.contains('btn-danger')) return;
       kwInput.value=''; keyword='';
       kwInput.classList.remove('active'); clearKw.style.display='none';
       minReviews=0;
@@ -1690,7 +1744,10 @@ const ITEM_UNITS = [
       sponsoredMode='show';
       updateSponsoredBtn(hideSponsoredBtn,sponsoredMode);
       sortVal='ppu-asc'; sortEl.value='ppu-asc';
-      render();
+      try{ localStorage.removeItem('au-banner-dismissed'); }catch(e){}
+      try{ sessionStorage.removeItem(getFilterStorageKey(searchTerm)); }catch(e){}
+      checkedAsins={};
+      buildPanel();
     });
 
     // ── Price range inputs ────────────────────────────────────────────────
@@ -1942,8 +1999,16 @@ const ITEM_UNITS = [
       }
     });
     document.getElementById('ppu-close').addEventListener('click',function(e){e.stopPropagation();panel.remove();});
+    var workflowDismiss=document.getElementById('ppu-workflow-dismiss');
+    if(workflowDismiss){
+      workflowDismiss.addEventListener('click',function(){
+        var banner=document.getElementById('ppu-workflow-banner');
+        if(banner) banner.remove();
+        try{ localStorage.setItem('au-banner-dismissed','1'); }catch(e){}
+      });
+    }
     document.getElementById('ppu-btn-refresh').addEventListener('click',function(){
-      this.textContent='Re-scanning\u2026';this.disabled=true;
+      this.textContent='Re-syncing\u2026';this.disabled=true;
       checkedAsins={};
       setTimeout(function(){buildPanel();},100);
     });
@@ -1966,7 +2031,7 @@ const ITEM_UNITS = [
           if(remaining===0||!nextPageUrl){
             pagesSlider.disabled=false;
             if(statusEl) statusEl.style.display='none';
-            needsResort=true; updateLoadMoreRow(); render(); return;
+            needsResort=false; updateLoadMoreRow(); render(); return;
           }
           var fp=loadedPages+1,si=allData.length;
           if(statusEl) statusEl.textContent='Loading page '+fp+'\u2026';
@@ -1984,7 +2049,7 @@ const ITEM_UNITS = [
           }).catch(function(err){
             console.log('[PPU] Pages slider load failed:',err);
             pagesSlider.disabled=false;
-            if(statusEl){statusEl.textContent='Load failed \u2014 try Re-scan page';setTimeout(function(){statusEl.style.display='none';},3000);}
+            if(statusEl){statusEl.textContent='Load failed \u2014 try Re-sync';setTimeout(function(){statusEl.style.display='none';},3000);}
           });
         }
         loadNext(target-loadedPages);
@@ -1999,13 +2064,13 @@ const ITEM_UNITS = [
         var btn=this;btn.disabled=true;btn.textContent='Loading\u2026';
         var fp=loadedPages+1,si=allData.length;
         fetchPage(nextPageUrl,fp,si).then(function(result){
-          allData=allData.concat(result.rows);loadedPages=fp;needsResort=true;nextPageUrl=result.nextUrl;
+          allData=allData.concat(result.rows);loadedPages=fp;needsResort=false;nextPageUrl=result.nextUrl;
           isLiquidDominant=inferLiquidDominant(allData);
           if(isLiquidDominant) applyLiquidCtConversion(result.rows);
           isLiquidDominant=inferLiquidDominant(allData);
           unitPills=generateUnitPills(allData,isLiquidDominant);
           btn.disabled=false; updateLoadMoreRow(); render();
-        }).catch(function(err){console.log('[PPU] Load more failed:',err);btn.textContent='Load failed \u2014 try Re-scan page';btn.disabled=false;});
+        }).catch(function(err){console.log('[PPU] Load more failed:',err);btn.textContent='Load failed \u2014 try Re-sync';btn.disabled=false;});
       });
     }
 
@@ -2029,7 +2094,7 @@ const ITEM_UNITS = [
           '<div style="padding:12px 16px;">'+
             '<p style="margin:0 0 8px;color:#c0392b;font-weight:600;">\u26a0 Something went wrong</p>'+
             '<p style="margin:0 0 12px;font-size:13px;">The panel couldn\u2019t load. Try refreshing the page. If this keeps happening, please let us know.</p>'+
-            '<button id="ppu-err-refresh">\u21ba Re-scan page</button>'+
+            '<button id="ppu-err-refresh">\u21ba Re-sync</button>'+
           '</div>'+
         '</div>';
       document.body.appendChild(errPanel);
