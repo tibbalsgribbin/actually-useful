@@ -544,14 +544,10 @@
     return esc(dateStr);
   }
 
-  // Render coupon cell: two lines when we have a coupon with was-price
+  // Render coupon cell: label only — price info is already in the Price column
   function renderCouponCell(item) {
     if (item.hasCoupon) {
-      var withLine = '$' + parseFloat(item.price).toFixed(2) + ' with coupon';
-      var wasLine = (item.listPrice != null && !isNaN(item.listPrice) && parseFloat(item.listPrice) !== parseFloat(item.price))
-        ? '<br><s style="color:#6B5FA0;font-size:0.85em;">was $' + parseFloat(item.listPrice).toFixed(2) + '</s>'
-        : '';
-      return '<span class="pill pill-coupon">' + withLine + wasLine + '</span>';
+      return '<span class="pill pill-coupon">Coupon</span>';
     }
     if (item.sns) {
       var snsStr = item.sns === 'unknown' ? 'Subscribe &amp; Save' : esc(item.sns) + ' with S&amp;S';
@@ -561,7 +557,7 @@
       return '<span class="pill pill-coupon">' + esc(item.savings) + '</span>';
     }
     if (item.couponPillOnly) {
-      return '<span class="pill pill-coupon">Coupon — check Amazon</span>';
+      return '<span class="pill pill-coupon">Check Amazon</span>';
     }
     return '<span class="na">—</span>';
   }
@@ -643,6 +639,32 @@
   let filterRequirePrime = false;
 
   let currentSearchUrl = '';
+
+  // ── Column visibility state ───────────────────────────────────
+  // Keys match colDefs keys; true = visible. Checkbox/_thumb/title always visible (not here).
+  var colVisible = {
+    price:       true,
+    ppu:         true,
+    delivery:    true,
+    rating:      true,
+    reviewCount: true,
+    isPrime:     true,
+    coupon:      true,
+    retailerKey: true,
+    note:        true
+  };
+
+  var COL_LABELS = {
+    price:       'Price',
+    ppu:         'Per unit',
+    delivery:    'Delivery',
+    rating:      'Rating',
+    reviewCount: 'Reviews',
+    isPrime:     'Prime',
+    coupon:      'Coupon / promo',
+    retailerKey: 'Source',
+    note:        'Notes'
+  };
 
   function sortItems(items, col) {
     const sorted = [...items];
@@ -804,6 +826,68 @@
       + '</div>'
       + '</div>'
       + '</div>';
+  }
+
+  // ── Column toggle bar ─────────────────────────────────────────
+  function renderColumnToggleBar() {
+    var btns = Object.keys(colVisible).map(function(key) {
+      var active = colVisible[key];
+      var style = active
+        ? 'background:#512bd3;color:#ffffff;border:1px solid #512bd3;'
+        : 'background:#fff;color:#6B5FA0;border:1px solid #afb2f4;';
+      return '<button class="col-toggle-btn" data-col="' + key + '" style="' + style
+        + 'padding:0.2rem 0.65rem;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;white-space:nowrap;user-select:text;">'
+        + COL_LABELS[key] + '</button>';
+    }).join('');
+    return '<div id="col-toggle-bar" style="display:flex;flex-wrap:wrap;align-items:center;gap:0.4rem;margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:#eaecfd;border:1px solid #afb2f4;border-radius:6px;">'
+      + '<span style="font-size:0.78rem;font-weight:600;color:#1A1035;white-space:nowrap;margin-right:0.25rem;user-select:text;cursor:text;">Show columns:</span>'
+      + btns
+      + '</div>';
+  }
+
+  function applyColVisibility() {
+    Object.keys(colVisible).forEach(function(key) {
+      var show = colVisible[key];
+      // Find th by data-col
+      var th = document.querySelector('#compare-table thead th[data-col="' + key + '"]');
+      if (th) th.style.display = show ? '' : 'none';
+      // Find all tds by col class — map key to class
+      var cls = key === 'reviewCount' ? 'col-reviews'
+              : key === 'isPrime'     ? null   // no dedicated class — use col index
+              : key === 'coupon'      ? null
+              : key === 'retailerKey' ? null
+              : 'col-' + key;
+      if (cls) {
+        document.querySelectorAll('#compare-table tbody td.' + cls).forEach(function(td) {
+          td.style.display = show ? '' : 'none';
+        });
+      } else {
+        // Fall back to column index
+        var ths = document.querySelectorAll('#compare-table thead th');
+        var idx = -1;
+        ths.forEach(function(t, i) { if (t.dataset.col === key) idx = i; });
+        if (idx >= 0) {
+          document.querySelectorAll('#compare-table tbody tr').forEach(function(tr) {
+            var td = tr.children[idx];
+            if (td) td.style.display = show ? '' : 'none';
+          });
+        }
+      }
+    });
+  }
+
+  function attachColToggleHandlers() {
+    document.querySelectorAll('.col-toggle-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var key = this.getAttribute('data-col');
+        colVisible[key] = !colVisible[key];
+        var active = colVisible[key];
+        this.style.background = active ? '#512bd3' : '#fff';
+        this.style.color      = active ? '#ffffff' : '#6B5FA0';
+        this.style.border     = active ? '1px solid #512bd3' : '1px solid #afb2f4';
+        applyColVisibility();
+      });
+    });
   }
 
   // ── Render table ──────────────────────────────────────────────
@@ -991,6 +1075,7 @@
       + '</div>'
       + liquidToggle
       + renderActionBar()
+      + renderColumnToggleBar()
       + '<div class="table-wrapper">'
       + '<table id="compare-table">'
       + '<thead><tr>' + theadCells + '</tr></thead>'
@@ -1086,6 +1171,8 @@
     attachSortHandlers();
     attachFilterHandlers();
     attachLiquidToggleHandlers();
+    attachColToggleHandlers();
+    applyColVisibility();
     attachRowHandlers();
     attachActionBarButtons();
     attachShareHandler('top-share-btn');
@@ -1421,6 +1508,7 @@
         + '</div>'
         + liquidToggle
         + renderActionBar()
+        + renderColumnToggleBar()
         + '<div class="table-wrapper">'
         + '<table id="compare-table">'
         + '<thead><tr>' + theadCells + '</tr></thead>'
@@ -1431,6 +1519,8 @@
         + '<p class="affiliate-note">This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you.</p>';
       attachSortHandlers();
       attachLiquidToggleHandlers();
+      attachColToggleHandlers();
+      applyColVisibility();
       attachRowHandlers();
       attachActionBarButtons();
       attachShareHandler('top-share-btn');

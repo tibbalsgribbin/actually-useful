@@ -4,6 +4,29 @@
 
 ---
 
+## **v0.6.1.28 — April 25, 2026 (Chat 33)**
+
+### compare.html — delivery column improved
+- `formatDeliveryDate` updated to accept `windowEnd` parameter — free delivery now shows full window range (e.g. `Tuesday, 5 PM–10 PM`)
+- Fast delivery line now shows order-by cutoff when present: `(order by 3 PM)`
+- Paid express delivery shown as third line in amber: e.g. `$4.99 delivery Tomorrow (order by 8 PM)`
+- Both render paths (renderTable + rerenderTableOnly) updated
+
+### compare.html — coupon/promo column switched to full renderCouponCell
+- Table rows previously used a simplified inline block showing just "S&S" or "Coupon" pills
+- Now uses the existing `renderCouponCell` function: S&S shows actual discount string (e.g. `15% with S&S`), coupons show with-coupon price and strikethrough was-price
+- Both render paths updated
+
+### compare.html — Prime only filter added
+- New "Prime only" checkbox in filter bar
+- `filterRequirePrime` state variable added; wired into `applyFilters`, `attachFilterHandlers`, and clear handler
+- Persists through rerenders; resets on Clear filters
+
+### styles.css — paid delivery color rule added
+- `.ppu-delivery.paid { color: #b45309; }` added after `.ppu-delivery.wf-fee`
+
+---
+
 ## **v0.6.1.27 — April 25, 2026 (Chat 32)**
 
 ### Paid express delivery scraped and displayed (search.js)
@@ -21,9 +44,6 @@
 ### Compare payload expanded (search.js)
 - Added: `freeWindowEnd`, `fastCutoff`, `paidDate`, `paidCutoff`, `paidPrice`
 - Available to compare.html for comparisons created from v0.6.1.27 forward
-
-### styles.css — pending
-- `.ppu-delivery.paid { color: #b45309; }` needed — add next coding session when styles.css is uploaded
 
 ---
 
