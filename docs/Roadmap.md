@@ -4,18 +4,21 @@
 
 ---
 
-## Current version: v0.6.1.15
+## Current version: v0.6.1.20
 
 ---
 
 ## Known issues / needs testing
 
-- **Palette redesign needed** — Lavender Fields applied but live result unsatisfactory. Use Claude Design tool for iteration before taking screenshots.
+- **Palette redesign needed** — submitted with monochromatic indigo palette; redesign still wanted for future store update
 - **Laundry pods show wrong unit ($/lb instead of $/ct)** — fix before public launch
 - **Mixed units in results** — `/lb` and `/ct` appearing together; cross-family sort may be occurring
 - **Page limit** — 7 pages confirmed in practice but not definitively researched
 - actuallyuseful.net not yet pointed at GitHub Pages
 - **"Amazon search" link in compare.html** — only works for comparisons created after v0.6.1.14; old Supabase rows have no `searchUrl`
+- **Delivery time on compare.html** — only correct for comparisons created after v0.6.1.17; old Supabase rows lack `freeWindowMinutes`
+- **Thumbnails on compare.html** — only populated for comparisons created after v0.6.1.16; old Supabase rows lack `imgUrl`
+- **Collapsible animation gone** — sections now snap open/closed; smooth animation deferred to post-alpha
 
 ---
 
@@ -54,7 +57,7 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 Never use Python heredoc string escaping to write JavaScript template literals — it produces `\'` sequences that are invalid in .html files. Use string concatenation (`+`) for all HTML-building JS in compare.html.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.15 (search.js) / v0.6.1.15 (compare.html)
+- Current: v0.6.1 (manifest) / v0.6.1.20 (search.js) / v0.6.1.17 (compare.html)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
@@ -98,10 +101,9 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **Palette redesign** — use Claude Design tool, then apply to CSS
-2. **Screenshots** — blocked on palette
-3. **Chrome Web Store submission** — blocked on screenshots
-4. **Persistent research session** (compare.html) — localStorage, inline notes editing directly in table, tab messaging, Save & share button
+1. **Triage remaining testing observations** — Melissa has more items on her list not yet covered
+2. **Palette redesign** — use Claude Design tool, apply to CSS for future store update
+3. **Outreach planning** — frugality blogs (The Non-Consumer Advocate, The Frugal Girl + others)
 
 ---
 
@@ -127,7 +129,7 @@ Two of these = stop and wrap up.
 - [x] privacy.html built (Chat 20)
 - [x] Supabase compare — no item limit (Chat 21)
 - [x] renderError split into two states (Chat 21)
-- [x] Lavender Fields palette applied (Chat 21) — needs redesign
+- [x] Lavender Fields palette applied (Chat 21) — redesigned to monochromatic indigo (Chat 27 pre-session)
 - [x] Compare payload expanded — isPrime, isSponsored, full coupon/delivery/retailer fields (Chat 22)
 - [x] Compare table updated — new columns, removed blank columns (Chat 22)
 - [x] Filter bar on compare.html — keyword, min reviews, source, hide sponsored (Chat 22)
@@ -145,11 +147,24 @@ Two of these = stop and wrap up.
 - [x] Delivery times on compare.html — same-day items show time appended to date (Chat 25)
 - [x] Liquid unit toggle on compare.html — As listed / fl oz / ml; recalculates best-value star (Chat 25)
 - [x] Notes column on compare.html — italic note text, not sortable (Chat 25)
+- [x] imgUrl added to compare payload — thumbnails now populate on compare.html (Chat 26)
+- [x] Notes field reworked — link/preview pattern; textarea hidden behind "＋ Add a note…" link (Chat 26)
+- [x] Delivery time fixed on compare.html — freeWindowMinutes in payload; formatDeliveryDate rewritten (Chat 26)
+- [x] index.html shortlist blurb rewritten — comparison table + collaborative resharing (Chat 27)
+- [x] index.html affiliate disclaimer added (Chat 27)
+- [x] index.html feedback form URL corrected (Chat 27)
+- [x] Pages slider always visible — "No more pages available" when done (Chat 27)
+- [x] Pages slider clipping fixed — collapsible now uses maxHeight:none when open (Chat 30)
+- [x] Ko-fi nudge removed — all call sites removed; redesign deferred to post-alpha (Chat 30)
+- [x] Rating/review count restored to extension panel row display (Chat 30)
 
-### Alpha release — blockers
-- [ ] Palette redesign (Claude Design tool)
-- [ ] Screenshots (5)
-- [ ] Chrome Web Store submission (unlisted)
+### Alpha release — status
+- [x] Screenshots taken (Chat 27)
+- [x] Chrome Web Store submission — unlisted, submitted April 22, 2026 (Chat 27)
+- [x] CWS approval confirmed — published unlisted (Chat 29)
+- [x] Reddit posts live — r/ClaudeAI, r/chrome_extensions, r/vibecodingcommunity (Chat 29/30)
+- [ ] r/vibecodedevs post — scheduled Day 5–7
+- [ ] Facebook post — whenever
 - [ ] Test on a different setup (Mac or Chrome vs Edge)
 
 ### Infrastructure — pending
@@ -160,9 +175,23 @@ Two of these = stop and wrap up.
 - [x] privacy.html live
 - [x] Supabase account + comparisons table
 - [x] Chrome Web Store developer account ($5 paid)
+- [x] Chrome Web Store submission — unlisted
+- [x] CWS approved — published unlisted
 - [ ] actuallyuseful.net pointed at GitHub Pages
 - [ ] Create Amazon account (prerequisite for Associates)
 - [ ] Apply for Amazon Associates (after real user base established)
+
+### Alpha — next steps
+- [ ] Triage remaining testing observations (Melissa's list)
+- [ ] r/vibecodedevs post
+- [ ] Facebook post
+- [ ] Outreach to frugality blogs — The Non-Consumer Advocate, The Frugal Girl, others TBD
+- [ ] Instructions page on website — detailed how-to for the extension
+- [ ] First-use onboarding flow in the extension
+- [ ] Short demo video (platform TBD)
+- [ ] TikTok account — evaluate feasibility
+- [ ] Test on a different setup (Mac or Chrome vs Edge)
+- [ ] Collect and triage tester feedback
 
 ### Persistent research session — post-alpha
 - [ ] localStorage for working comparison state on compare.html
@@ -173,6 +202,8 @@ Two of these = stop and wrap up.
 ### Post-alpha (v0.7+)
 
 **Extension**
+- [ ] Ko-fi nudge redesign — reconsider when, how, and how often to prompt; consider placement and trigger (removed from alpha; Chat 30)
+- [ ] Collapsible animation — restore smooth open/close animation (snapping introduced Chat 30)
 - [ ] Laundry pods / wrong unit bug
 - [ ] Mixed unit cross-family sort investigation
 - [ ] Product page re-enabled
@@ -182,14 +213,23 @@ Two of these = stop and wrap up.
 - [ ] Contribution nudge
 - [ ] Walmart version
 - [ ] Settings/onboarding page
-- [ ] IIFE wrapping (pre-Web Store)
-- [ ] Replace .innerHTML with createElement (pre-Web Store)
+- [ ] IIFE wrapping (pre-Web Store public)
+- [ ] Replace .innerHTML with createElement (pre-Web Store public)
 - [ ] Badge text on toolbar icon
+- [ ] OR/| include syntax for extension keyword filter (currently compare.html only)
 
 **Website**
 - [ ] soldBy / shipsFrom / returnPolicy in compare table — populate when product.js re-enabled
 - [ ] Keepa price history link per item
-- [ ] Power search form (Jungle Search model)
+- [ ] Power search form (Jungle Search model) — two-layer: global fields + category-specific guided forms; shareable permalinks via Supabase; affiliate tag on outbound URLs; seed categories from Melissa's shopping experience
+- [ ] Shared-link note collaboration (viewer replies with notes → new Supabase link)
+- [ ] actuallyuseful.net pointed at GitHub Pages
+- [ ] Instructions/how-to page
+
+**Outreach**
+- [ ] Frugality blog outreach — The Non-Consumer Advocate, The Frugal Girl, others TBD
+- [ ] Amazon Associates — create Associates Central account (low effort, gets on policy email list)
+- [ ] Amazon Associates application narrative (draft before applying)
 
 ---
 
@@ -206,5 +246,7 @@ Two of these = stop and wrap up.
 - Affiliate tags on website only — never in extension
 - Affiliate disclosure on every page — whether or not affiliate links are live
 - search.js sends raw numbers to compare.html — compare.html handles all formatting
-- All data visible in the extension panel listing must survive the trip to compare.html
+- All data that appears in the extension panel listing should be in the compare.html payload — no exceptions
 - Claude Design tool is the right place for iterative visual/palette work
+- Permanently visible UI elements are preferred — conditional visibility only when there's a clear reason (e.g. source pills, unit pills)
+- The comparison page is the destination — the extension is the on-ramp

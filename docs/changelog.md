@@ -4,6 +4,83 @@
 
 ---
 
+## **v0.6.1.20 — April 24, 2026 (Chat 30)**
+
+### Pages slider clipping fixed (search.js)
+- `setupCollapsible` rewritten to use `maxHeight: none` when open instead of `scrollHeight` measurement
+- Previous approach locked `maxHeight` at build-time `scrollHeight`, which was measured before the slider fully rendered — causing the slider row to be clipped after page 2 loaded
+- Sections now snap open/closed (no animation) — smooth animation deferred to post-alpha if desired
+
+### Ko-fi nudge removed (search.js)
+- All `maybeShowNudge()` call sites removed: checkbox handler, pages slider `loadNext` completion, load-more button completion, keyword input handler
+- `maybeShowNudge()` function definition left as dead code — nudge infrastructure in core.js untouched
+- Nudge redesign added to roadmap for post-alpha consideration
+
+### Rating/review count restored to row display (search.js)
+- Rating and review count were scraped correctly but never rendered in the panel listing
+- Now displays below delivery info: e.g. `4.5★ (1,234 reviews)`
+- Only renders when at least one of rating/reviewCount is present for a result
+
+---
+
+## **v0.6.1.19 — April 22, 2026 (Chat 27)**
+
+### Pages slider always visible (search.js)
+- Pages row now always renders on panel build — no longer conditional on `nextPageUrl` at build time
+- When more pages are available: slider enabled, label shows "Pages to load: N"
+- When all pages are loaded or only one page exists: slider disabled, label shows "No more pages available"
+- `updateLoadMoreRow` updated to manage slider disabled state and label text instead of row visibility
+- Fixes intermittent disappearance caused by pagination DOM element not yet present when `buildPanel()` fired
+
+---
+
+## **v0.6.1.18 — April 22, 2026 (Chat 27)**
+
+### Pages slider show/hide fix — partial (search.js)
+- `updateLoadMoreRow` updated to control visibility of `ppu-pages-row`
+- Superseded by v0.6.1.19 which takes a more complete approach
+
+---
+
+## **index.html — April 22, 2026 (Chat 27)**
+
+### Content updates
+- Shortlist feature blurb rewritten — leads with comparison table, sortable/filterable/shareable, collaborative resharing angle ("Add notes, send the link, and the other person can filter and add their own notes and share again")
+- Affiliate disclaimer added below footer
+- Feedback form URL corrected to forms.gle/XU8RpYM3cGFTwQQ86 (was incorrect URL)
+
+### Chrome Web Store
+- Submitted for review — unlisted, US, free, April 22, 2026
+
+---
+
+## **v0.6.1.17 — April 22, 2026 (Chat 26)**
+
+### Delivery time fixed on compare.html (search.js, compare.html)
+- `freeWindowMinutes` added to compare payload — carries the "by X PM" time window scraped from Amazon
+- `formatDeliveryDate` in compare.html rewritten to use `freeWindowMinutes` directly instead of reading hours from `freeDateTs` (which was always midnight → always showed wrong time)
+- Same-day free delivery now shows correctly, e.g. "Apr 22 by 5 PM"
+- Fast delivery unchanged — no window to show, displays date only
+- Only applies to comparisons created after this version; old Supabase rows show date without time (acceptable)
+
+---
+
+## **v0.6.1.16 — April 22, 2026 (Chat 26)**
+
+### Notes field reworked — link/preview pattern (search.js)
+- Replaced always-visible textarea with a compact note widget
+- Checked row shows small "＋ Add a note…" link (muted, unobtrusive)
+- Clicking link opens textarea, focused and ready to type
+- Clicking away collapses: if empty → link again; if text → italic preview (truncated at 80 chars) + "Edit" link
+- Clicking "Edit" reopens textarea with full text
+- Three helper functions added: `auInjectNoteWidget`, `auRefreshNoteWidget`, `auShowNoteTextarea`
+- Unchecking a row removes the widget and preserves the note in memory
+
+### imgUrl added to compare payload (search.js)
+- Thumbnails now populate on compare.html for comparisons created after this version
+
+---
+
 ## **v0.6.1.15 — April 21, 2026 (Chat 25)**
 
 ### Notes field added (search.js)

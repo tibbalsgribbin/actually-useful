@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.15 (overall) · v0.6.1 (manifest) · v0.6.1.15 (search.js) · v0.6.1.15 (compare.html) · Updated April 21, 2026 (Chat 25)*
+*Current version: v0.6.1.20 (overall) · v0.6.1 (manifest) · v0.6.1.20 (search.js) · v0.6.1.17 (compare.html) · Updated April 24, 2026 (Chat 30)*
 
 ---
 
@@ -16,13 +16,13 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 | Tagline | Actually Useful: Amazon but better. |
 | Domain | actuallyuseful.net (Namecheap) — not yet pointed at GitHub Pages |
 | GitHub | github.com/tibbalsgribbin/actually-useful (public) |
-| GitHub Pages | tibbalsgribbin.github.io/actually-useful/ (live) |
+| GitHub Pages | tibbalsgribbling.github.io/actually-useful/ (live) |
 | Ko-fi | ko-fi.com/butactuallyuseful |
 | Email | butactuallyuseful@gmail.com |
 | Google account | butactuallyuseful@gmail.com (InPrivate Edge only) |
 | Feedback form | https://forms.gle/XU8RpYM3cGFTwQQ86 |
 | Supabase | Actually Useful / actually-useful project, free tier |
-| Chrome Web Store | Developer account created (Chat 20) — unlisted submission pending |
+| Chrome Web Store | Published unlisted — approved April 2026 |
 
 ---
 
@@ -42,14 +42,17 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 
 The **persistent shortlist** is the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-**Shortlist item object shape sent to compare.html (current — v0.6.1.15):**
+**Shortlist item object shape sent to compare.html (current — v0.6.1.20):**
 ```
 { asin, title, price (raw float), listPrice (raw float), ppu (raw float), ppuUnit,
   isPrime (bool), isSponsored (bool),
   hasCoupon (bool), couponPillOnly (bool), sns (string), savings (string),
   freeDate (formatted string), fastDate (formatted string),
-  freeDateTs (epoch ms), fastDateTs (epoch ms), freeQualifier (string),
-  retailerKey (string), rating, reviewCount, note (string) }
+  freeDateTs (epoch ms), fastDateTs (epoch ms),
+  freeWindowMinutes (int minutes-since-midnight, or null),
+  freeQualifier (string),
+  retailerKey (string), rating, reviewCount,
+  note (string), imgUrl (string) }
 ```
 Payload also includes: `searchTerm` (string), `searchUrl` (string).
 
@@ -61,13 +64,13 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 **Affiliate link policy:** Tags on website only — never in the extension.
 
-**Affiliate disclosure:** Every page must display: *"This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you."*
+**Affiliate disclosure:** Every page must display: *"This site contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you."*
 
 ---
 
 ## 5. Version Numbering
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.13** (search.js) / **v0.6.1.13** (compare.html)
+- Current: **v0.6.1** (manifest) / **v0.6.1.20** (search.js) / **v0.6.1.17** (compare.html)
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
 
@@ -108,7 +111,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 | `content/search.js` | Search results page panel |
 | `content/product.js` | Product page panel (disabled during alpha) |
 | `content/shared/core.js` | Shared: shortlist, nudge, shared constants |
-| `content/shared/styles.css` | Shared styles — Lavender Fields palette (needs redesign) |
+| `content/shared/styles.css` | Shared styles — monochromatic indigo palette |
 
 `core.js` uses a **callback pattern** (not Promises).
 
@@ -116,24 +119,20 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ---
 
-## 8. Palette — Lavender Fields (applied v0.6.1.12, needs redesign)
+## 8. Palette — Monochromatic Indigo (applied Chat 27 pre-session)
 
 | Role | Colour | Hex |
 |---|---|---|
-| Header, nav | Orchid | #CF6DFC |
-| Shortlist bar, footer bar, dividers | Gold | #BDB96A |
-| Page/panel background | White | #FFFFFF |
-| Cards, rows, control areas | Pale Yellow | #FDFBD4 |
-| Best value row | Vivid Yellow | #f5eda0 |
-| Text inputs, dropdowns | White only | #FFFFFF |
-| Unchecked checkboxes | White | #FFFFFF |
-| Checked checkboxes | Orchid | #CF6DFC |
-| Feature cards (website) | Periwinkle | #C1BFFF |
-| Comparison table cells | White | #FFFFFF |
-| Primary text | Eggplant | #351E45 |
-| Muted text (dimmed/inactive only) | Muted purple | #877891 |
+| Brand primary | Deep indigo | #512bd3 |
+| Links | Medium indigo | #5d49da |
+| Hover | Lighter indigo | #7b76e5 |
+| Backgrounds | Lightest indigo | #eaecfd |
+| Surface hover | Light indigo | #d6d8fa |
+| Primary text | Near-black indigo | #1A1035 |
+| Muted text | Muted indigo | #6B5FA0 |
+| Borders | Indigo border | #afb2f4 |
 
-Note: Live result was not satisfactory. Palette redesign needed before screenshots. Use Claude Design tool for iterative visual work.
+Note: Palette redesign still wanted for future store update. Use Claude Design tool for iterative visual work.
 
 ---
 
@@ -154,13 +153,16 @@ Move ads to end → Hide ads → Show ads
 Amazon, Fresh, Whole Foods, Pharmacy, partner retailers
 
 ### Pages to load
-Slider (1–10); 750ms throttle between fetches
+Slider (1–10); always visible; 750ms throttle between fetches; "No more pages available" when exhausted
 
 ### Shortlist (session-scoped)
-Checkbox per row. Compare button POSTs to Supabase, opens compare.html?id=xxx. No item limit.
+Checkbox per row. Per-item notes (link/preview pattern — compact until needed). Compare button POSTs to Supabase, opens compare.html?id=xxx. No item limit.
 
 ### Delivery sorting
 Parses free/fastest delivery, windows, cutoff times
+
+### Rating/review display
+Rating (stars) and review count shown in each panel row, below delivery info.
 
 ### Telemetry
 Sent via background.js. User can opt out via popup.
@@ -168,21 +170,27 @@ Sent via background.js. User can opt out via popup.
 ### Comparison page
 - Loads from Supabase by ?id= (primary) or ?data= Base64 (legacy fallback)
 - Sortable columns, best-value star, shareable links
-- Filter bar: keyword, min reviews, source/retailer, hide sponsored — collapsible, expanded by default
-- Columns: Product, Price, Per unit, Delivery, Rating, Reviews, Prime, Coupon/promo, Source
+- Filter bar: keyword (include/exclude with OR), min reviews, min rating, min/max price, source/retailer, hide sponsored — collapsible, expanded by default
+- Columns: Product (with thumbnail), Price, Per unit, Delivery, Rating, Reviews, Prime, Coupon/promo, Source, Notes
 - Sponsored items show "Ad" badge in title cell
+- Liquid unit toggle (As listed / fl oz / ml) when liquid items present
+- Action bar when rows checked: Open in tabs, Show checked only, Share checked items, Deselect all
 
 ---
 
 ## 10. Known Issues / Deferred
 
-- **Palette redesign needed** — live result unsatisfactory; use Claude Design for iteration
+- **Palette redesign still wanted** — submitted with current palette; use Claude Design for iteration
 - **Product page panel** — disabled in manifest, deferred until post-alpha
 - **Laundry pods show wrong unit ($/lb)** — fix before public launch
 - **Mixed units in same search** — investigate
 - **actuallyuseful.net** — not yet pointed at GitHub Pages
 - **compare.html soldBy/shipsFrom/returnPolicy** — blank until product.js re-enabled
-- **"Amazon search" link** — only works for comparisons created after v0.6.1.14; old Supabase rows lack `searchUrl`
+- **"Amazon search" link** — only works for comparisons created after v0.6.1.14
+- **Thumbnails on compare.html** — only populated for comparisons created after v0.6.1.16
+- **Delivery time on compare.html** — only correct for comparisons created after v0.6.1.17
+- **Collapsible animation gone** — sections snap open/closed; smooth animation deferred to post-alpha
+- **Ko-fi nudge removed** — nudge redesign deferred to post-alpha
 
 ---
 
@@ -194,7 +202,7 @@ Sent via background.js. User can opt out via popup.
 | GitHub Pages | tibbalsgribbin.github.io/actually-useful/ (live) |
 | Project docs | `docs/` folder in GitHub repo |
 | Supabase | Actually Useful / actually-useful, free tier |
-| Chrome Web Store | Developer account created; unlisted submission pending |
+| Chrome Web Store | Published unlisted — approved April 2026 |
 | Usage log | Google Sheet — payload relayed via background.js |
 | Feedback form | https://forms.gle/XU8RpYM3cGFTwQQ86 |
 | Ko-fi | ko-fi.com/butactuallyuseful |
@@ -217,6 +225,8 @@ Sent via background.js. User can opt out via popup.
 - search.js sends raw numbers to compare.html — compare.html handles all formatting
 - All data that appears in the extension panel listing should be in the compare.html payload — no exceptions
 - Claude Design tool is the right place for iterative visual/palette work
+- Permanently visible UI elements are preferred — conditional visibility only when there's a clear reason (e.g. source pills, unit pills)
+- The comparison page is the destination — the extension is the on-ramp
 
 ---
 

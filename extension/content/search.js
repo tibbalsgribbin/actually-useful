@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.18)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.20)
 'use strict';
 
 function auFeedbackUrl() {
@@ -867,9 +867,7 @@ const ITEM_UNITS = [
   function updateLoadMoreRow() {
     var lmRow = document.getElementById('ppu-load-more-row');
     var lmBtn = document.getElementById('ppu-btn-load-more');
-    var pagesRow = document.getElementById('ppu-pages-row');
     if (!lmRow) return;
-    if (pagesRow) pagesRow.style.display = nextPageUrl ? '' : 'none';
     if (nextPageUrl) {
       lmRow.style.display = '';
       if (lmBtn) lmBtn.textContent = '\u2193 Load page '+(loadedPages+1)+' results';
@@ -877,15 +875,18 @@ const ITEM_UNITS = [
       lmRow.style.display = 'none';
     }
     var pagesSlider = document.getElementById('ppu-pages-slider');
+    var labelEl = document.getElementById('ppu-pages-label');
     if (pagesSlider) {
+      pagesSlider.disabled = !nextPageUrl;
       pagesSlider.value = loadedPages;
       var pct = ((loadedPages - 1) / 9) * 100;
       pagesSlider.style.setProperty('--fill', pct + '%');
       pagesSlider.classList.toggle('active', loadedPages > 1);
-      var labelEl = document.getElementById('ppu-pages-label');
-      if (labelEl) labelEl.innerHTML = 'Pages to load: <em>' + loadedPages + '</em>';
+      if (labelEl) labelEl.innerHTML = nextPageUrl ? 'Pages to load: <em>' + loadedPages + '</em>' : 'No more pages available';
       var warnEl = document.getElementById('ppu-pages-warning');
       if (warnEl) warnEl.style.display = loadedPages >= 7 ? 'block' : 'none';
+    } else {
+      if (labelEl) labelEl.innerHTML = nextPageUrl ? 'Pages to load: <em>1</em>' : 'No more pages available';
     }
   }
 
@@ -1035,25 +1036,23 @@ const ITEM_UNITS = [
             '<button id="ppu-btn-resort" class="ppu-btn btn-teal">Re-sort all \u21c5</button>'+
             '<button id="ppu-btn-hide-sponsored" class="ppu-btn">Move ads to end of results</button>'+
           '</div>'+
-          (nextPageUrl ?
-            '<div id="ppu-pages-row">'+
-              '<span id="ppu-pages-label">Pages to load: <em>1</em></span>'+
-              '<div class="ppu-slider-wrap">'+
-                '<span class="ppu-slider-startlabel">1</span>'+
-                '<div class="ppu-slider-track-wrap">'+
-                  '<input id="ppu-pages-slider" type="range" class="ppu-slider" min="1" max="10" step="1" value="1">'+
-                  '<div class="ppu-slider-ticks">'+
-                    '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="minor"></span>'+
-                    '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="minor"></span>'+
-                    '<span class="minor"></span><span class="major"></span>'+
-                  '</div>'+
+          '<div id="ppu-pages-row">'+
+            '<span id="ppu-pages-label">'+(nextPageUrl?'Pages to load: <em>1</em>':'No more pages available')+'</span>'+
+            '<div class="ppu-slider-wrap">'+
+              '<span class="ppu-slider-startlabel">1</span>'+
+              '<div class="ppu-slider-track-wrap">'+
+                '<input id="ppu-pages-slider" type="range" class="ppu-slider" min="1" max="10" step="1" value="1"'+(nextPageUrl?'':' disabled')+'>'+
+                '<div class="ppu-slider-ticks">'+
+                  '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="minor"></span>'+
+                  '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="minor"></span>'+
+                  '<span class="minor"></span><span class="major"></span>'+
                 '</div>'+
-                '<span class="ppu-slider-endlabel">10</span>'+
               '</div>'+
-              '<span id="ppu-pages-status"></span>'+
+              '<span class="ppu-slider-endlabel">10</span>'+
             '</div>'+
-            '<div id="ppu-pages-warning" style="margin:0 14px 6px;display:none;">\u26a0\ufe0f Amazon sometimes limits results beyond 7 pages, and those results may be less relevant to your search.</div>'
-          : '')+
+            '<span id="ppu-pages-status"></span>'+
+          '</div>'+
+          '<div id="ppu-pages-warning" style="margin:0 14px 6px;display:none;">\u26a0\ufe0f Amazon sometimes limits results beyond 7 pages, and those results may be less relevant to your search.</div>'+
         '</div>'+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-filters-toggle" data-target="ppu-filters-collapsible">'+
           '<span>Filters <span class="ppu-chevron">\u25be</span></span>'+
@@ -1567,6 +1566,14 @@ const ITEM_UNITS = [
           deliveryStr='<div class="ppu-meta ppu-no-delivery" style="margin-top:2px;">No delivery date found \u2014 check product page for details.</div>';
         }
 
+        var ratingStr='';
+        if(r.rating||r.reviewCount){
+          var parts=[];
+          if(r.rating) parts.push(r.rating+'\u2605');
+          if(r.reviewCount) parts.push('('+r.reviewCount.toLocaleString()+' reviews)');
+          ratingStr='<div class="ppu-meta ppu-rating-row">'+parts.join(' ')+'</div>';
+        }
+
         var dimC=(!r.kwMatch&&hasKw)?' kw-mismatch':'';
         var srcC=srcHid?' src-hidden':'';
         var sponC=sponHid?' sponsored-hidden':(sponDem?' sponsored-demoted':'');
@@ -1596,7 +1603,7 @@ const ITEM_UNITS = [
               '<a href="'+r.href+'" target="_blank" title="'+escapeHtml(r.title)+'">'+titleHtml+'</a>'+
               srcTag+
               '<div class="ppu-meta"><span class="ppu-price">'+priceStr+'</span>'+(countStr?'<span class="ppu-count">'+countStr+'</span>':'')+badge+'</div>'+
-              deliveryStr+noteStr+
+              deliveryStr+ratingStr+noteStr+
               noteFieldHtml+
             '</div>'+
           '</div>';
@@ -1610,7 +1617,6 @@ const ITEM_UNITS = [
           if(this.checked){
             checkedAsins[asin]=true;
             row.classList.add('checked');
-            maybeShowNudge();
             // Inject note widget directly — no re-render needed
             if(!row.querySelector('.ppu-note-widget')){
               auInjectNoteWidget(row,asin);
@@ -1832,7 +1838,6 @@ const ITEM_UNITS = [
       keyword=this.value;
       this.classList.toggle('active',this.value.trim().length>0);
       clearKw.style.display=this.value.trim().length>0?'block':'none';
-      if(keyword.includes('-')) maybeShowNudge();
       clearTimeout(kwDebounceTimer);
       kwDebounceTimer=setTimeout(function(){render();},250);
     });
@@ -1897,12 +1902,12 @@ const ITEM_UNITS = [
       var toggle  = document.getElementById(toggleId);
       var section = document.getElementById(sectionId);
       if (!toggle || !section) return;
-      section.style.maxHeight = section.scrollHeight + 'px';
+      section.style.maxHeight = openFlag ? 'none' : '0';
       toggle.addEventListener('click', function() {
         openFlag = !openFlag;
         var chevron = toggle.querySelector('.ppu-chevron');
         if (openFlag) {
-          section.style.maxHeight = section.scrollHeight + 'px';
+          section.style.maxHeight = 'none';
           if (chevron) chevron.style.transform = '';
           toggle.classList.remove('collapsed');
         } else {
@@ -1961,7 +1966,7 @@ const ITEM_UNITS = [
           if(remaining===0||!nextPageUrl){
             pagesSlider.disabled=false;
             if(statusEl) statusEl.style.display='none';
-            needsResort=true; updateLoadMoreRow(); maybeShowNudge(); render(); return;
+            needsResort=true; updateLoadMoreRow(); render(); return;
           }
           var fp=loadedPages+1,si=allData.length;
           if(statusEl) statusEl.textContent='Loading page '+fp+'\u2026';
@@ -1999,7 +2004,7 @@ const ITEM_UNITS = [
           if(isLiquidDominant) applyLiquidCtConversion(result.rows);
           isLiquidDominant=inferLiquidDominant(allData);
           unitPills=generateUnitPills(allData,isLiquidDominant);
-          btn.disabled=false; updateLoadMoreRow(); maybeShowNudge(); render();
+          btn.disabled=false; updateLoadMoreRow(); render();
         }).catch(function(err){console.log('[PPU] Load more failed:',err);btn.textContent='Load failed \u2014 try Re-scan page';btn.disabled=false;});
       });
     }
