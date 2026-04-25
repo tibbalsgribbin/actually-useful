@@ -390,6 +390,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-delivery   { font-size:0.82rem;color:var(--au-success);margin-top:2px; }
 .ppu-delivery.fast   { color:var(--au-orchid-dark); }
 .ppu-delivery.wf-fee { color:var(--au-coral-dark); }
+.ppu-delivery.paid   { color:#b45309; }
 .ppu-nodata { font-size:0.82rem;color:var(--au-text-muted);font-style:italic; }
 .ppu-note   { font-size:0.78rem;color:var(--au-text-muted);margin-top:2px; }
 .ppu-note-deal { font-size:0.78rem;color:var(--au-success);margin-top:2px; }

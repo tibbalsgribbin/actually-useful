@@ -526,13 +526,20 @@
   }
 
   // Format a delivery date string, appending time window if available
-  function formatDeliveryDate(dateStr, ts, windowMinutes) {
+  function formatDeliveryDate(dateStr, ts, windowMinutes, windowEnd) {
     if (!dateStr) return '';
     if (windowMinutes != null) {
       var h = Math.floor(windowMinutes / 60);
       var meridiem = h < 12 ? 'AM' : 'PM';
       var h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-      return esc(dateStr) + ' by ' + h12 + ' ' + meridiem;
+      var startStr = h12 + ' ' + meridiem;
+      if (windowEnd != null) {
+        var he = Math.floor(windowEnd / 60);
+        var meridiemE = he < 12 ? 'AM' : 'PM';
+        var h12e = he === 0 ? 12 : he > 12 ? he - 12 : he;
+        return esc(dateStr) + ', ' + startStr + '–' + h12e + ' ' + meridiemE;
+      }
+      return esc(dateStr) + ', by ' + startStr;
     }
     return esc(dateStr);
   }
@@ -633,6 +640,7 @@
   let filterHideSponsored = false;
   let filterMinPrice   = '';
   let filterMaxPrice   = '';
+  let filterRequirePrime = false;
 
   let currentSearchUrl = '';
 
@@ -728,6 +736,7 @@
     return items.filter(function(item) {
       if (showCheckedOnly && !checkedAsins[item.asin]) return false;
       if (filterHideSponsored && item.isSponsored) return false;
+      if (filterRequirePrime && !item.isPrime) return false;
       if (filterRetailer && (item.retailerKey || 'standard') !== filterRetailer) return false;
       if (filterMinReviews > 0 && (parseFloat(item.reviewCount) || 0) < filterMinReviews) return false;
       if (filterMinRating > 0 && (parseFloat(item.rating) || 0) < filterMinRating) return false;
@@ -764,6 +773,9 @@
       sponsoredToggle = '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-hide-sponsored"' + chk + '> Hide sponsored</label>';
     }
 
+    var primeChk = filterRequirePrime ? ' checked' : '';
+    var primeToggle = '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-require-prime"' + primeChk + '> Prime only</label>';
+
     var inclVal = esc(filterInclude);
     var exclVal = esc(filterExclude);
     var mrVal = filterMinReviews || '';
@@ -787,6 +799,7 @@
       + '<label class="fb-label">Maximum price ($)<input type="number" id="fb-max-price" min="0" placeholder="any" value="' + maxPriceVal + '"></label>'
       + retailerOptions
       + sponsoredToggle
+      + primeToggle
       + '<button id="fb-clear" class="btn btn-ghost">Clear filters</button>'
       + '</div>'
       + '</div>'
@@ -889,9 +902,18 @@
       var deliveryParts = [];
       if (item.freeDate) {
         var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
-        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs, item.freeWindowMinutes != null ? item.freeWindowMinutes : null) + q);
+        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs, item.freeWindowMinutes != null ? item.freeWindowMinutes : null, item.freeWindowEnd != null ? item.freeWindowEnd : null) + q);
       }
-      if (item.fastDate) deliveryParts.push('Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs, null));
+      if (item.fastDate) {
+        var fastLine = 'Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs, null, null);
+        if (item.fastCutoff) fastLine += ' <span class="na">(order by ' + esc(item.fastCutoff) + ')</span>';
+        deliveryParts.push(fastLine);
+      }
+      if (item.paidDate && item.paidPrice) {
+        var paidLine = esc(item.paidPrice) + ' delivery ' + esc(item.paidDate);
+        if (item.paidCutoff) paidLine += ' <span class="na">(order by ' + esc(item.paidCutoff) + ')</span>';
+        deliveryParts.push('<span style="color:#b45309;">' + paidLine + '</span>');
+      }
       var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
 
       var sourceKey = item.retailerKey || 'standard';
@@ -920,7 +942,7 @@
         + '<td class="col-rating">' + renderStars(item.rating) + '</td>'
         + '<td class="col-reviews">' + formatReviews(item.reviewCount) + '</td>'
         + '<td>' + primeCell + '</td>'
-        + '<td>' + couponLabel + '</td>'
+        + '<td>' + renderCouponCell(item) + '</td>'
         + '<td>' + sourceCell + '</td>'
         + '<td class="col-note">' + noteCell + '</td>'
         + '</tr>';
@@ -1309,9 +1331,18 @@
       var deliveryParts = [];
       if (item.freeDate) {
         var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
-        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs, item.freeWindowMinutes != null ? item.freeWindowMinutes : null) + q);
+        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs, item.freeWindowMinutes != null ? item.freeWindowMinutes : null, item.freeWindowEnd != null ? item.freeWindowEnd : null) + q);
       }
-      if (item.fastDate) deliveryParts.push('Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs, null));
+      if (item.fastDate) {
+        var fastLine = 'Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs, null, null);
+        if (item.fastCutoff) fastLine += ' <span class="na">(order by ' + esc(item.fastCutoff) + ')</span>';
+        deliveryParts.push(fastLine);
+      }
+      if (item.paidDate && item.paidPrice) {
+        var paidLine = esc(item.paidPrice) + ' delivery ' + esc(item.paidDate);
+        if (item.paidCutoff) paidLine += ' <span class="na">(order by ' + esc(item.paidCutoff) + ')</span>';
+        deliveryParts.push('<span style="color:#b45309;">' + paidLine + '</span>');
+      }
       var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
 
       var sourceKey = item.retailerKey || 'standard';
@@ -1340,7 +1371,7 @@
         + '<td class="col-rating">' + renderStars(item.rating) + '</td>'
         + '<td class="col-reviews">' + formatReviews(item.reviewCount) + '</td>'
         + '<td>' + primeCell + '</td>'
-        + '<td>' + couponLabel + '</td>'
+        + '<td>' + renderCouponCell(item) + '</td>'
         + '<td>' + sourceCell + '</td>'
         + '<td class="col-note">' + noteCell + '</td>'
         + '</tr>';
@@ -1500,6 +1531,15 @@
       });
     }
 
+    // Require Prime toggle
+    const primeChk = document.getElementById('fb-require-prime');
+    if (primeChk) {
+      primeChk.addEventListener('change', () => {
+        filterRequirePrime = primeChk.checked;
+        rerender();
+      });
+    }
+
     // Clear filters
     const clearBtn = document.getElementById('fb-clear');
     if (clearBtn) {
@@ -1512,6 +1552,7 @@
         filterMaxPrice = '';
         filterRetailer = '';
         filterHideSponsored = false;
+        filterRequirePrime = false;
         sortCol = null;
         sortDir = 'asc';
         rerender();
