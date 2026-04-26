@@ -4,6 +4,26 @@
 
 ---
 
+## **v0.6.1.29 — April 25, 2026 (Chat 34)**
+
+### compare.html — coupon column simplified
+- `renderCouponCell` no longer shows with-coupon price or was-price — coupons now display "Coupon" pill only
+- Price column already shows full coupon pricing; duplication removed
+- S&S: unchanged — still shows actual discount string (e.g. `15% with S&S`)
+- `couponPillOnly` label changed from "Coupon — check Amazon" to "Check Amazon" for consistency
+- Both render paths (renderTable inline block + renderCouponCell) now consistent
+
+### compare.html — column hide toggles added
+- "Show columns:" toggle bar added above the table
+- Hideable columns: Price, Per unit, Delivery, Rating, Reviews, Prime, Coupon / promo, Source, Notes
+- Always visible: checkbox, thumbnail, Product
+- Active columns shown as filled indigo buttons; hidden columns shown as white/muted
+- Clicking a button toggles that column's `th` and all its `td`s via `display:none`
+- State is per-session only (resets on page reload)
+- Both render paths updated; `attachColToggleHandlers` + `applyColVisibility` wired into rerender and rerenderTableOnly
+
+---
+
 ## **v0.6.1.28 — April 25, 2026 (Chat 33)**
 
 ### compare.html — delivery column improved

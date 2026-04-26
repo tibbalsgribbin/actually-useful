@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.26)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.28)
 'use strict';
 
 function auFeedbackUrl() {
@@ -608,6 +608,18 @@ const ITEM_UNITS = [
     return false;
   }
 
+  function detectSnap(el) {
+    // Check aria-label attributes first (most reliable)
+    var snapAttr=el.querySelector('[aria-label*="SNAP"],[aria-label*="snap ebt"]');
+    if(snapAttr) return true;
+    // Fall back to text scan for "SNAP EBT" in leaf nodes
+    var leaves=Array.from(el.querySelectorAll('*')).filter(function(e){return e.children.length===0;});
+    for(var i=0;i<leaves.length;i++){
+      if(/snap\s+ebt/i.test(leaves[i].textContent)) return true;
+    }
+    return false;
+  }
+
   function parseSnS(el) {
     var fullText=el.textContent||'';
     if(!/when you subscribe/i.test(fullText)) return null;
@@ -747,12 +759,13 @@ const ITEM_UNITS = [
     var freeQualifier=parseDeliveryQualifier(el);
     var imgEl=el.querySelector('img.s-image');
     var imgUrl=imgEl?imgEl.src:'';
+    var isSnap=detectSnap(el);
     var base={title,href,asin,price,listPrice,count,page,retailer,wfFreeFlag,isSponsored,hasCoupon,
               couponPillOnly,sns,savings,cardText,reviewCount,rating,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff,
               freeWindowMinutes:freeWindowMinutes,freeWindowEnd:freeWindowEnd,freeQualifier:freeQualifier,imgUrl:imgUrl,
-              paidDate:delivery.paidDate,paidCutoff:delivery.paidCutoff,paidPrice:delivery.paidPrice};
+              paidDate:delivery.paidDate,paidCutoff:delivery.paidCutoff,paidPrice:delivery.paidPrice,isSnap:isSnap};
 
     // Override: if Amazon reported a weight unit but the item title indicates a countable
     // solid product (pods, sheets, strips, loads, etc.), ignore the weight unit and
@@ -863,6 +876,7 @@ const ITEM_UNITS = [
   var kwDebounceTimer  = null;
   var minReviews       = 0;
   var minRating        = 0;
+  var snapOnly         = false;
   var isLiquidDominant = false;
   var unitPills        = [];
   var panelMoved       = false;
@@ -1168,6 +1182,9 @@ const ITEM_UNITS = [
                 return '<span class="'+cls+'" data-src="'+k+'">'+label+'</span>';
               }).join('')+
             '</div>':'')+
+          '<div id="ppu-snap-row">'+
+            '<label class="ppu-snap-label"><input type="checkbox" id="ppu-snap-only"'+(snapOnly?' checked':'')+'>SNAP EBT eligible only</label>'+
+          '</div>'+
         '</div>'+
       '</div>'+
       '<div id="ppu-scroll-area">'+
@@ -1218,7 +1235,11 @@ const ITEM_UNITS = [
         '.ppu-note-edit-link{font-size:11px;color:#877891;cursor:pointer;text-decoration:none;user-select:none;white-space:nowrap;}' +
         '.ppu-note-edit-link:hover{color:#CF6DFC;}' +
         '.ppu-item-note{display:block;width:100%;margin-top:4px;padding:4px 6px;border:1px solid #c8c0e8;border-radius:4px;font-size:12px;font-family:inherit;resize:vertical;color:#351E45;background:#fff;min-height:38px;box-sizing:border-box;}' +
-        '.ppu-item-note:focus{outline:none;border-color:#CF6DFC;}';
+        '.ppu-item-note:focus{outline:none;border-color:#CF6DFC;}' +
+        '.snap-hidden{display:none!important}' +
+        '.ppu-note-snap{color:#0a7c3e;font-weight:600;}' +
+        '#ppu-snap-row{padding:4px 14px 6px;display:flex;align-items:center;}' +
+        '.ppu-snap-label{font-size:13px;color:#351E45;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;}';
       document.head.appendChild(styleEl);
     }
 
@@ -1544,6 +1565,7 @@ const ITEM_UNITS = [
         var revHid=minReviews>0&&r.reviewCount!=null&&r.reviewCount<minReviews;
         var ratingHid=minRating>0&&r.rating!=null&&r.rating<minRating;
         var priceHid=(minPriceF!=null&&r.price!=null&&r.price<minPriceF)||(maxPriceF!=null&&r.price!=null&&r.price>maxPriceF);
+        var snapHid=snapOnly&&!r.isSnap;
         var priceStr=r.price!=null?'$'+r.price.toFixed(2):'\u2014';
         var countStr=r.count?r.count+' ct':'';
         var badge='',noteStr='',deliveryStr='',srcTag='';
@@ -1561,7 +1583,7 @@ const ITEM_UNITS = [
         if(r.ppu!=null){
           var compPPU=getCompPPU(r);
           var isBest=bestPPU!=null&&r.kwMatch&&r.source!=='amazon-container'&&
-            srcFilter[r.retailer?r.retailer.key:'standard']&&!sponHid&&!revHid&&!ratingHid&&!priceHid&&
+            srcFilter[r.retailer?r.retailer.key:'standard']&&!sponHid&&!revHid&&!ratingHid&&!priceHid&&!snapHid&&
             compPPU!=null&&Math.abs(compPPU-bestPPU)<0.000001;
           var isCont=r.source==='amazon-container';
           var warn=isCont?' <span style="font-size:10px;color:#aaa;" title="Amazon is reporting the price per container (box/pack), not per item \u2014 actual per-item cost may differ">\u26a0\ufe0f price is per pack, not per item</span>':'';
@@ -1593,6 +1615,7 @@ const ITEM_UNITS = [
         if(r.sns&&r.sns!=='unknown') noteStr+='<div class="ppu-note-deal ppu-note-sns">\uD83D\uDCE6 '+r.sns+' with Subscribe &amp; Save</div>';
         else if(r.sns==='unknown') noteStr+='<div class="ppu-note-deal ppu-note-sns">\uD83D\uDCE6 Subscribe &amp; Save available \u2014 check Amazon for amount</div>';
         if(r.savings) noteStr+='<div class="ppu-note-deal ppu-note-sns">\uD83C\uDF81 '+r.savings+'</div>';
+        if(r.isSnap) noteStr+='<div class="ppu-note-deal ppu-note-snap">SNAP EBT eligible</div>';
 
         if(r.freeDate||r.fastDate||r.paidDate){
           var parts=[];
@@ -1636,6 +1659,7 @@ const ITEM_UNITS = [
         var revC=revHid?' reviews-hidden':'';
         var ratingC=ratingHid?' rating-hidden':'';
         var priceC=priceHid?' price-hidden':'';
+        var snapC=snapHid?' snap-hidden':'';
         var chkC=isChecked?' checked':'';
         var wfC=(r.wfFreeFlag&&effectiveSort==='delivery-free')?' wf-excluded':'';
         var safeAsin=r.asin.replace(/"/g,'&quot;');
@@ -1652,7 +1676,7 @@ const ITEM_UNITS = [
           }
         }
         html+=
-          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
+          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+snapC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
             '<div class="ppu-cb-wrap"><input type="checkbox" class="ppu-cb"'+(isChecked?' checked':'')+' title="Add to shortlist"></div>'+
             '<div class="ppu-thumb-wrap">'+thumbHtml+'</div>'+
             '<div class="ppu-row-content">'+
@@ -1743,6 +1767,7 @@ const ITEM_UNITS = [
       panel.querySelectorAll('.ppu-source-toggle').forEach(function(btn){ btn.classList.remove('off'); });
       sponsoredMode='show';
       updateSponsoredBtn(hideSponsoredBtn,sponsoredMode);
+      snapOnly=false;
       sortVal='ppu-asc'; sortEl.value='ppu-asc';
       try{ localStorage.removeItem('au-banner-dismissed'); }catch(e){}
       try{ sessionStorage.removeItem(getFilterStorageKey(searchTerm)); }catch(e){}
@@ -1766,7 +1791,16 @@ const ITEM_UNITS = [
       });
     }
 
-    // ── Shortlist bar: select-all dropdown ───────────────────────────────
+    // ── SNAP EBT filter ──────────────────────────────────────────────────
+    var snapChk=document.getElementById('ppu-snap-only');
+    if(snapChk){
+      snapChk.addEventListener('change',function(){
+        snapOnly=this.checked;
+        render();
+      });
+    }
+
+
     function applySelectAll(action){
       var allAsins=allData.map(function(r){return r.asin;});
       if(action==='all'){ allAsins.forEach(function(a){checkedAsins[a]=true;}); }
@@ -1838,7 +1872,8 @@ const ITEM_UNITS = [
             rating:      r.rating||'',
             reviewCount: r.reviewCount||'',
             note:        itemNotes[r.asin]||'',
-            imgUrl:      r.imgUrl||''
+            imgUrl:      r.imgUrl||'',
+            isSnap:      !!r.isSnap
           };
         }).filter(Boolean);
 

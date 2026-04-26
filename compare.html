@@ -351,6 +351,7 @@
 
     .pill-prime   { background: #C1BFFF; color: #1A1035; border: 1px solid #aba8eb; }
     .pill-coupon  { background: #c2c5f7; color: #1A1035; border: 1px solid #9d9eef; }
+    .pill-snap    { background: #bbf7d0; color: #065f46; border: 1px solid #6ee7b7; }
     .pill-return  { background: #FFA590; color: #5c2415; border: 1px solid #F28B73; }
 
     .stars {
@@ -546,20 +547,21 @@
 
   // Render coupon cell: label only — price info is already in the Price column
   function renderCouponCell(item) {
+    var parts = [];
     if (item.hasCoupon) {
-      return '<span class="pill pill-coupon">Coupon</span>';
-    }
-    if (item.sns) {
+      parts.push('<span class="pill pill-coupon">Coupon</span>');
+    } else if (item.sns) {
       var snsStr = item.sns === 'unknown' ? 'Subscribe &amp; Save' : esc(item.sns) + ' with S&amp;S';
-      return '<span class="pill pill-coupon">' + snsStr + '</span>';
+      parts.push('<span class="pill pill-coupon">' + snsStr + '</span>');
+    } else if (item.savings) {
+      parts.push('<span class="pill pill-coupon">' + esc(item.savings) + '</span>');
+    } else if (item.couponPillOnly) {
+      parts.push('<span class="pill pill-coupon">Check Amazon</span>');
     }
-    if (item.savings) {
-      return '<span class="pill pill-coupon">' + esc(item.savings) + '</span>';
+    if (item.isSnap) {
+      parts.push('<span class="pill pill-snap">SNAP EBT</span>');
     }
-    if (item.couponPillOnly) {
-      return '<span class="pill pill-coupon">Check Amazon</span>';
-    }
-    return '<span class="na">—</span>';
+    return parts.length ? parts.join(' ') : '<span class="na">—</span>';
   }
 
   // Find all indices that share the best (lowest) PPU value, for highlighting.
@@ -637,6 +639,7 @@
   let filterMinPrice   = '';
   let filterMaxPrice   = '';
   let filterRequirePrime = false;
+  let filterRequireSnap  = false;
 
   let currentSearchUrl = '';
 
@@ -759,6 +762,7 @@
       if (showCheckedOnly && !checkedAsins[item.asin]) return false;
       if (filterHideSponsored && item.isSponsored) return false;
       if (filterRequirePrime && !item.isPrime) return false;
+      if (filterRequireSnap  && !item.isSnap)  return false;
       if (filterRetailer && (item.retailerKey || 'standard') !== filterRetailer) return false;
       if (filterMinReviews > 0 && (parseFloat(item.reviewCount) || 0) < filterMinReviews) return false;
       if (filterMinRating > 0 && (parseFloat(item.rating) || 0) < filterMinRating) return false;
@@ -798,6 +802,9 @@
     var primeChk = filterRequirePrime ? ' checked' : '';
     var primeToggle = '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-require-prime"' + primeChk + '> Prime only</label>';
 
+    var snapChk = filterRequireSnap ? ' checked' : '';
+    var snapToggle = '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-require-snap"' + snapChk + '> SNAP EBT only</label>';
+
     var inclVal = esc(filterInclude);
     var exclVal = esc(filterExclude);
     var mrVal = filterMinReviews || '';
@@ -822,6 +829,7 @@
       + retailerOptions
       + sponsoredToggle
       + primeToggle
+      + snapToggle
       + '<button id="fb-clear" class="btn btn-ghost">Clear filters</button>'
       + '</div>'
       + '</div>'
@@ -956,18 +964,18 @@
         : '<span class="na">—</span>';
 
       // Coupon/promo column — label only, no prices
-      var couponLabel;
+      var couponParts = [];
       if (item.hasCoupon) {
-        couponLabel = '<span class="pill pill-coupon">Coupon</span>';
+        couponParts.push('<span class="pill pill-coupon">Coupon</span>');
       } else if (item.sns) {
-        couponLabel = '<span class="pill pill-coupon">S&amp;S</span>';
+        couponParts.push('<span class="pill pill-coupon">S&amp;S</span>');
       } else if (item.savings) {
-        couponLabel = '<span class="pill pill-coupon">' + esc(item.savings) + '</span>';
+        couponParts.push('<span class="pill pill-coupon">' + esc(item.savings) + '</span>');
       } else if (item.couponPillOnly) {
-        couponLabel = '<span class="pill pill-coupon">Check Amazon</span>';
-      } else {
-        couponLabel = '<span class="na">—</span>';
+        couponParts.push('<span class="pill pill-coupon">Check Amazon</span>');
       }
+      if (item.isSnap) couponParts.push('<span class="pill pill-snap">SNAP EBT</span>');
+      var couponLabel = couponParts.length ? couponParts.join(' ') : '<span class="na">—</span>';
 
       // Price column — two lines when coupon price available
       var priceCell;
@@ -1388,18 +1396,18 @@
       var primeCell = item.isPrime ? '<span class="pill pill-prime">Prime</span>' : '<span class="na">—</span>';
 
       // Coupon/promo column — label only
-      var couponLabel;
+      var couponParts = [];
       if (item.hasCoupon) {
-        couponLabel = '<span class="pill pill-coupon">Coupon</span>';
+        couponParts.push('<span class="pill pill-coupon">Coupon</span>');
       } else if (item.sns) {
-        couponLabel = '<span class="pill pill-coupon">S&amp;S</span>';
+        couponParts.push('<span class="pill pill-coupon">S&amp;S</span>');
       } else if (item.savings) {
-        couponLabel = '<span class="pill pill-coupon">' + esc(item.savings) + '</span>';
+        couponParts.push('<span class="pill pill-coupon">' + esc(item.savings) + '</span>');
       } else if (item.couponPillOnly) {
-        couponLabel = '<span class="pill pill-coupon">Check Amazon</span>';
-      } else {
-        couponLabel = '<span class="na">—</span>';
+        couponParts.push('<span class="pill pill-coupon">Check Amazon</span>');
       }
+      if (item.isSnap) couponParts.push('<span class="pill pill-snap">SNAP EBT</span>');
+      var couponLabel = couponParts.length ? couponParts.join(' ') : '<span class="na">—</span>';
 
       // Price column — two lines when coupon
       var priceCell;
@@ -1630,6 +1638,15 @@
       });
     }
 
+    // Require SNAP EBT toggle
+    const snapChk = document.getElementById('fb-require-snap');
+    if (snapChk) {
+      snapChk.addEventListener('change', () => {
+        filterRequireSnap = snapChk.checked;
+        rerender();
+      });
+    }
+
     // Clear filters
     const clearBtn = document.getElementById('fb-clear');
     if (clearBtn) {
@@ -1643,6 +1660,7 @@
         filterRetailer = '';
         filterHideSponsored = false;
         filterRequirePrime = false;
+        filterRequireSnap = false;
         sortCol = null;
         sortDir = 'asc';
         rerender();
