@@ -19,25 +19,27 @@
   --au-best-value:   #FDF3E0;   /* saffron tint — best value row */
 }search panel (ppu-sorter-panel) and product panel (ppu-product-panel). v0.6.1.12. */
 
-/* ── Indigo palette — 10 semantic shades ─────────────────────────────── */
+/* ── Option C palette — Electric violet + saffron ────────────────────── */
 :root {
   --au-bg:           #FFFFFF;
-  --au-surface:      #eaecfd;   /* 10 — panel background */
-  --au-header:       #512bd3;   /* 1  — panel header & footer bars */
-  --au-orchid:       #6b60e0;   /* 3  — sliders, active states, nudge */
-  --au-orchid-dark:  #5d49da;   /* 2  — links & interactive accents */
-  --au-orchid-hover: #8b8aeb;   /* 5  — hover */
-  --au-periwinkle:   #c2c5f7;   /* 8  — buttons, inactive pills */
-  --au-periwinkle-h: #d6d8fa;   /* 9  — button hover */
-  --au-seafoam:      #9d9eef;   /* 6  — replacing seafoam throughout */
-  --au-coral:        #FFA590;   /* keep coral for warnings */
+  --au-surface:      oklch(97% 0.01 280);    /* panel background */
+  --au-header:       oklch(52% 0.24 285);    /* panel header & footer — vivid violet */
+  --au-orchid:       oklch(58% 0.22 285);    /* sliders, active states, nudge */
+  --au-orchid-dark:  oklch(65% 0.18 285);    /* links & interactive accents */
+  --au-orchid-hover: oklch(68% 0.16 285);    /* hover */
+  --au-periwinkle:   oklch(91% 0.035 280);   /* buttons, inactive pills */
+  --au-periwinkle-h: oklch(94% 0.018 280);   /* button hover */
+  --au-seafoam:      oklch(75% 0.10 285);    /* mid accent */
+  --au-coral:        #FFA590;                /* warnings — unchanged */
   --au-coral-dark:   #c94b2e;
-  --au-text:         #1A1035;   /* near-black indigo */
-  --au-text-muted:   #6B5FA0;   /* muted indigo */
-  --au-border:       #afb2f4;   /* 7  — borders & dividers */
-  --au-row-hover:    #d6d8fa;   /* 9  — row hover */
-  --au-success:      #7b76e5;   /* 4  — delivery text */
-  --au-best-value:   #FFFFFF;   /* best value row — white */
+  --au-text:         oklch(14% 0.02 280);    /* near-black */
+  --au-text-muted:   oklch(52% 0.06 280);    /* muted text */
+  --au-border:       oklch(88% 0.04 280);    /* borders & dividers */
+  --au-row-hover:    oklch(94% 0.018 280);   /* row hover */
+  --au-success:      oklch(65% 0.18 285);    /* delivery text */
+  --au-best-value:   #FFFFFF;                /* best value row — white */
+  --au-saffron:      oklch(72% 0.18 62);     /* saffron — best value badge */
+  --au-saffron-l:    oklch(96% 0.06 80);     /* saffron light — badge bg */
 }
 
 #ppu-sorter-panel {
@@ -403,7 +405,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-price { font-weight:500;color:var(--au-text);font-size:14px; }
 .ppu-count { font-size:0.82rem;color:var(--au-text); }
 .ppu-badge { font-size:12px;font-weight:400;padding:2px 6px;border-radius:4px;background:var(--au-periwinkle);border:1px solid var(--au-seafoam);color:var(--au-text); }
-.ppu-badge.best { background:#D4920A;border-color:#9A9040;color:#3A3000; }
+.ppu-badge.best { background:var(--au-saffron-l);border-color:var(--au-saffron);color:var(--au-saffron); }
 .ppu-converted  { font-size:0.78rem;color:var(--au-text-muted);font-style:italic;margin-left:2px; }
 .ppu-delivery   { font-size:0.82rem;color:var(--au-success);margin-top:2px; }
 .ppu-delivery.fast   { color:var(--au-orchid-dark); }
