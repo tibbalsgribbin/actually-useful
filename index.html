@@ -12,15 +12,15 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --navy:        #512bd3;   /* 1 — deep indigo, brand primary */
-      --teal:        #5d49da;   /* 2 — medium-dark indigo, links & buttons */
-      --teal-mid:    #7b76e5;   /* 4 — lighter indigo, hover */
-      --cream:       #eaecfd;   /* 10 — lightest indigo, backgrounds */
-      --warm:        #d6d8fa;   /* 9 — light indigo, surface hover */
-      --text:        #1A1035;   /* near-black indigo */
-      --muted:       #6B5FA0;   /* muted indigo */
-      --rule:        #afb2f4;   /* 7 — indigo border */
-      --amber:       #D4920A;   /* warm amber — h1 emphasis */
+      --navy:        oklch(52% 0.24 285);    /* vivid violet — primary brand */
+      --teal:        oklch(42% 0.22 285);   /* deeper violet — hover, active */
+      --teal-mid:    oklch(65% 0.18 285);        /* medium violet — accents */
+      --cream:       #ffffff;         /* white canvas */
+      --warm:        oklch(94% 0.018 280);       /* light violet tint — hover surfaces */
+      --text:        oklch(14% 0.02 280);       /* near-black */
+      --muted:       oklch(52% 0.06 280);      /* muted text */
+      --rule:        oklch(88% 0.04 280);     /* light border */
+      --amber:       oklch(72% 0.18 62);     /* saffron — h1 emphasis & CTAs */
     }
 
     html { scroll-behavior: smooth; }
@@ -183,7 +183,7 @@
     .pillar:nth-child(2n)          { border-right: none; }
     .pillar:nth-child(3),
     .pillar:nth-child(4)           { border-bottom: none; }
-    .pillar:hover                  { background: var(--warm); }
+    .pillar:hover                  { background: oklch(97% 0.01 280); }
 
     .pillar-number {
       font-family: 'DM Serif Display', serif;
@@ -228,7 +228,7 @@
 
     .why-body p {
       font-size: 1rem;
-      color: rgba(255,255,255,0.75);
+      color: oklch(97% 0.01 280 / 0.82);
       line-height: 1.75;
       margin-bottom: 1.25rem;
     }
@@ -273,7 +273,7 @@
 
     /* ─── SUPPORT ─── */
     .support {
-      background: var(--warm);
+      background: oklch(97% 0.01 280);
       border-top: 1px solid var(--rule);
       border-bottom: 1px solid var(--rule);
       padding: 5rem 2.5rem;
@@ -293,8 +293,8 @@
     .btn {
       display: inline-block;
       padding: 0.85rem 2rem;
-      background: var(--navy);
-      color: #ffffff;
+      background: var(--amber);
+      color: #1A1535;
       text-decoration: none;
       font-size: 0.88rem;
       font-weight: 500;
@@ -303,7 +303,7 @@
       transition: background 0.2s, transform 0.15s;
     }
 
-    .btn:hover { background: var(--teal); color: #ffffff; transform: translateY(-1px); }
+    .btn:hover { background: oklch(62% 0.19 62); color: #1A1535; transform: translateY(-1px); }
 
     /* ─── FOOTER ─── */
     footer {
@@ -459,7 +459,7 @@
       </div>
       <div class="detail-item">
         <p class="label">Shortlist</p>
-        <p>Check items as you browse, then open them all side by side in the Actually Useful comparison table — sortable, filterable, and shareable. Add notes, send the link, and the other person can filter and add their own notes and share again. Nobody else has this.</p>
+        <p>Check items as you browse and open them all in new tabs when you're ready to decide. Nobody else has this.</p>
       </div>
       <div class="detail-item">
         <p class="label">Multi-page loading</p>
@@ -497,12 +497,11 @@
     <a href="#" class="footer-brand">Actually Useful</a>
     <ul class="footer-links">
       <li><a href="https://github.com/tibbalsgribbin/actually-useful" target="_blank" rel="noopener">GitHub</a></li>
-      <li><a href="https://forms.gle/XU8RpYM3cGFTwQQ86" target="_blank" rel="noopener">Give feedback</a></li>
+      <li><a href="https://forms.gle/J3AECVTDHWKDZZKE7" target="_blank" rel="noopener">Give feedback</a></li>
       <li><a href="https://ko-fi.com/butactuallyuseful" target="_blank" rel="noopener">Ko-fi</a></li>
       <li><a href="privacy.html">Privacy</a></li>
     </ul>
   </footer>
-  <p style="text-align:center;font-size:0.78rem;color:var(--muted);padding:0.75rem 2.5rem 1.5rem;">This site contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you.</p>
 
 </body>
 </html>

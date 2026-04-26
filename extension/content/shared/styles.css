@@ -1,5 +1,23 @@
-/* Actually Useful — content/shared/styles.css
-   Shared styles for search panel (ppu-sorter-panel) and product panel (ppu-product-panel). v0.6.1.12. */
+/* ── Electric palette — vivid violet + saffron ───────────────────────── */
+:root {
+  --au-bg:           #FFFFFF;
+  --au-surface:      #F5F4FE;   /* very light violet — panel bg */
+  --au-header:       #5B2FD4;   /* vivid violet — panel header & footer */
+  --au-orchid:       #7B6FE8;       /* medium violet — sliders, active states */
+  --au-orchid-dark:  #3D1FAA;  /* deeper violet — links & accents */
+  --au-orchid-hover: #9B8FF0;           /* hover */
+  --au-periwinkle:   #ECE9FD;      /* light violet tint — buttons, inactive pills */
+  --au-periwinkle-h: #E0DDF8;           /* button hover */
+  --au-seafoam:      #ECE9FD;      /* light violet — Fresh/WF tags */
+  --au-coral:        #FFA590;           /* keep coral for warnings */
+  --au-coral-dark:   #c94b2e;
+  --au-text:         #1A1535;      /* near-black */
+  --au-text-muted:   #706585;     /* muted text */
+  --au-border:       #D8D5F5;    /* light border */
+  --au-row-hover:    #ECE9FD;      /* row hover */
+  --au-success:      #7B6FE8;       /* delivery text */
+  --au-best-value:   #FDF3E0;   /* saffron tint — best value row */
+}search panel (ppu-sorter-panel) and product panel (ppu-product-panel). v0.6.1.12. */
 
 /* ── Indigo palette — 10 semantic shades ─────────────────────────────── */
 :root {
@@ -154,7 +172,7 @@
 }
 .ppu-btn.btn-orange:hover { background:#5d49da; }
 .ppu-btn.btn-orange.pressed, .ppu-btn.btn-orange:active {
-  background:#cec76e;
+  background:oklch(62% 0.19 62);
   box-shadow:inset 0 1px 3px rgba(81,43,211,0.2);
 }
 .ppu-btn.btn-danger { border-color:var(--au-coral-dark);color:var(--au-coral-dark);background:var(--au-coral); }
@@ -376,7 +394,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-thumb       { width:60px;height:60px;object-fit:contain;display:block; }
 .ppu-row-content { flex:1;min-width:0; }
 .ppu-row a {
-  font-size:0.9rem;color:var(--au-orchid-dark);text-decoration:none;display:block;
+  font-size:0.9rem;color:#5B2FD4;text-decoration:none;display:block;
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
   overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;
 }
@@ -385,7 +403,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-price { font-weight:500;color:var(--au-text);font-size:14px; }
 .ppu-count { font-size:0.82rem;color:var(--au-text); }
 .ppu-badge { font-size:12px;font-weight:400;padding:2px 6px;border-radius:4px;background:var(--au-periwinkle);border:1px solid var(--au-seafoam);color:var(--au-text); }
-.ppu-badge.best { background:#BDB96A;border-color:#9A9040;color:#3A3000; }
+.ppu-badge.best { background:#D4920A;border-color:#9A9040;color:#3A3000; }
 .ppu-converted  { font-size:0.78rem;color:var(--au-text-muted);font-style:italic;margin-left:2px; }
 .ppu-delivery   { font-size:0.82rem;color:var(--au-success);margin-top:2px; }
 .ppu-delivery.fast   { color:var(--au-orchid-dark); }
