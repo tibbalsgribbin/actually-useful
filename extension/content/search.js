@@ -1038,6 +1038,7 @@ const ITEM_UNITS = [
     }
 
     var hasNonStandard = Object.keys(detectedRetailers).some(function(k){ return k !== 'standard'; });
+    var hasSnap = allData.some(function(r){ return !!r.isSnap; });
     var hasWholeFoods=allData.some(function(r){return r.retailer&&r.retailer.key==='whole-foods';});
     var hasSponsored=allData.some(function(r){return r.isSponsored;});
     var hasPills=unitPills.length>1;
@@ -1170,6 +1171,7 @@ const ITEM_UNITS = [
             '<span class="ppu-price-prefix">$</span><input id="ppu-min-price" type="number" class="ppu-price-input" min="0" placeholder="min" value="'+(minPrice||'')+'">'+
             '<span class="ppu-price-sep">\u2013</span>'+
             '<span class="ppu-price-prefix">$</span><input id="ppu-max-price" type="number" class="ppu-price-input" min="0" placeholder="max" value="'+(maxPrice||'')+'">'+
+            (hasSnap?'<label class="ppu-snap-label"><input type="checkbox" id="ppu-snap-only"'+(snapOnly?' checked':'')+'>SNAP EBT eligible only</label>':'')+
           '</div>'+
           (hasNonStandard?
             '<div id="ppu-source-row">'+
@@ -1182,9 +1184,6 @@ const ITEM_UNITS = [
                 return '<span class="'+cls+'" data-src="'+k+'">'+label+'</span>';
               }).join('')+
             '</div>':'')+
-          '<div id="ppu-snap-row">'+
-            '<label class="ppu-snap-label"><input type="checkbox" id="ppu-snap-only"'+(snapOnly?' checked':'')+'>SNAP EBT eligible only</label>'+
-          '</div>'+
         '</div>'+
       '</div>'+
       '<div id="ppu-scroll-area">'+
@@ -1237,9 +1236,8 @@ const ITEM_UNITS = [
         '.ppu-item-note{display:block;width:100%;margin-top:4px;padding:4px 6px;border:1px solid #c8c0e8;border-radius:4px;font-size:12px;font-family:inherit;resize:vertical;color:#351E45;background:#fff;min-height:38px;box-sizing:border-box;}' +
         '.ppu-item-note:focus{outline:none;border-color:#CF6DFC;}' +
         '.snap-hidden{display:none!important}' +
-        '.ppu-note-snap{color:#0a7c3e;font-weight:600;}' +
-        '#ppu-snap-row{padding:4px 14px 6px;display:flex;align-items:center;}' +
-        '.ppu-snap-label{font-size:13px;color:#351E45;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;}';
+        '.ppu-note-snap{color:#0a7c3e;}' +
+        '.ppu-snap-label{font-size:13px;color:#351E45;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;white-space:nowrap;}';
       document.head.appendChild(styleEl);
     }
 

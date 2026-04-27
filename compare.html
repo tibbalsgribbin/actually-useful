@@ -11,15 +11,15 @@
   <style>
     /* ── Variables ───────────────────────────────────────────── */
     :root {
-      --cream:   #ffffff;
-      --navy:    oklch(52% 0.24 285);
-      --teal:    oklch(65% 0.18 285);
-      --teal-lt: oklch(94% 0.018 280);
-      --gold:    oklch(72% 0.18 62);
-      --muted:   oklch(52% 0.06 280);
-      --border:  oklch(88% 0.04 280);
+      --cream:   #eaecfd;    /* 10 — lightest indigo, background */
+      --navy:    #512bd3;    /* 1  — deep indigo, headers & nav */
+      --teal:    #5d49da;    /* 2  — medium indigo, links & buttons */
+      --teal-lt: #c2c5f7;    /* 8  — light indigo, pills */
+      --gold:    #BDB96A;    /* gold — star ratings */
+      --muted:   #6B5FA0;    /* muted indigo */
+      --border:  #afb2f4;    /* 7  — indigo border */
       --red:     #c94b2e;
-      --green:   oklch(72% 0.18 62);
+      --green:   #D4920A;    /* amber — best value */
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,7 +27,7 @@
     body {
       font-family: 'DM Sans', sans-serif;
       background: var(--cream);
-      color: oklch(14% 0.02 280);
+      color: #1A1035;
       min-height: 100vh;
     }
 
@@ -97,7 +97,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       margin-bottom: 1rem;
-      background: oklch(97% 0.01 280);
+      background: #eaecfd;
       overflow: hidden;
     }
 
@@ -170,7 +170,7 @@
       gap: 0.75rem;
       flex-wrap: wrap;
       padding: 0.6rem 1rem;
-      background: oklch(52% 0.24 285);
+      background: #512bd3;
       color: #FDFBF7;
       border-radius: 8px;
       margin-bottom: 0.75rem;
@@ -179,12 +179,12 @@
     #action-bar.visible { display: flex; }
     #action-bar .action-count { flex: 1; font-weight: 400; }
     #action-bar .btn-action {
-      background: oklch(72% 0.18 62); color: #1A1535; border: none;
+      background: #6b60e0; color: #ffffff; border: none;
       padding: 0.35rem 0.85rem; border-radius: 4px; cursor: pointer;
       font-size: 0.82rem; font-weight: 400; font-family: inherit;
       white-space: nowrap;
     }
-    #action-bar .btn-action:hover { background: oklch(62% 0.19 62); color: #1A1535; }
+    #action-bar .btn-action:hover { background: #5d49da; }
     #action-bar .btn-action-ghost {
       background: transparent; color: #FDFBF7;
       border: 1px solid rgba(255,255,255,0.4);
@@ -295,7 +295,7 @@
     }
 
     tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: oklch(94% 0.018 280); }
+    tbody tr:hover { background: #d6d8fa; }
 
     td {
       padding: 0.75rem 1rem;
@@ -350,7 +350,7 @@
     }
 
     .pill-prime   { background: #C1BFFF; color: #1A1035; border: 1px solid #aba8eb; }
-    .pill-coupon  { background: oklch(94% 0.018 280); color: oklch(14% 0.02 280); border: 1px solid oklch(88% 0.04 280); }
+    .pill-coupon  { background: #c2c5f7; color: #1A1035; border: 1px solid #9d9eef; }
     .pill-snap    { background: #bbf7d0; color: #065f46; border: 1px solid #6ee7b7; }
     .pill-return  { background: #FFA590; color: #5c2415; border: 1px solid #F28B73; }
 
@@ -409,7 +409,7 @@
     .btn:hover { opacity: 0.85; }
     .btn:active { transform: translateY(1px); opacity: 0.75; }
 
-    .btn-primary { background: oklch(52% 0.24 285); color: #ffffff; }
+    .btn-primary { background: var(--navy); color: #ffffff; }
     .btn-ghost   { background: transparent; color: var(--teal); border: 1.5px solid var(--teal); margin-left: 0.75rem; }
 
     /* ── Footer ──────────────────────────────────────────────── */
@@ -802,8 +802,9 @@
     var primeChk = filterRequirePrime ? ' checked' : '';
     var primeToggle = '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-require-prime"' + primeChk + '> Prime only</label>';
 
+    var hasSnap = allItems.some(function(item) { return !!item.isSnap; });
     var snapChk = filterRequireSnap ? ' checked' : '';
-    var snapToggle = '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-require-snap"' + snapChk + '> SNAP EBT only</label>';
+    var snapToggle = hasSnap ? '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-require-snap"' + snapChk + '> SNAP EBT only</label>' : '';
 
     var inclVal = esc(filterInclude);
     var exclVal = esc(filterExclude);
@@ -841,13 +842,13 @@
     var btns = Object.keys(colVisible).map(function(key) {
       var active = colVisible[key];
       var style = active
-        ? 'background:oklch(52% 0.24 285);color:#ffffff;border:1px solid oklch(42% 0.22 285);'
+        ? 'background:#512bd3;color:#ffffff;border:1px solid #512bd3;'
         : 'background:#fff;color:#6B5FA0;border:1px solid #afb2f4;';
       return '<button class="col-toggle-btn" data-col="' + key + '" style="' + style
         + 'padding:0.2rem 0.65rem;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;white-space:nowrap;user-select:text;">'
         + COL_LABELS[key] + '</button>';
     }).join('');
-    return '<div id="col-toggle-bar" style="display:flex;flex-wrap:wrap;align-items:center;gap:0.4rem;margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:oklch(97% 0.01 280);border:1px solid oklch(88% 0.04 280);border-radius:6px;">'
+    return '<div id="col-toggle-bar" style="display:flex;flex-wrap:wrap;align-items:center;gap:0.4rem;margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:#eaecfd;border:1px solid #afb2f4;border-radius:6px;">'
       + '<span style="font-size:0.78rem;font-weight:600;color:#1A1035;white-space:nowrap;margin-right:0.25rem;user-select:text;cursor:text;">Show columns:</span>'
       + btns
       + '</div>';
@@ -890,9 +891,9 @@
         var key = this.getAttribute('data-col');
         colVisible[key] = !colVisible[key];
         var active = colVisible[key];
-        this.style.background = active ? 'oklch(52% 0.24 285)' : '#fff';
+        this.style.background = active ? '#512bd3' : '#fff';
         this.style.color      = active ? '#ffffff' : '#6B5FA0';
-        this.style.border     = active ? '1px solid oklch(42% 0.22 285)' : '1px solid #afb2f4';
+        this.style.border     = active ? '1px solid #512bd3' : '1px solid #afb2f4';
         applyColVisibility();
       });
     });
@@ -1066,7 +1067,7 @@
         + opts.map(function(o) {
             var active = (liquidDisplayUnit || '') === o.val;
             var style = active
-              ? 'background:oklch(52% 0.24 285);color:#ffffff;border:1px solid oklch(42% 0.22 285);'
+              ? 'background:#512bd3;color:#ffffff;border:1px solid #512bd3;'
               : 'background:#fff;color:#1A1035;border:1px solid #DDD4EC;';
             return '<button class="liquid-unit-btn" data-unit="' + o.val + '" style="' + style + 'padding:0.2rem 0.6rem;border-radius:4px;font-size:0.8rem;cursor:pointer;font-family:inherit;">' + o.label + '</button>';
           }).join('')
@@ -1499,7 +1500,7 @@
         + opts.map(function(o) {
             var active = (liquidDisplayUnit || '') === o.val;
             var style = active
-              ? 'background:oklch(52% 0.24 285);color:#ffffff;border:1px solid oklch(42% 0.22 285);'
+              ? 'background:#512bd3;color:#ffffff;border:1px solid #512bd3;'
               : 'background:#fff;color:#1A1035;border:1px solid #DDD4EC;';
             return '<button class="liquid-unit-btn" data-unit="' + o.val + '" style="' + style + 'padding:0.2rem 0.6rem;border-radius:4px;font-size:0.8rem;cursor:pointer;font-family:inherit;">' + o.label + '</button>';
           }).join('')
