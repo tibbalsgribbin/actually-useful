@@ -4,12 +4,13 @@
 
 ---
 
-## Current version: v0.6.1.29
+## Current version: v0.6.1.29 (overall) · v0.6.1.28 (search.js) · v0.6.1.29 (compare.html)
 
 ---
 
 ## Known issues / needs testing
 
+- **SNAP EBT detection needs real-world testing** — relies on Amazon rendering "SNAP EBT" text in the search card; test with staple grocery searches (rice, beans, baby formula)
 - **Palette redesign needed** — submitted with monochromatic indigo palette; redesign still wanted for future store update
 - **Laundry sheets — some edge cases still wrong** — items where Amazon's $/ct equals full package price still slipping through in some titles; deferred
 - **Mixed units in results** — `/lb` and `/ct` appearing together; cross-family sort may be occurring
@@ -19,9 +20,9 @@
 - **Delivery time on compare.html** — only correct for comparisons created after v0.6.1.17; old Supabase rows lack `freeWindowMinutes`
 - **Thumbnails on compare.html** — only populated for comparisons created after v0.6.1.16; old Supabase rows lack `imgUrl`
 - **Paid delivery on compare.html** — only available for comparisons created after v0.6.1.27; old rows lack `paidDate`/`paidCutoff`/`paidPrice`
+- **isSnap on compare.html** — only available for comparisons created after v0.6.1.28; old rows lack `isSnap`
 - **Collapsible animation gone** — sections now snap open/closed; smooth animation deferred to post-alpha
 - **Other discount types not captured** — buy-multiple deals, vague "save X%" promos not yet shown in coupon column; flagged for later
-- **SNAP EBT not yet captured** — search.js + compare.html; scheduled for next session
 
 ---
 
@@ -60,7 +61,7 @@ Pause between "files produced" and "push to GitHub." Test first, commit after.
 Never use Python heredoc string escaping to write JavaScript template literals — it produces `\'` sequences that are invalid in .html files. Use string concatenation (`+`) for all HTML-building JS in compare.html.
 
 **Version numbering (decided Chat 10):**
-- Current: v0.6.1 (manifest) / v0.6.1.27 (search.js) / v0.6.1.29 (compare.html)
+- Current: v0.6.1 (manifest) / v0.6.1.28 (search.js) / v0.6.1.29 (compare.html)
 - Increments normally through v0.7, v0.8, v0.9
 - v1.0 = Web Store public launch
 - Chrome manifests support three-part version numbers only; internal version can carry a fourth segment
@@ -106,7 +107,7 @@ Two of these = stop and wrap up.
 
 ## Next session priorities (in order)
 
-1. **SNAP EBT** — capture in search.js, display in extension panel and compare table (upload search.js + compare.html)
+1. **Test SNAP EBT** — do a grocery search (rice, baby formula, frozen vegetables) and confirm detection works; report back so selector can be adjusted if needed
 2. **Palette redesign** — use Claude Design tool
 3. **Outreach planning** — frugality blogs (after extension and compare page more polished)
 
@@ -181,7 +182,10 @@ Two of these = stop and wrap up.
 - [x] compare.html — coupon column uses full renderCouponCell; Prime only filter added (Chat 33)
 - [x] compare.html — coupon column simplified: "Coupon" pill only, no price duplication (Chat 34)
 - [x] compare.html — column hide toggles added (Chat 34)
-- [ ] SNAP EBT — capture in search.js + compare.html (next session)
+- [x] SNAP EBT — detectSnap(), isSnap on item + payload, panel note, conditional filter in price row (Chat 36)
+- [x] compare.html — SNAP EBT pill in Coupon/promo column; conditional SNAP EBT only filter (Chat 36)
+- [x] compare.html — default sort changed to PPU ascending (Chat 36)
+- [ ] Test SNAP EBT detection with real grocery searches (next session)
 
 ### Alpha release — status
 - [x] Screenshots taken (Chat 27)
@@ -207,7 +211,7 @@ Two of these = stop and wrap up.
 - [ ] Apply for Amazon Associates (after real user base established)
 
 ### Alpha — next steps
-- [ ] SNAP EBT — search.js + compare.html
+- [ ] Test SNAP EBT with real grocery searches
 - [ ] compare.html strategy — further table refinements
 - [ ] Palette redesign (Claude Design tool)
 - [ ] Outreach to frugality blogs — after extension and compare page more polished

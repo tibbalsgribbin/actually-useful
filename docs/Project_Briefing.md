@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.29 (overall) · v0.6.1 (manifest) · v0.6.1.27 (search.js) · v0.6.1.29 (compare.html) · Updated April 25, 2026 (Chat 34)*
+*Current version: v0.6.1.29 (overall) · v0.6.1 (manifest) · v0.6.1.28 (search.js) · v0.6.1.29 (compare.html) · Updated April 27, 2026 (Chat 36)*
 
 ---
 
@@ -42,7 +42,7 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 
 The **persistent shortlist** is the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-**Shortlist item object shape sent to compare.html (current — v0.6.1.27):**
+**Shortlist item object shape sent to compare.html (current — v0.6.1.28):**
 ```
 { asin, title, price (raw float), listPrice (raw float), ppu (raw float), ppuUnit,
   isPrime (bool), isSponsored (bool),
@@ -54,7 +54,7 @@ The **persistent shortlist** is the user's active research file. Currently sessi
   freeQualifier (string), fastCutoff (string),
   paidDate (formatted string), paidCutoff (string), paidPrice (string),
   retailerKey (string), rating, reviewCount,
-  note (string), imgUrl (string) }
+  note (string), imgUrl (string), isSnap (bool) }
 ```
 Payload also includes: `searchTerm` (string), `searchUrl` (string).
 
@@ -72,7 +72,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 5. Version Numbering
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.27** (search.js) / **v0.6.1.29** (compare.html)
+- Current: **v0.6.1** (manifest) / **v0.6.1.28** (search.js) / **v0.6.1.29** (compare.html)
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
 
@@ -163,7 +163,7 @@ Slider (1–10); always visible; 750ms throttle between fetches; "No more pages 
 Reloads results from Amazon's current page. Extra pages loaded will be lost.
 
 ### Clear all
-Nuclear reset — clears all AU filters, sort, keywords, sliders, price range, source filters, sponsored mode; returns to page 1. Always active. Clears sessionStorage so settings don't restore on rebuild.
+Nuclear reset — clears all AU filters, sort, keywords, sliders, price range, source filters, sponsored mode, SNAP filter; returns to page 1. Always active. Clears sessionStorage so settings don't restore on rebuild.
 
 ### Shortlist (session-scoped)
 Checkbox per row. Per-item notes (link/preview pattern). Compare button POSTs to Supabase, opens compare.html?id=xxx. No item limit.
@@ -177,6 +177,13 @@ Checkbox per row. Per-item notes (link/preview pattern). Compare button POSTs to
 ### Rating/review display
 Rating (stars) and review count shown in each panel row, below delivery info.
 
+### SNAP EBT
+- `detectSnap()` checks aria-label and leaf text for "SNAP EBT" on each card
+- "SNAP EBT eligible" note line shown in panel row (green text)
+- "SNAP EBT eligible only" checkbox appears in price range row — only when at least one result is SNAP-eligible
+- `isSnap` included in compare payload; green SNAP EBT pill shown in Coupon/promo column on compare.html
+- "SNAP EBT only" filter on compare.html — only shown when at least one item in the comparison is SNAP-eligible
+
 ### Telemetry
 Sent via background.js. User can opt out via popup.
 
@@ -185,11 +192,11 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 
 ### Comparison page
 - Loads from Supabase by ?id= (primary) or ?data= Base64 (legacy fallback)
-- Sortable columns, best-value star, shareable links
-- Filter bar: keyword, min reviews, min rating, min/max price, source/retailer, hide sponsored, Prime only
+- Sortable columns; **defaults to PPU ascending (lowest first)** on load; best-value star; shareable links
+- Filter bar: keyword, min reviews, min rating, min/max price, source/retailer, hide sponsored, Prime only, SNAP EBT only (conditional)
 - Column hide toggles: Price, Per unit, Delivery, Rating, Reviews, Prime, Coupon/promo, Source, Notes (per-session)
 - Columns: Product (with thumbnail), Price, Per unit, Delivery, Rating, Reviews, Prime, Coupon/promo, Source, Notes
-- Coupon column: "Coupon" pill only (no price duplication); S&S shows actual discount string; price/was-price info is in the Price column
+- Coupon column: "Coupon" pill + optional "SNAP EBT" pill; S&S shows actual discount string; price/was-price info is in the Price column
 - Liquid unit toggle when liquid items present
 - Action bar when rows checked: Open in tabs, Show checked only, Share checked items, Deselect all
 
@@ -198,7 +205,7 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 ## 10. Known Issues / Deferred
 
 - **Palette redesign still wanted** — use Claude Design for iteration
-- **SNAP EBT not yet captured** — search.js + compare.html; next session
+- **SNAP EBT detection** — relies on Amazon rendering "SNAP EBT" text in the search card; needs real-world testing with grocery searches
 - **Other discount types** — buy-multiple deals, vague "save X%" promos; post-alpha
 - **Product page panel** — disabled in manifest, deferred until post-alpha
 - **Laundry sheets edge cases** — some $/ct = whole-package price slipping through; post-alpha
@@ -209,6 +216,7 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 - **Thumbnails on compare.html** — only populated for comparisons created after v0.6.1.16
 - **Delivery time on compare.html** — only correct for comparisons created after v0.6.1.17
 - **Paid delivery on compare.html** — only available for comparisons created after v0.6.1.27
+- **isSnap on compare.html** — only available for comparisons created after v0.6.1.28
 - **Collapsible animation gone** — snap only; post-alpha
 - **Ko-fi nudge removed** — redesign post-alpha
 

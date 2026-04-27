@@ -4,6 +4,31 @@
 
 ---
 
+## **v0.6.1.28 — April 27, 2026 (Chat 36)**
+
+### search.js — SNAP EBT detection and filter
+- `detectSnap(el)` function added — checks `aria-label` attributes and leaf-node text for "SNAP EBT"; returns boolean
+- `isSnap` stored on each scraped item and included in compare payload
+- "SNAP EBT eligible" note line added to panel row display (green, same pattern as coupon/S&S notes)
+- "SNAP EBT eligible only" checkbox added to price range row in Filters section
+- Checkbox only appears when at least one result in the current set has `isSnap: true`
+- `snapOnly` filter hides non-SNAP items and excludes them from best-value star calculation
+- Resets on Clear all
+
+### compare.html — SNAP EBT pill and filter
+- Green `pill-snap` style added (green background, dark green text)
+- `renderCouponCell` reworked to build pills as an array — SNAP EBT pill appends alongside coupon/S&S pills when present
+- Both inline render paths updated to match
+- "SNAP EBT only" checkbox added to filter bar — only renders when at least one item in the comparison has `isSnap: true`
+- Wired into `applyFilters`, `attachFilterHandlers`, and Clear filters
+
+### compare.html — default sort changed to PPU ascending
+- `sortCol` now initialises to `'ppu'` — table loads sorted lowest PPU first on every page load
+- Items without PPU data sort to the bottom (existing `Infinity` fallback)
+- Clear filters resets to PPU sort rather than unsorted
+
+---
+
 ## **v0.6.1.29 — April 25, 2026 (Chat 34)**
 
 ### compare.html — coupon column simplified
