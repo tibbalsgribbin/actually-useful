@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.30)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.32)
 'use strict';
 
 function auFeedbackUrl() {
@@ -38,12 +38,13 @@ const AU_FILTERS_KEY = 'au_search_filters'; // persists filter state per search 
   const LIQUID_UNITS  = ['fl oz','fluid ounce','fluid ounces','ml','milliliter','milliliters','l','liter','liters'];
   const WEIGHT_UNITS  = ['oz','g','gram','grams','kg','kilogram','kilograms','lb','lbs','pound','pounds'];
   const CONTAINER_UNITS = ['roll','rolls','box','boxes','pack','packs','package','packages','pouch','pouches','tube','tubes'];
-  const LENGTH_UNITS    = ['ft','feet','foot','meter','meters','m','cm','centimeter','centimeters','inch','inches','in','yard','yards'];
+  const LENGTH_UNITS    = ['ft','feet','foot','meter','meters','m','cm','centimeter','centimeters','inch','inches','in','yard','yards','sq ft','square feet','square foot','square meter','square meters'];
+// ITEM_UNITS: count-type units only. Weight/liquid units removed so they fall
+// through to Fix 2 (weight-context check) instead of being accepted blindly.
+// Prevents \$/oz on garden hoses, blood pressure monitors, etc.
 const ITEM_UNITS = [
     'count','ct','bag','bags','piece','pieces','pcs','pc','each','unit','units',
-    'pad','pads','sheet','sheets','wipe','wipes','tablet','tablets',
-    'oz','fl oz','fluid ounce','fluid ounces','lb','lbs','pound','pounds',
-    'g','gram','grams','kg','kilogram','kilograms','ml','milliliter','milliliters','l','liter','liters'
+    'pad','pads','sheet','sheets','wipe','wipes','tablet','tablets'
   ];
 
   // ── Search Context Persistence ────────────────────────────────────────────
@@ -158,6 +159,9 @@ const ITEM_UNITS = [
   function normalizeUnit(unit) {
     if (!unit) return unit;
     var u = unit.toLowerCase().trim();
+    // Strip leading "N " prefix from Amazon unit strings like "100 sheets", "50 count"
+    // so they normalize to the base unit and compare correctly.
+    u = u.replace(/^\d+\s+/, '');
     if (u==='fluid ounce'||u==='fluid ounces'||u==='fl. oz'||u==='fl. oz.') return 'fl oz';
     if (u==='ounce'||u==='ounces') return 'oz';
     if (u==='count') return 'ct';
@@ -675,6 +679,9 @@ const ITEM_UNITS = [
       /(\d[\d,]*)\s*-?\s*pairs?\b/i,          // "6 pairs", "3-pair"
     ];
     for(var i=0;i<pats.length;i++){var m=text.match(pats[i]);if(m){var n=parseInt(m[1].replace(/,/g,''),10);if(n>1&&n<10000)return n;}}
+    // Footage extraction: min 5ft, not preceded by fraction digit (avoids 5/8")
+    var ftm = text.match(/(?<![\d\/])(\d+)\s*(?:ft|feet)\b/i);
+    if(ftm){var fn=parseInt(ftm[1],10);if(fn>=5&&fn<10000)return fn;}
     return null;
   }
 
@@ -693,6 +700,7 @@ const ITEM_UNITS = [
     if(/\d[\d,]*\s*-?\s*pcs\.?/i.test(text))    return 'pc';
     if(/\d[\d,]*\s*-?\s*pieces?/i.test(text))   return 'piece';
     if(/\d[\d,]*\s*-?\s*pairs?\b/i.test(text))  return 'pair';  // "6 pairs", "3-pair"
+    if(/(?<![\d\/])(\d+)\s*(?:ft|feet)\b/i.test(text)) return 'ft'; // "25ft", "50 feet" 
     if(/\d[\d,]*\s*-?\s*bars?/i.test(text))     return 'ct';
     if(/\d[\d,]*\s*-?\s*pack/i.test(text))      return 'ct';
     if(/\d[\d,]*\s*-?\s*pk\b/i.test(text))      return 'ct';
@@ -836,12 +844,18 @@ const ITEM_UNITS = [
       return Object.assign(base,{ppu:price/count,unit,source:'calc',note:'Amazon said '+formatPPU(ap.ppu)+'/'+ap.unit});
     }
     if(ap&&CONTAINER_UNITS.includes(ap.unit)) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon-container',note:'Per '+ap.unit+', not per item'});
-    // Fix 2: Amazon reported a weight/liquid unit but the title has no weight quantity
-    // (e.g. "30 Memory Slots" gives a false count; garden hoses and BP monitors have no
-    // actual weight being sold). Suppress PPU regardless of whether count was found.
+    // Fix 2: Amazon reported a weight/liquid unit but the title has no weight quantity.
+    // Before suppressing, check if we can calculate $/ft from footage in the title instead.
     if(ap&&(WEIGHT_UNITS.includes(ap.unit)||LIQUID_UNITS.includes(ap.unit))) {
       var titleHasWeightQty=/\b\d+(?:\.\d+)?\s*(?:lb|lbs|oz|g\b|kg|ml|fl\s*oz|litre|liter)/i.test(title);
       if(!titleHasWeightQty) {
+        // If title has footage (e.g. "25ft hose"), calculate $/ft instead of suppressing
+        var ftMatch=title.match(/(?<![\d\/])(\d+)\s*(?:ft|feet)\b/i);
+        var ftCount=ftMatch?parseInt(ftMatch[1],10):null;
+        if(ftCount&&ftCount>=5&&price) {
+          return Object.assign(base,{ppu:price/ftCount,unit:'ft',source:'calc',
+            note:'Amazon reported \u2019/'+ap.unit+'\u2019 (item weight); calculated from footage in title instead.'});
+        }
         return Object.assign(base,{ppu:null,unit:null,source:'none',
           note:'PPU hidden \u2014 Amazon reported a weight/volume unit but this item doesn\u2019t appear to be sold by weight.'});
       }
