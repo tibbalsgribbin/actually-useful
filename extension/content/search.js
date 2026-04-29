@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.32)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.34)
 'use strict';
 
 function auFeedbackUrl() {
@@ -624,6 +624,36 @@ const ITEM_UNITS = [
     return false;
   }
 
+  function detectFsaHsa(el) {
+    var attr=el.querySelector('[aria-label*="FSA"],[aria-label*="HSA"],[aria-label*="fsa"],[aria-label*="hsa"]');
+    if(attr) return true;
+    var leaves=Array.from(el.querySelectorAll('*')).filter(function(e){return e.children.length===0;});
+    for(var i=0;i<leaves.length;i++){
+      if(/fsa\s+or\s+hsa\s+eligible/i.test(leaves[i].textContent)) return true;
+    }
+    return false;
+  }
+
+  function detectClimatePledge(el) {
+    var attr=el.querySelector('[aria-label*="Climate Pledge"],[aria-label*="climate pledge"]');
+    if(attr) return true;
+    var leaves=Array.from(el.querySelectorAll('*')).filter(function(e){return e.children.length===0;});
+    for(var i=0;i<leaves.length;i++){
+      if(/climate\s+pledge\s+friendly/i.test(leaves[i].textContent)) return true;
+    }
+    return false;
+  }
+
+  function detectSmallBusiness(el) {
+    var attr=el.querySelector('[aria-label*="Small Business"],[aria-label*="small business"]');
+    if(attr) return true;
+    var leaves=Array.from(el.querySelectorAll('*')).filter(function(e){return e.children.length===0;});
+    for(var i=0;i<leaves.length;i++){
+      if(/small\s+business/i.test(leaves[i].textContent)) return true;
+    }
+    return false;
+  }
+
   function parseSnS(el) {
     var fullText=el.textContent||'';
     if(!/when you subscribe/i.test(fullText)) return null;
@@ -788,12 +818,16 @@ const ITEM_UNITS = [
     var imgEl=el.querySelector('img.s-image');
     var imgUrl=imgEl?imgEl.src:'';
     var isSnap=detectSnap(el);
+    var isFsaHsa=detectFsaHsa(el);
+    var isClimatePledge=detectClimatePledge(el);
+    var isSmallBusiness=detectSmallBusiness(el);
     var base={title,href,asin,price,listPrice,count,page,retailer,wfFreeFlag,isSponsored,hasCoupon,
               couponPillOnly,sns,savings,cardText,reviewCount,rating,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff,
               freeWindowMinutes:freeWindowMinutes,freeWindowEnd:freeWindowEnd,freeQualifier:freeQualifier,imgUrl:imgUrl,
-              paidDate:delivery.paidDate,paidCutoff:delivery.paidCutoff,paidPrice:delivery.paidPrice,isSnap:isSnap};
+              paidDate:delivery.paidDate,paidCutoff:delivery.paidCutoff,paidPrice:delivery.paidPrice,isSnap:isSnap,
+              isFsaHsa:isFsaHsa,isClimatePledge:isClimatePledge,isSmallBusiness:isSmallBusiness};
 
     // Override: if Amazon reported a weight unit but the item title indicates a countable
     // solid product (pods, sheets, strips, loads, etc.), ignore the weight unit and
@@ -856,6 +890,8 @@ const ITEM_UNITS = [
           return Object.assign(base,{ppu:price/ftCount,unit:'ft',source:'calc',
             note:'Amazon reported \u2019/'+ap.unit+'\u2019 (item weight); calculated from footage in title instead.'});
         }
+        if(price) return Object.assign(base,{ppu:price,unit:'ct',source:'calc-single',
+          note:'No weight or count data found; showing price per item.'});
         return Object.assign(base,{ppu:null,unit:null,source:'none',
           note:'PPU hidden \u2014 Amazon reported a weight/volume unit but this item doesn\u2019t appear to be sold by weight.'});
       }
@@ -929,6 +965,9 @@ const ITEM_UNITS = [
   var minReviews       = 0;
   var minRating        = 0;
   var snapOnly         = false;
+  var fsaHsaOnly       = false;
+  var climatePledgeOnly= false;
+  var smallBusinessOnly= false;
   var isLiquidDominant = false;
   var unitPills        = [];
   var panelMoved       = false;
@@ -1091,6 +1130,9 @@ const ITEM_UNITS = [
 
     var hasNonStandard = Object.keys(detectedRetailers).some(function(k){ return k !== 'standard'; });
     var hasSnap = allData.some(function(r){ return !!r.isSnap; });
+    var hasFsaHsa = allData.some(function(r){ return !!r.isFsaHsa; });
+    var hasClimatePledge = allData.some(function(r){ return !!r.isClimatePledge; });
+    var hasSmallBusiness = allData.some(function(r){ return !!r.isSmallBusiness; });
     var hasWholeFoods=allData.some(function(r){return r.retailer&&r.retailer.key==='whole-foods';});
     var hasSponsored=allData.some(function(r){return r.isSponsored;});
     var hasPills=unitPills.length>1;
@@ -1224,6 +1266,9 @@ const ITEM_UNITS = [
             '<span class="ppu-price-sep">\u2013</span>'+
             '<span class="ppu-price-prefix">$</span><input id="ppu-max-price" type="number" class="ppu-price-input" min="0" placeholder="max" value="'+(maxPrice||'')+'">'+
             (hasSnap?'<label class="ppu-snap-label"><input type="checkbox" id="ppu-snap-only"'+(snapOnly?' checked':'')+'>SNAP EBT eligible only</label>':'')+
+            (hasFsaHsa?'<label class="ppu-snap-label"><input type="checkbox" id="ppu-fsa-only"'+(fsaHsaOnly?' checked':'')+'>FSA or HSA eligible only</label>':'')+
+            (hasClimatePledge?'<label class="ppu-snap-label"><input type="checkbox" id="ppu-climate-only"'+(climatePledgeOnly?' checked':'')+'>Climate Pledge Friendly only</label>':'')+
+            (hasSmallBusiness?'<label class="ppu-snap-label"><input type="checkbox" id="ppu-sb-only"'+(smallBusinessOnly?' checked':'')+'>Small Business only</label>':'')+
           '</div>'+
           (hasNonStandard?
             '<div id="ppu-source-row">'+
@@ -1290,6 +1335,9 @@ const ITEM_UNITS = [
         '.ppu-item-note:focus{outline:none;border-color:#CF6DFC;}' +
         '.snap-hidden{display:none!important}' +
         '.ppu-note-snap{color:#0a7c3e;}' +
+        '.ppu-note-fsa{color:#1558b0;}' +
+        '.ppu-note-climate{color:#2d6a4f;}' +
+        '.ppu-note-sb{color:#c45500;}' +
         '.ppu-snap-label{font-size:13px;color:#351E45;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;white-space:nowrap;}' +
         '#ppu-mixed-units-banner{display:none;padding:7px 12px 7px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;line-height:1.5;display:flex;align-items:flex-start;gap:8px;}' +
         '.ppu-mixed-msg{flex:1;user-select:text;cursor:text;}' +
@@ -1635,6 +1683,9 @@ const ITEM_UNITS = [
         var ratingHid=minRating>0&&r.rating!=null&&r.rating<minRating;
         var priceHid=(minPriceF!=null&&r.price!=null&&r.price<minPriceF)||(maxPriceF!=null&&r.price!=null&&r.price>maxPriceF);
         var snapHid=snapOnly&&!r.isSnap;
+        var fsaHid=fsaHsaOnly&&!r.isFsaHsa;
+        var climateHid=climatePledgeOnly&&!r.isClimatePledge;
+        var sbHid=smallBusinessOnly&&!r.isSmallBusiness;
         var priceStr=r.price!=null?'$'+r.price.toFixed(2):'\u2014';
         var countStr=r.count?r.count+' ct':'';
         var badge='',noteStr='',deliveryStr='',srcTag='';
@@ -1652,7 +1703,7 @@ const ITEM_UNITS = [
         if(r.ppu!=null){
           var compPPU=getCompPPU(r);
           var isBest=bestPPU!=null&&r.kwMatch&&r.source!=='amazon-container'&&
-            srcFilter[r.retailer?r.retailer.key:'standard']&&!sponHid&&!revHid&&!ratingHid&&!priceHid&&!snapHid&&
+            srcFilter[r.retailer?r.retailer.key:'standard']&&!sponHid&&!revHid&&!ratingHid&&!priceHid&&!snapHid&&!fsaHid&&!climateHid&&!sbHid&&
             compPPU!=null&&Math.abs(compPPU-bestPPU)<0.000001;
           var isCont=r.source==='amazon-container';
           var warn=isCont?' <span style="font-size:10px;color:#aaa;" title="Amazon is reporting the price per container (box/pack), not per item \u2014 actual per-item cost may differ">\u26a0\ufe0f price is per pack, not per item</span>':'';
@@ -1687,6 +1738,9 @@ const ITEM_UNITS = [
         else if(r.sns==='unknown') noteStr+='<div class="ppu-note-deal ppu-note-sns">\uD83D\uDCE6 Subscribe &amp; Save available \u2014 check Amazon for amount</div>';
         if(r.savings) noteStr+='<div class="ppu-note-deal ppu-note-sns">\uD83C\uDF81 '+r.savings+'</div>';
         if(r.isSnap) noteStr+='<div class="ppu-note-deal ppu-note-snap">SNAP EBT eligible</div>';
+        if(r.isFsaHsa) noteStr+='<div class="ppu-note-deal ppu-note-fsa">FSA or HSA eligible</div>';
+        if(r.isClimatePledge) noteStr+='<div class="ppu-note-deal ppu-note-climate">Climate Pledge Friendly</div>';
+        if(r.isSmallBusiness) noteStr+='<div class="ppu-note-deal ppu-note-sb">Small Business</div>';
 
         if(r.freeDate||r.fastDate||r.paidDate){
           var parts=[];
@@ -1731,6 +1785,9 @@ const ITEM_UNITS = [
         var ratingC=ratingHid?' rating-hidden':'';
         var priceC=priceHid?' price-hidden':'';
         var snapC=snapHid?' snap-hidden':'';
+        var fsaC=fsaHid?' snap-hidden':'';
+        var climateC=climateHid?' snap-hidden':'';
+        var sbC=sbHid?' snap-hidden':'';
         var chkC=isChecked?' checked':'';
         var wfC=(r.wfFreeFlag&&effectiveSort==='delivery-free')?' wf-excluded':'';
         var safeAsin=r.asin.replace(/"/g,'&quot;');
@@ -1747,7 +1804,7 @@ const ITEM_UNITS = [
           }
         }
         html+=
-          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+snapC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
+          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+snapC+fsaC+climateC+sbC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
             '<div class="ppu-cb-wrap"><input type="checkbox" class="ppu-cb"'+(isChecked?' checked':'')+' title="Add to shortlist"></div>'+
             '<div class="ppu-thumb-wrap">'+thumbHtml+'</div>'+
             '<div class="ppu-row-content">'+
@@ -1839,6 +1896,9 @@ const ITEM_UNITS = [
       sponsoredMode='show';
       updateSponsoredBtn(hideSponsoredBtn,sponsoredMode);
       snapOnly=false;
+      fsaHsaOnly=false;
+      climatePledgeOnly=false;
+      smallBusinessOnly=false;
       sortVal='ppu-asc'; sortEl.value='ppu-asc';
       try{ localStorage.removeItem('au-banner-dismissed'); }catch(e){}
       try{ sessionStorage.removeItem(getFilterStorageKey(searchTerm)); }catch(e){}
@@ -1867,6 +1927,33 @@ const ITEM_UNITS = [
     if(snapChk){
       snapChk.addEventListener('change',function(){
         snapOnly=this.checked;
+        render();
+      });
+    }
+
+    // ── FSA/HSA filter ───────────────────────────────────────────────────
+    var fsaChk=document.getElementById('ppu-fsa-only');
+    if(fsaChk){
+      fsaChk.addEventListener('change',function(){
+        fsaHsaOnly=this.checked;
+        render();
+      });
+    }
+
+    // ── Climate Pledge filter ─────────────────────────────────────────────
+    var climateChk=document.getElementById('ppu-climate-only');
+    if(climateChk){
+      climateChk.addEventListener('change',function(){
+        climatePledgeOnly=this.checked;
+        render();
+      });
+    }
+
+    // ── Small Business filter ─────────────────────────────────────────────
+    var sbChk=document.getElementById('ppu-sb-only');
+    if(sbChk){
+      sbChk.addEventListener('change',function(){
+        smallBusinessOnly=this.checked;
         render();
       });
     }
@@ -1945,7 +2032,10 @@ const ITEM_UNITS = [
             note:        itemNotes[r.asin]||'',
             ppuNote:     r.note||'',
             imgUrl:      r.imgUrl||'',
-            isSnap:      !!r.isSnap
+            isSnap:      !!r.isSnap,
+            isFsaHsa:    !!r.isFsaHsa,
+            isClimatePledge: !!r.isClimatePledge,
+            isSmallBusiness: !!r.isSmallBusiness
           };
         }).filter(Boolean);
 

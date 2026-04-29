@@ -352,6 +352,9 @@
     .pill-prime   { background: #C1BFFF; color: #1A1035; border: 1px solid #aba8eb; }
     .pill-coupon  { background: #c2c5f7; color: #1A1035; border: 1px solid #9d9eef; }
     .pill-snap    { background: #bbf7d0; color: #065f46; border: 1px solid #6ee7b7; }
+    .pill-fsa     { background: #dbeafe; color: #1558b0; border: 1px solid #93c5fd; }
+    .pill-climate { background: #d1fae5; color: #2d6a4f; border: 1px solid #6ee7b7; }
+    .pill-sb      { background: #ffedd5; color: #c45500; border: 1px solid #fdba74; }
     .pill-return  { background: #FFA590; color: #5c2415; border: 1px solid #F28B73; }
 
     .stars {
@@ -561,6 +564,15 @@
     if (item.isSnap) {
       parts.push('<span class="pill pill-snap">SNAP EBT</span>');
     }
+    if (item.isFsaHsa) {
+      parts.push('<span class="pill pill-fsa">FSA or HSA eligible</span>');
+    }
+    if (item.isClimatePledge) {
+      parts.push('<span class="pill pill-climate">Climate Pledge Friendly</span>');
+    }
+    if (item.isSmallBusiness) {
+      parts.push('<span class="pill pill-sb">Small Business</span>');
+    }
     return parts.length ? parts.join(' ') : '<span class="na">—</span>';
   }
 
@@ -640,6 +652,9 @@
   let filterMaxPrice   = '';
   let filterRequirePrime = false;
   let filterRequireSnap  = false;
+  let filterRequireFsaHsa = false;
+  let filterRequireClimatePledge = false;
+  let filterRequireSmallBusiness = false;
 
   let currentSearchUrl = '';
 
@@ -763,6 +778,9 @@
       if (filterHideSponsored && item.isSponsored) return false;
       if (filterRequirePrime && !item.isPrime) return false;
       if (filterRequireSnap  && !item.isSnap)  return false;
+      if (filterRequireFsaHsa && !item.isFsaHsa) return false;
+      if (filterRequireClimatePledge && !item.isClimatePledge) return false;
+      if (filterRequireSmallBusiness && !item.isSmallBusiness) return false;
       if (filterRetailer && (item.retailerKey || 'standard') !== filterRetailer) return false;
       if (filterMinReviews > 0 && (parseFloat(item.reviewCount) || 0) < filterMinReviews) return false;
       if (filterMinRating > 0 && (parseFloat(item.rating) || 0) < filterMinRating) return false;
@@ -806,6 +824,18 @@
     var snapChk = filterRequireSnap ? ' checked' : '';
     var snapToggle = hasSnap ? '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-require-snap"' + snapChk + '> SNAP EBT only</label>' : '';
 
+    var hasFsaHsa = allItems.some(function(item) { return !!item.isFsaHsa; });
+    var fsaChk = filterRequireFsaHsa ? ' checked' : '';
+    var fsaToggle = hasFsaHsa ? '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-require-fsa"' + fsaChk + '> FSA or HSA eligible only</label>' : '';
+
+    var hasClimatePledge = allItems.some(function(item) { return !!item.isClimatePledge; });
+    var climateChk = filterRequireClimatePledge ? ' checked' : '';
+    var climateToggle = hasClimatePledge ? '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-require-climate"' + climateChk + '> Climate Pledge Friendly only</label>' : '';
+
+    var hasSmallBusiness = allItems.some(function(item) { return !!item.isSmallBusiness; });
+    var sbChk = filterRequireSmallBusiness ? ' checked' : '';
+    var sbToggle = hasSmallBusiness ? '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-require-sb"' + sbChk + '> Small Business only</label>' : '';
+
     var inclVal = esc(filterInclude);
     var exclVal = esc(filterExclude);
     var mrVal = filterMinReviews || '';
@@ -831,6 +861,9 @@
       + sponsoredToggle
       + primeToggle
       + snapToggle
+      + fsaToggle
+      + climateToggle
+      + sbToggle
       + '<button id="fb-clear" class="btn btn-ghost">Clear filters</button>'
       + '</div>'
       + '</div>'
@@ -977,6 +1010,9 @@
         couponParts.push('<span class="pill pill-coupon">Check Amazon</span>');
       }
       if (item.isSnap) couponParts.push('<span class="pill pill-snap">SNAP EBT</span>');
+      if (item.isFsaHsa) couponParts.push('<span class="pill pill-fsa">FSA or HSA eligible</span>');
+      if (item.isClimatePledge) couponParts.push('<span class="pill pill-climate">Climate Pledge Friendly</span>');
+      if (item.isSmallBusiness) couponParts.push('<span class="pill pill-sb">Small Business</span>');
       var couponLabel = couponParts.length ? couponParts.join(' ') : '<span class="na">—</span>';
 
       // Price column — two lines when coupon price available
@@ -1410,6 +1446,9 @@
         couponParts.push('<span class="pill pill-coupon">Check Amazon</span>');
       }
       if (item.isSnap) couponParts.push('<span class="pill pill-snap">SNAP EBT</span>');
+      if (item.isFsaHsa) couponParts.push('<span class="pill pill-fsa">FSA or HSA eligible</span>');
+      if (item.isClimatePledge) couponParts.push('<span class="pill pill-climate">Climate Pledge Friendly</span>');
+      if (item.isSmallBusiness) couponParts.push('<span class="pill pill-sb">Small Business</span>');
       var couponLabel = couponParts.length ? couponParts.join(' ') : '<span class="na">—</span>';
 
       // Price column — two lines when coupon
@@ -1650,7 +1689,32 @@
       });
     }
 
-    // Clear filters
+    // Require FSA/HSA toggle
+    const fsaChk = document.getElementById('fb-require-fsa');
+    if (fsaChk) {
+      fsaChk.addEventListener('change', () => {
+        filterRequireFsaHsa = fsaChk.checked;
+        rerender();
+      });
+    }
+
+    // Require Climate Pledge Friendly toggle
+    const climateChk = document.getElementById('fb-require-climate');
+    if (climateChk) {
+      climateChk.addEventListener('change', () => {
+        filterRequireClimatePledge = climateChk.checked;
+        rerender();
+      });
+    }
+
+    // Require Small Business toggle
+    const sbChk = document.getElementById('fb-require-sb');
+    if (sbChk) {
+      sbChk.addEventListener('change', () => {
+        filterRequireSmallBusiness = sbChk.checked;
+        rerender();
+      });
+    }
     const clearBtn = document.getElementById('fb-clear');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
@@ -1664,6 +1728,9 @@
         filterHideSponsored = false;
         filterRequirePrime = false;
         filterRequireSnap = false;
+        filterRequireFsaHsa = false;
+        filterRequireClimatePledge = false;
+        filterRequireSmallBusiness = false;
         sortCol = 'ppu';
         sortDir = 'asc';
         rerender();
