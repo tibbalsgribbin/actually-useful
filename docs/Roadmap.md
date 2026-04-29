@@ -96,10 +96,12 @@ Never use Python heredoc string escaping to write JavaScript template literals �
 - The handover is getting very long
 Two of these = stop and wrap up.
 
+**Rollback rule:** If three attempts at fixing a bug fail in one session, stop. Roll back to the last stable commit rather than continuing to dig. Tag stable commits `stable-pre-[feature]` in GitHub Desktop before starting risky work so the rollback target is clear.
+
 **End of every session:**
 1. Present all changed files for download
 2. Give Melissa a suggested GitHub commit message
-3. Remind Melissa to push to GitHub
+3. If code changed: remind Melissa to push to GitHub
 4. Update project documents — download and put in `docs/`
 5. Remind Melissa to update project files in Claude after the push
 
@@ -108,8 +110,9 @@ Two of these = stop and wrap up.
 ## Next session priorities (in order)
 
 1. **Test SNAP EBT** — do a grocery search (rice, baby formula, frozen vegetables) and confirm detection works; report back so selector can be adjusted if needed
-2. **Palette redesign** — use Claude Design tool
-3. **Outreach planning** — frugality blogs (after extension and compare page more polished)
+2. **Bug-test spreadsheet** — start tracking searches by category using the bug-test.md template; run at least one full category (pet supplies or tools recommended)
+3. **Demo video planning** — draft script bullets, sign up for Loom, do a dry run (don't record yet — just practice the workflow)
+4. **Palette redesign** — use Claude Design tool
 
 ---
 
@@ -212,16 +215,30 @@ Two of these = stop and wrap up.
 
 ### Alpha — next steps
 - [ ] Test SNAP EBT with real grocery searches
+- [ ] Bug-test spreadsheet — track search categories against bug-test.md template
+- [ ] Demo video — script bullets, Loom signup, dry run, record, publish
 - [ ] compare.html strategy — further table refinements
 - [ ] Palette redesign (Claude Design tool)
-- [ ] Outreach to frugality blogs — after extension and compare page more polished
 - [ ] r/vibecodedevs post
 - [ ] Facebook post
-- [ ] Instructions page on website
-- [ ] First-use onboarding flow in the extension
-- [ ] Short demo video (platform TBD)
 - [ ] Test on a different setup (Mac or Chrome vs Edge)
 - [ ] Collect and triage tester feedback
+
+### Pre-public-CWS-listing checklist
+Everything here should be complete before moving the CWS listing from unlisted to public.
+
+- [ ] SNAP EBT verified working on real grocery searches
+- [ ] Logging audit session — inventory current capture, identify gaps (especially compare.html), prune noise, decide what new events are worth adding
+- [ ] Selector resilience refactor — pull all CSS selectors into a named object; add multi-strategy fallbacks per field
+- [ ] Self-test mode — on a known search, verify N results have prices/units; surface degradation banner if not
+- [ ] Kill switch — extension checks a JSON file on actuallyuseful.net at load; shows banner if disabled; allows emergency response without CWS review wait
+- [ ] Anomaly/transparency banner audit pass — inventory every place search.js makes an interpretive decision; decide which warrant a panel note (mixed units, solid-product override, liquid-dominant inference, sparse data fallback, has-variations flag)
+- [ ] Welcome page on install — `chrome.runtime.onInstalled` opens a one-tab page explaining the workflow, with demo video link and transparency statement
+- [ ] Demo video recorded and embedded on landing page
+- [ ] Bug-test spreadsheet — at least 5 categories passing (consumables, tools, pet supplies, personal care, single-unit)
+- [ ] Public-facing roadmap published — GitHub Issues with roadmap label, linked from landing page; includes "won't do" section
+- [ ] Copy update — CWS listing description and landing page hero text rewritten to lead with concrete savings, not feature list
+- [ ] actuallyuseful.net pointed at GitHub Pages
 
 ### Persistent research session — post-alpha
 - [ ] localStorage for working comparison state on compare.html
@@ -242,9 +259,13 @@ Two of these = stop and wrap up.
 - [ ] Cross-page shortlist persistence (chrome.storage.local)
 - [ ] Two-way extension ↔ website connection
 - [ ] Frequently Returned badge — red (deferred until product.js re-enabled)
+- [ ] Full in-extension onboarding overlay — pointer overlay on first-use guiding new users through core workflow
+- [ ] Continued anomaly/transparency banner additions — surface interpretive decisions as edge cases surface in bug-test
+- [ ] "Hide this seller forever" — one-click block per seller, stored in chrome.storage.local
+- [ ] hasVariations flag — detect variation presence, show "⚠ Has size/color variants" note in panel and compare
 - [ ] Contribution nudge
 - [ ] Walmart version
-- [ ] Settings/onboarding page
+- [ ] Settings page
 - [ ] IIFE wrapping (pre-Web Store public)
 - [ ] Replace .innerHTML with createElement (pre-Web Store public)
 - [ ] Badge text on toolbar icon
@@ -255,13 +276,14 @@ Two of these = stop and wrap up.
 - [ ] Keepa price history link per item
 - [ ] Power search form — shareable permalinks via Supabase; affiliate tag on outbound URLs
 - [ ] Shared-link note collaboration
-- [ ] actuallyuseful.net pointed at GitHub Pages
 - [ ] Instructions/how-to page
 
 **Outreach**
-- [ ] Frugality blog outreach — The Non-Consumer Advocate, The Frugal Girl, others TBD
+- [ ] Outreach to frugality blogs — The Non-Consumer Advocate, The Frugal Girl, others TBD — send demo video, lead with accessibility/retiree angle
+- [ ] r/SideProject post with demo video
+- [ ] r/alphaandbetausers + r/betatests + r/TestMyApp — triple post asking for testers
 - [ ] Amazon Associates — create Associates Central account
-- [ ] Amazon Associates application narrative (draft before applying)
+- [ ] Amazon Associates application narrative (draft before applying; apply only after 50+ weekly active installs and ~500 monthly site visitors)
 
 ---
 
@@ -283,3 +305,6 @@ Two of these = stop and wrap up.
 - Permanently visible UI elements are preferred — conditional visibility only when there's a clear reason
 - The comparison page is the destination — the extension is the on-ramp
 - All text in the extension interface must be selectable (user-select:text; cursor:text) — standing rule, apply to all new text elements
+- **Fail loud at the system level, fail quiet per item.** 90% parsing / 10% failing = normal. 90% failing = surface a banner.
+- **Show our work.** When AU interprets data — inferring units, applying solid-product override, triggering liquid-dominant inference — surface that interpretation as a brief, dismissible note. Transparency is an accessibility feature.
+- **Sustainability features are features.** Selector resilience, self-test mode, and a kill switch belong in the pre-public-listing checklist, not the post-alpha backlog.

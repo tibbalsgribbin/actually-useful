@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.29 (overall) · v0.6.1 (manifest) · v0.6.1.28 (search.js) · v0.6.1.29 (compare.html) · Updated April 27, 2026 (Chat 36)*
+*Current version: v0.6.1.29 (overall) · v0.6.1 (manifest) · v0.6.1.28 (search.js) · v0.6.1.29 (compare.html) · Updated April 28, 2026 (Chat 37)*
 
 ---
 
@@ -219,6 +219,9 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 - **isSnap on compare.html** — only available for comparisons created after v0.6.1.28
 - **Collapsible animation gone** — snap only; post-alpha
 - **Ko-fi nudge removed** — redesign post-alpha
+- **No selector resilience** — single-string CSS selectors throughout search.js; one Amazon DOM change breaks scraping silently for all users
+- **No kill switch** — no mechanism to disable a bad release between CWS reviews (1–3 day window); post-public-listing risk
+- **No self-test mode** — extension cannot detect its own breakage; users notice before we do
 
 ---
 
@@ -256,6 +259,9 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 - Permanently visible UI elements are preferred — conditional visibility only when there's a clear reason
 - The comparison page is the destination — the extension is the on-ramp
 - All text in the extension interface must be selectable (user-select:text; cursor:text) — applies to every visible text element
+- **Fail loud at the system level, fail quiet per item.** 90% of items parsing correctly and 10% failing silently = normal. 90% failing = surface a banner. Don't let systemic breakage look like normal operation.
+- **Show our work.** When AU interprets data — inferring units, applying a solid-product override, choosing between Amazon's $/ct and a calculated $/load, detecting variations — surface that interpretation to the user as a brief, dismissible note. Transparency is an accessibility feature.
+- **Sustainability features are features.** Selector resilience, self-test mode, and a kill switch are not polish. They're what makes 1,000 users survivable. They belong in the pre-public-listing checklist, not the post-alpha backlog.
 
 ---
 
@@ -275,5 +281,5 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
   3. Roadmap.md updated
   4. Handover.md written
   5. All changed code files presented
-  6. GitHub push reminder given
+  6. If code changed: GitHub push reminder given
   7. Remind Melissa to update Project files in Claude after the push

@@ -4,6 +4,32 @@
 
 ---
 
+## **Planning session — April 28, 2026 (Chat 37)**
+
+*No code changes. Strategy, synthesis, and outreach research session.*
+
+### Documents produced this session
+- **Master_Synthesis.md** — comprehensive synthesis of advice from 14 external AI/strategy documents, organized by topic (workflow, code quality, testers, marketing, monetization, features). Includes payoff/difficulty ratings and explicit "what to skip" list.
+- **Outreach_Platform_Rules.md** — verified rules and fit assessment for all suggested outreach venues (Reddit, Show HN, Product Hunt, Indie Hackers, Mastodon, Slickdeals, Bogleheads, Buy Nothing groups, TikTok, X/Twitter, frugality blogs).
+- **bug-test.md** — blank spreadsheet template for tracking search-category testing across versions.
+
+### Decisions made
+- **Outreach channels corrected:** r/Frugal, Buy Nothing groups, r/AmazonDeals, and Slickdeals confirmed as not viable for AU promotion (rules prohibit it or format is wrong). Priority outreach is r/SideProject + beta-tester subs + frugality blog email pitches.
+- **Pre-public-CWS-listing checklist established** — 12-item gate before moving from unlisted to public. Includes selector resilience, kill switch, self-test mode, welcome page, logging audit, demo video, and public roadmap.
+- **Demo video elevated** to highest-priority marketing action. Loom recommended.
+- **Welcome page on install elevated** to near-equal priority with the demo video.
+- **Anomaly/transparency banners added** as a design direction — "show our work" principle; accessibility framing.
+- **Logging audit** added as a pre-public-listing item — compare.html logging is currently a gap.
+- **Public-facing roadmap** added as a pre-public-listing item — GitHub Issues with roadmap label + "won't do" section.
+- **Three new design principles added:** Fail loud at system level / fail quiet per item; Show our work; Sustainability features are features.
+- **Rollback rule added** to working rules: 3 failed bug-fix attempts = stop and revert to last stable commit.
+
+### Changes to project documents
+- Project_Briefing.md: new known issues (no selector resilience, no kill switch, no self-test mode); four new design principles; end-of-session checklist clarified (push only needed when code changed)
+- Roadmap.md: rollback rule added; next session priorities updated; pre-public-CWS-listing checklist added; post-alpha section updated with new items (welcome page, onboarding overlay, anomaly banners, hasVariations flag, hide-seller feature, outreach specifics); design principles updated; outreach section corrected with verified channel list
+
+---
+
 ## **v0.6.1.28 — April 27, 2026 (Chat 36)**
 
 ### search.js — SNAP EBT detection and filter
