@@ -955,7 +955,7 @@
           ? '$' + displayPPU.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0')
           : '$' + displayPPU.toFixed(2);
         var ppuFormatted = ppuStr + (displayUnit ? ' / ' + displayUnit : '');
-        var ppuNote = item.note ? '<div style="font-size:0.78em;color:#6B5FA0;font-style:italic;margin-top:2px;">\u2139 ' + esc(item.note) + '</div>' : '';
+        var ppuNote = item.ppuNote ? '<div style="font-size:0.78em;color:#6B5FA0;font-style:italic;margin-top:2px;">\u2139 ' + esc(item.ppuNote) + '</div>' : '';
         ppuCell = isBest
           ? '<span class="best-value">' + ppuFormatted + '<span class="best-value-star" title="Best value">\u2605</span></span>' + ppuNote
           : ppuFormatted + ppuNote;
@@ -1390,7 +1390,7 @@
           ? '$' + displayPPU.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0')
           : '$' + displayPPU.toFixed(2);
         var ppuFormatted = ppuStr + (displayUnit ? ' / ' + displayUnit : '');
-        var ppuNote = item.note ? '<div style="font-size:0.78em;color:#6B5FA0;font-style:italic;margin-top:2px;">\u2139 ' + esc(item.note) + '</div>' : '';
+        var ppuNote = item.ppuNote ? '<div style="font-size:0.78em;color:#6B5FA0;font-style:italic;margin-top:2px;">\u2139 ' + esc(item.ppuNote) + '</div>' : '';
         ppuCell = isBest
           ? '<span class="best-value">' + ppuFormatted + '<span class="best-value-star" title="Best value">\u2605</span></span>' + ppuNote
           : ppuFormatted + ppuNote;

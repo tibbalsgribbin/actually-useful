@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.29)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.30)
 'use strict';
 
 function auFeedbackUrl() {
@@ -668,7 +668,11 @@ const ITEM_UNITS = [
       /(\d[\d,]*)\s*-?\s*bars?\b/i,
       /pack\s+of\s+(\d[\d,]*)/i,/box\s+of\s+(\d[\d,]*)/i,
       /(\d[\d,]*)\s+\w+\s+\w+\s+bars?\b/i,
-      /(\d[\d,]*)\s+loads?\b/i,/(\d[\d,]*)\s*-?\s*sheets?/i,/(\d[\d,]*)\s*-?\s*strips?\b/i,
+      /(\d[\d,]*)\s+loads?\b/i,
+      /(\d[\d,]*)\s*-?\s*sheets?/i,           // "100 sheets", "40-sheet"
+      /(\d[\d,]*)\s+\w+\s+sheets?\b/i,        // "100 Scrapbook Sheets"
+      /(\d[\d,]*)\s*-?\s*strips?\b/i,
+      /(\d[\d,]*)\s*-?\s*pairs?\b/i,          // "6 pairs", "3-pair"
     ];
     for(var i=0;i<pats.length;i++){var m=text.match(pats[i]);if(m){var n=parseInt(m[1].replace(/,/g,''),10);if(n>1&&n<10000)return n;}}
     return null;
@@ -677,6 +681,7 @@ const ITEM_UNITS = [
   function guessCountUnit(text) {
     if(/\d[\d,]*\s*-?\s*rolls?/i.test(text))    return 'roll';
     if(/\d[\d,]*\s*-?\s*bags?/i.test(text))     return 'bag';
+    if(/(\d[\d,]*)\s+\w+\s+sheets?\b/i.test(text)) return 'sheet'; // "100 Scrapbook Sheets"
     if(/\d[\d,]*\s*-?\s*sheets?/i.test(text))   return 'sheet';
     if(/\d[\d,]*\s*-?\s*strips?\b/i.test(text)) return 'strip';
     if(/\d[\d,]*\s+loads?\b/i.test(text))       return 'load';
@@ -687,6 +692,7 @@ const ITEM_UNITS = [
     if(/\d[\d,]*\s*-?\s*capsules?/i.test(text)) return 'capsule';
     if(/\d[\d,]*\s*-?\s*pcs\.?/i.test(text))    return 'pc';
     if(/\d[\d,]*\s*-?\s*pieces?/i.test(text))   return 'piece';
+    if(/\d[\d,]*\s*-?\s*pairs?\b/i.test(text))  return 'pair';  // "6 pairs", "3-pair"
     if(/\d[\d,]*\s*-?\s*bars?/i.test(text))     return 'ct';
     if(/\d[\d,]*\s*-?\s*pack/i.test(text))      return 'ct';
     if(/\d[\d,]*\s*-?\s*pk\b/i.test(text))      return 'ct';
@@ -730,6 +736,8 @@ const ITEM_UNITS = [
     if(/\bpairs?\b/i.test(title)) {
       var note = result.note ? result.note + ' ' : '';
       result.note = note + 'Sold in pairs \u2014 PPU is Amazon\u2019s figure and may be per pair or per item. Check the listing to compare accurately.';
+      // Use 'pair' as unit label so the display reads $/pair not $/ct
+      if(result.unit === 'ct' || !result.unit) result.unit = 'pair';
     }
     return result;
   }
@@ -828,9 +836,10 @@ const ITEM_UNITS = [
       return Object.assign(base,{ppu:price/count,unit,source:'calc',note:'Amazon said '+formatPPU(ap.ppu)+'/'+ap.unit});
     }
     if(ap&&CONTAINER_UNITS.includes(ap.unit)) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon-container',note:'Per '+ap.unit+', not per item'});
-    // Fix 2: Amazon reported a weight/liquid unit but no count and no weight qty in title.
-    // Suppress PPU rather than show $/ml for a blood pressure monitor or $/oz for a garden hose.
-    if(ap&&(WEIGHT_UNITS.includes(ap.unit)||LIQUID_UNITS.includes(ap.unit))&&!count) {
+    // Fix 2: Amazon reported a weight/liquid unit but the title has no weight quantity
+    // (e.g. "30 Memory Slots" gives a false count; garden hoses and BP monitors have no
+    // actual weight being sold). Suppress PPU regardless of whether count was found.
+    if(ap&&(WEIGHT_UNITS.includes(ap.unit)||LIQUID_UNITS.includes(ap.unit))) {
       var titleHasWeightQty=/\b\d+(?:\.\d+)?\s*(?:lb|lbs|oz|g\b|kg|ml|fl\s*oz|litre|liter)/i.test(title);
       if(!titleHasWeightQty) {
         return Object.assign(base,{ppu:null,unit:null,source:'none',
@@ -1234,6 +1243,7 @@ const ITEM_UNITS = [
         '</div>'+
       '</div>'+
       '<div id="ppu-wf-note" style="display:none">\u26a0\ufe0f Whole Foods delivery is not included in your Prime membership. Free pickup or $9.95 delivery.</div>'+
+      '<div id="ppu-mixed-units-banner" style="display:none"><span class="ppu-mixed-msg"></span><button class="ppu-mixed-dismiss" title="Dismiss">\u00d7</button></div>'+
       '<div id="ppu-footer-row">'+
         '<div id="ppu-sort-note"></div>'+
         '<div id="ppu-info"></div>'+
@@ -1266,7 +1276,10 @@ const ITEM_UNITS = [
         '.ppu-item-note:focus{outline:none;border-color:#CF6DFC;}' +
         '.snap-hidden{display:none!important}' +
         '.ppu-note-snap{color:#0a7c3e;}' +
-        '.ppu-snap-label{font-size:13px;color:#351E45;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;white-space:nowrap;}';
+        '.ppu-snap-label{font-size:13px;color:#351E45;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;white-space:nowrap;}' +
+        '#ppu-mixed-units-banner{display:none;padding:7px 12px 7px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;line-height:1.5;display:flex;align-items:flex-start;gap:8px;}' +
+        '.ppu-mixed-msg{flex:1;user-select:text;cursor:text;}' +
+        '.ppu-mixed-dismiss{flex-shrink:0;background:none;border:none;font-size:14px;color:#877891;cursor:pointer;padding:0;line-height:1;}';
       document.head.appendChild(styleEl);
     }
 
@@ -1560,6 +1573,21 @@ const ITEM_UNITS = [
       if(wfNoteEl){
         var isDeliverySort=effectiveSort==='delivery-free'||effectiveSort==='delivery-any';
         wfNoteEl.style.display=(hasWholeFoods&&isDeliverySort)?'block':'none';
+      }
+
+      // Mixed-units transparency banner: fires when any item had its unit overridden or
+      // recalculated. Dismissible per search, logged for telemetry.
+      var overriddenItems=allData.filter(function(r){return r.note&&(r.source==='calc'||r.source==='none');});
+      var mixedBannerEl=document.getElementById('ppu-mixed-units-banner');
+      if(mixedBannerEl){
+        if(overriddenItems.length>0){
+          mixedBannerEl.style.display='block';
+          var mixedUnits=overriddenItems.map(function(r){return r.unit||'?';}).filter(function(u,i,a){return a.indexOf(u)===i;}).join(', ');
+          var mixedMsg=mixedBannerEl.querySelector('.ppu-mixed-msg');
+          if(mixedMsg) mixedMsg.textContent='This search has '+overriddenItems.length+' item'+(overriddenItems.length!==1?'s':'')+' where we had to interpret or recalculate the unit price. Units involved: '+mixedUnits+'. We show our working in each row \u2014 look for the \u2139 note. When in doubt, check the listing.';
+        } else {
+          mixedBannerEl.style.display='none';
+        }
       }
 
       var COUNT_PILL_UNITS = ['ct','count','each','pc','piece','pieces','pcs','unit','units','pad','pads','sheet','sheets','wipe','wipes','tablet','tablets','capsule','cap','roll','bag'];
@@ -1901,6 +1929,7 @@ const ITEM_UNITS = [
             rating:      r.rating||'',
             reviewCount: r.reviewCount||'',
             note:        itemNotes[r.asin]||'',
+            ppuNote:     r.note||'',
             imgUrl:      r.imgUrl||'',
             isSnap:      !!r.isSnap
           };
@@ -2069,6 +2098,13 @@ const ITEM_UNITS = [
         var banner=document.getElementById('ppu-workflow-banner');
         if(banner) banner.remove();
         try{ localStorage.setItem('au-banner-dismissed','1'); }catch(e){}
+      });
+    }
+    var mixedDismissBtn=document.querySelector('.ppu-mixed-dismiss');
+    if(mixedDismissBtn){
+      mixedDismissBtn.addEventListener('click',function(){
+        var b=document.getElementById('ppu-mixed-units-banner');
+        if(b) b.style.display='none';
       });
     }
     document.getElementById('ppu-btn-refresh').addEventListener('click',function(){
