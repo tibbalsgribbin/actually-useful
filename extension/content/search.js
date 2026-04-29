@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.28)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.29)
 'use strict';
 
 function auFeedbackUrl() {
@@ -722,6 +722,18 @@ const ITEM_UNITS = [
     return null;
   }
 
+  // ── Pairs uncertainty note ────────────────────────────────────────────────
+  // Applied post-assembly: if title says "X pairs" and PPU came from Amazon's
+  // reported unit price, we can't tell if Amazon means per-pair or per-item.
+  function applyPairsNote(result, title) {
+    if(!result.ppu || result.source !== 'amazon') return result;
+    if(/\bpairs?\b/i.test(title)) {
+      var note = result.note ? result.note + ' ' : '';
+      result.note = note + 'Sold in pairs \u2014 PPU is Amazon\u2019s figure and may be per pair or per item. Check the listing to compare accurately.';
+    }
+    return result;
+  }
+
   // ── Scrape one card ───────────────────────────────────────────────────────
   function scrapeCard(el,pageNum,originalIndex) {
     var h2El=el.querySelector('h2[aria-label]')||el.querySelector('h2');
@@ -787,16 +799,24 @@ const ITEM_UNITS = [
 
     if(ap&&ITEM_UNITS.includes(ap.unit)) {
       if(ap.unit==='ct'&&count&&price) {
-        return Object.assign(base,{ppu:ap.ppu,unit:'ct',source:'amazon'});
+        // Fix 1: if Amazon's reported $/ct ≈ the full item price, it's a whole-package unit.
+        // Recalculate from count so we get $/sheet, $/wipe, $/bandage, etc.
+        var apPpuIsFullPrice = Math.abs(ap.ppu - price) / price < 0.01;
+        if(apPpuIsFullPrice && count > 1) {
+          var recalcUnit = guessCountUnit(title) || guessUnitFromTitle(title) || 'ct';
+          return Object.assign(base,{ppu:price/count,unit:recalcUnit,source:'calc',
+            note:'Amazon\u2019s unit price was per package \u2014 recalculated from count in title.'});
+        }
+        return applyPairsNote(Object.assign(base,{ppu:ap.ppu,unit:'ct',source:'amazon'}),title);
       }
       if(count&&price&&ap.unit!=='ct') {
         var altUnit=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
-        return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon',altPPU:price/count,altUnit:altUnit});
+        return applyPairsNote(Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon',altPPU:price/count,altUnit:altUnit}),title);
       }
       if(!count&&price&&(LIQUID_UNITS.includes(ap.unit)||WEIGHT_UNITS.includes(ap.unit))) {
-        return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon',altPPU:price,altUnit:'ct'});
+        return applyPairsNote(Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon',altPPU:price,altUnit:'ct'}),title);
       }
-      return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'});
+      return applyPairsNote(Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'}),title);
     }
     if(ap&&LENGTH_UNITS.includes(ap.unit)&&count&&price){
       var unit=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
@@ -808,7 +828,16 @@ const ITEM_UNITS = [
       return Object.assign(base,{ppu:price/count,unit,source:'calc',note:'Amazon said '+formatPPU(ap.ppu)+'/'+ap.unit});
     }
     if(ap&&CONTAINER_UNITS.includes(ap.unit)) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon-container',note:'Per '+ap.unit+', not per item'});
-    if(ap) return Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'});
+    // Fix 2: Amazon reported a weight/liquid unit but no count and no weight qty in title.
+    // Suppress PPU rather than show $/ml for a blood pressure monitor or $/oz for a garden hose.
+    if(ap&&(WEIGHT_UNITS.includes(ap.unit)||LIQUID_UNITS.includes(ap.unit))&&!count) {
+      var titleHasWeightQty=/\b\d+(?:\.\d+)?\s*(?:lb|lbs|oz|g\b|kg|ml|fl\s*oz|litre|liter)/i.test(title);
+      if(!titleHasWeightQty) {
+        return Object.assign(base,{ppu:null,unit:null,source:'none',
+          note:'PPU hidden \u2014 Amazon reported a weight/volume unit but this item doesn\u2019t appear to be sold by weight.'});
+      }
+    }
+    if(ap) return applyPairsNote(Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'}),title);
     if(count&&price){
       var unit2=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
       return Object.assign(base,{ppu:price/count,unit:unit2,source:'calc'});
@@ -1603,9 +1632,11 @@ const ITEM_UNITS = [
           }
           var uDisp=dUnit?'/'+dUnit:'';
           badge='<span class="ppu-badge'+(isBest?' best':'')+(isCont?' container':'')+'"'+(isBest?' title="Best value among comparable results"':'')+'>'+formatPPU(dPPU)+uDisp+(isBest?' \u2605':'')+' </span>'+warn+convNote;
-          if(r.note&&(r.source==='calc'||r.source==='calc-liquid')) noteStr='<div class="ppu-note">was: '+r.note+'</div>';
+          if(r.note&&(r.source==='calc'||r.source==='calc-liquid')) noteStr='<div class="ppu-note">ℹ '+r.note+'</div>';
+          else if(r.note&&r.source==='amazon') noteStr='<div class="ppu-note">ℹ '+r.note+'</div>';
         } else {
           badge = r.source==='unavailable' ? '<span class="ppu-nodata">unavailable</span>' : '<span class="ppu-nodata">no unit data</span>';
+          if(r.note&&r.source==='none') noteStr='<div class="ppu-note">ℹ '+r.note+'</div>';
         }
 
         if(r.hasCoupon) noteStr+='<div class="ppu-note-deal">\uD83C\uDFF7\uFE0F $'+r.price.toFixed(2)+' with coupon <span class="ppu-note-was">(was $'+r.listPrice.toFixed(2)+')</span></div>';

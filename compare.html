@@ -955,14 +955,15 @@
           ? '$' + displayPPU.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0')
           : '$' + displayPPU.toFixed(2);
         var ppuFormatted = ppuStr + (displayUnit ? ' / ' + displayUnit : '');
+        var ppuNote = item.note ? '<div style="font-size:0.78em;color:#6B5FA0;font-style:italic;margin-top:2px;">\u2139 ' + esc(item.note) + '</div>' : '';
         ppuCell = isBest
-          ? '<span class="best-value">' + ppuFormatted + '<span class="best-value-star" title="Best value">★</span></span>'
-          : ppuFormatted;
+          ? '<span class="best-value">' + ppuFormatted + '<span class="best-value-star" title="Best value">\u2605</span></span>' + ppuNote
+          : ppuFormatted + ppuNote;
       }
 
       var primeCell = item.isPrime
         ? '<span class="pill pill-prime">Prime</span>'
-        : '<span class="na">—</span>';
+        : '<span class="na">\u2014</span>';
 
       // Coupon/promo column — label only, no prices
       var couponParts = [];
@@ -1389,12 +1390,13 @@
           ? '$' + displayPPU.toFixed(3).replace(/0+$/, '').replace(/\.$/, '0')
           : '$' + displayPPU.toFixed(2);
         var ppuFormatted = ppuStr + (displayUnit ? ' / ' + displayUnit : '');
+        var ppuNote = item.note ? '<div style="font-size:0.78em;color:#6B5FA0;font-style:italic;margin-top:2px;">\u2139 ' + esc(item.note) + '</div>' : '';
         ppuCell = isBest
-          ? '<span class="best-value">' + ppuFormatted + '<span class="best-value-star" title="Best value">★</span></span>'
-          : ppuFormatted;
+          ? '<span class="best-value">' + ppuFormatted + '<span class="best-value-star" title="Best value">\u2605</span></span>' + ppuNote
+          : ppuFormatted + ppuNote;
       }
 
-      var primeCell = item.isPrime ? '<span class="pill pill-prime">Prime</span>' : '<span class="na">—</span>';
+      var primeCell = item.isPrime ? '<span class="pill pill-prime">Prime</span>' : '<span class="na">\u2014</span>';
 
       // Coupon/promo column — label only
       var couponParts = [];
