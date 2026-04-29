@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.34)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.35)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1265,11 +1265,14 @@ const ITEM_UNITS = [
             '<span class="ppu-price-prefix">$</span><input id="ppu-min-price" type="number" class="ppu-price-input" min="0" placeholder="min" value="'+(minPrice||'')+'">'+
             '<span class="ppu-price-sep">\u2013</span>'+
             '<span class="ppu-price-prefix">$</span><input id="ppu-max-price" type="number" class="ppu-price-input" min="0" placeholder="max" value="'+(maxPrice||'')+'">'+
-            (hasSnap?'<label class="ppu-snap-label"><input type="checkbox" id="ppu-snap-only"'+(snapOnly?' checked':'')+'>SNAP EBT eligible only</label>':'')+
-            (hasFsaHsa?'<label class="ppu-snap-label"><input type="checkbox" id="ppu-fsa-only"'+(fsaHsaOnly?' checked':'')+'>FSA or HSA eligible only</label>':'')+
-            (hasClimatePledge?'<label class="ppu-snap-label"><input type="checkbox" id="ppu-climate-only"'+(climatePledgeOnly?' checked':'')+'>Climate Pledge Friendly only</label>':'')+
-            (hasSmallBusiness?'<label class="ppu-snap-label"><input type="checkbox" id="ppu-sb-only"'+(smallBusinessOnly?' checked':'')+'>Small Business only</label>':'')+
           '</div>'+
+          ((hasSnap||hasFsaHsa||hasClimatePledge||hasSmallBusiness)?
+            '<div id="ppu-badge-filter-row">'+
+              (hasSnap?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-snap-only"'+(snapOnly?' checked':'')+'>SNAP EBT eligible only</label>':'')+
+              (hasFsaHsa?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-fsa-only"'+(fsaHsaOnly?' checked':'')+'>FSA or HSA eligible only</label>':'')+
+              (hasClimatePledge?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-climate-only"'+(climatePledgeOnly?' checked':'')+'>Climate Pledge Friendly only</label>':'')+
+              (hasSmallBusiness?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-sb-only"'+(smallBusinessOnly?' checked':'')+'>Small Business only</label>':'')+
+            '</div>':'')+
           (hasNonStandard?
             '<div id="ppu-source-row">'+
               '<span class="label">Sources:</span>'+
@@ -1338,7 +1341,8 @@ const ITEM_UNITS = [
         '.ppu-note-fsa{color:#1558b0;}' +
         '.ppu-note-climate{color:#2d6a4f;}' +
         '.ppu-note-sb{color:#c45500;}' +
-        '.ppu-snap-label{font-size:13px;color:#351E45;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;white-space:nowrap;}' +
+        '#ppu-badge-filter-row{display:flex;flex-direction:column;gap:4px;padding:4px 14px 6px;}' +
+        '.ppu-badge-label{font-size:13px;font-weight:normal;color:#351E45;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;}' +
         '#ppu-mixed-units-banner{display:none;padding:7px 12px 7px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;line-height:1.5;display:flex;align-items:flex-start;gap:8px;}' +
         '.ppu-mixed-msg{flex:1;user-select:text;cursor:text;}' +
         '.ppu-mixed-dismiss{flex-shrink:0;background:none;border:none;font-size:14px;color:#877891;cursor:pointer;padding:0;line-height:1;}';
