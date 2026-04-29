@@ -4,6 +4,81 @@
 
 ---
 
+## **v0.6.1.33–34 — April 29, 2026 (Chat 39)**
+
+*Two bug fixes and three new badge detection features.*
+
+### search.js — v0.6.1.33 (BP monitor no-unit fallback)
+- Fix 2 (weight/liquid suppression): when PPU is suppressed and no footage found, now falls back to price/1 ct with note "No weight or count data found; showing price per item." instead of "no unit data"
+- Fixes blood pressure monitors, single-unit health items, and similar — they now sort correctly by price instead of dropping to the end
+
+### search.js / compare.html — v0.6.1.34 (FSA/HSA, Climate Pledge Friendly, Small Business badges)
+- `detectFsaHsa()`, `detectClimatePledge()`, `detectSmallBusiness()` — three new detect functions (aria-label + leaf text scan, same pattern as SNAP EBT)
+- `isFsaHsa`, `isClimatePledge`, `isSmallBusiness` scraped per item; all three included in compare payload
+- Panel note lines: "FSA or HSA eligible" (blue), "Climate Pledge Friendly" (dark green), "Small Business" (orange)
+- Three conditional filter checkboxes in price range row — appear only when at least one result has that badge
+- All three wired into best-value star exclusion, row hide logic, and Clear all reset
+- compare.html: `pill-fsa`, `pill-climate`, `pill-sb` pill styles added
+- Pills appear in Coupon/promo column on both render paths
+- Three conditional filter checkboxes in filter bar — appear only when at least one item has that badge
+- Clear filters resets all three
+
+---
+
+## **v0.6.1.29–32 — April 29, 2026 (Chat 38)**
+
+*Bug-test and PPU accuracy session. Major overhaul of unit parsing logic based on structured testing across 8+ product categories.*
+
+### search.js — v0.6.1.29 (PPU accuracy fixes, transparency notes)
+- **Fix 1:** When Amazon's reported $/ct equals the full item price (within 1%) and count > 1, recalculate from count. Fixes cardstock, envelopes, binder clips, bandages, pee pads, and similar.
+- **Fix 2:** Suppress PPU when Amazon reports weight/liquid unit and title has no weight quantity — prevents $/ml for dog food, $/oz for blood pressure monitors and garden hoses.
+- **Fix 3 (pairs):** When title contains "pair/pairs" and PPU is Amazon's figure, show uncertainty note. Unit label set to "pair".
+- `applyPairsNote()` helper function added.
+- Notes now display in panel for all source types, not just `calc`.
+- `ppuNote` field added to compare payload (separate from user note field).
+- Mixed-units transparency banner added — fires when any item had its unit overridden or recalculated. Shows count and unit types, dismissible.
+- compare.html: PPU cell shows `ppuNote` as italic muted text below the value (both render paths).
+
+### search.js — v0.6.1.30 (pattern fixes, banner wiring)
+- `extractCount`: catches "N [word] sheets" pattern ("100 Scrapbook Sheets").
+- `extractCount` / `guessCountUnit`: add pairs/pair support ("6 Pairs" → count=6, unit=pair).
+- Fix 2 condition tightened: fires regardless of whether count was found (prevents false count from "30 Memory Slots" bypassing suppression).
+- `applyPairsNote`: also sets unit label to "pair" when Amazon's figure used.
+- Mixed-units banner dismiss button wired.
+
+### search.js — v0.6.1.31 (ITEM_UNITS cleanup, sheet normalization)
+- **ITEM_UNITS cleaned up:** weight and liquid units removed. They now fall through to Fix 2 (weight-context check). Prevents $/oz on garden hoses, blood pressure monitors, and anything else Amazon prices by physical weight.
+- **`normalizeUnit` strips leading numbers:** "100 sheets" → "sheet", "50 count" → "ct", "100 fl oz" → "fl oz". Fixes per-package unit strings from Amazon producing non-comparable display labels.
+
+### search.js — v0.6.1.32 ($/ft for length items, sq ft fix)
+- **LENGTH_UNITS expanded:** `sq ft`, `square feet`, `square foot`, `square meter`, `square meters` added. Amazon's `$0.03/square feet` on garden hoses now handled correctly.
+- **Footage extraction:** `extractCount` picks up "25ft", "50 FT", "25 feet" (minimum 5ft; won't match "2ft USB cable"; won't pick up `5/8"` diameter specs due to negative lookbehind).
+- **`guessCountUnit` returns `ft`** for footage titles.
+- **Fix 2 upgraded:** when Amazon reports a weight unit but title has footage (≥5ft), calculates $/ft instead of suppressing. "25ft Garden Hose $19.99" → `$0.80/ft` with note.
+
+---
+
+### Testing findings this session (logged for future fixes)
+- **SNAP EBT:** working correctly. Checkbox shows only on food searches. ✅
+- **Cardstock/sheets:** largely fixed; "1 Pack (250 Sheets)" still picks up 1 from "1 Pack" before 250 from "Sheets" — unit wrong (shows $5.08/sheets not $0.051/sheet). Deferred.
+- **Rice:** solid product override firing incorrectly on "15 lbs (Pack of 2)" — treating as 2-pack of solid items. Titles with "18 Pound", "5-Pound" not matching weight regex (word form, hyphenated). Deferred.
+- **Cat food single bags:** showing $/ct instead of $/lb — no weight quantity matched. Deferred.
+- **Blood pressure monitors:** fixed except a few showing "no unit data" — should fall back to price/1 ct. Deferred.
+- **Garden hoses:** fixed — showing $/ft. `5/8"` diameter spec no longer false-counted.
+- **Pairs:** uncertainty note firing correctly; unit label now "pair" on Amazon-sourced items.
+- **Reddit feedback received:** user praised shortlist + notes + compare table; suggested "lock/pin reference items" feature and per-tablet/per-mg unit warnings. Both noted for roadmap.
+
+---
+
+### Decisions made this session
+- **Mixed-units banner trigger:** fires when AU overrode or recalculated any item's unit (not just when multiple unit families present).
+- **Pairs deferred:** socks/gloves/earrings pairs ambiguity too complex for this session; uncertainty note added as interim measure.
+- **$/ft for length items:** confirmed useful for hoses, extension cords, rope.
+- **"Lock/pin reference items"** added to post-alpha roadmap (from Reddit feedback).
+- **Commit message always provided** when GitHub push is needed — standing rule added.
+
+---
+
 ## **Planning session — April 28, 2026 (Chat 37)**
 
 *No code changes. Strategy, synthesis, and outreach research session.*
@@ -142,73 +217,32 @@
 ## **v0.6.1.21 — April 25, 2026 (Chat 31)**
 
 ### Font sizes bumped (styles.css)
-- Section headers (Display as, Sort, Filters, Sources): 10px → 12px
-- Slider labels (Minimum Reviews, Minimum Rating): 11px → 13px
-- Pages to load label: 12px → 13px
-- Buttons (Clear all, filter pills, source/unit pills): 11px → 12px
-- Status text (56/60 have unit data, pages status): 11px → 12px
-- Price min/max inputs unchanged (reference size)
-
 ### Workflow banner added (search.js, styles.css)
-- Appears at top of panel above Keywords row
-- Text: "New to Actually Useful? For best results: set Amazon's filters first, then load more pages to expand your results, then use Actually Useful filters and sorting to find the best value. When you're ready, shortlist items and compare. Learn more ↗"
-- Dismissed via X button; state saved to localStorage (`au-banner-dismissed`)
-- Resets when user clicks Clear all
-- Text is selectable (user-select:text)
-- Indigo left border, surface background — visible but not alarming
-
 ### Old keyword hint removed (search.js, styles.css)
-- "Actually Useful works best in conjunction with Amazon's existing filters…" div removed — redundant with workflow banner
-- `#ppu-keyword-hint` CSS rule removed
-
 ### Buttons renamed (search.js)
-- "Start over" → "Clear all" with tooltip: "Clears all filters, sorting, and returns to page 1 results."
-- "Re-scan page" → "Re-sync" with tooltip: "Re-syncs with the Amazon page. Use this if you changed Amazon's filters or categories. Extra pages loaded will be lost."
-- All stale "Re-scan page" references in error messages updated to "Re-sync"
-
 ### Re-sync moved to Pages section (search.js)
-- Re-sync button removed from sort/controls row
-- Now lives in the pages row, right of the pages status span
-- Logically grouped with the pages slider — both are data actions, not filter actions
-
 ### Re-sort button removed; auto re-sort on page load (search.js)
-- `ppu-btn-resort` removed from HTML and all JS references cleaned up
-- Results now re-sort automatically when pages finish loading
-
 ### Clear all fixed — actually clears everything (search.js)
-- Root cause: `buildPanel()` was re-reading sessionStorage and restoring old filter state after reset
-- Fix: `sessionStorage.removeItem(getFilterStorageKey(searchTerm))` called before `buildPanel()`
-- Now clears: keywords, sort, min reviews, min rating, min/max price, source filters, sponsored mode; returns to page 1
 
 ---
 
 ## **v0.6.1.20 — April 24, 2026 (Chat 30)**
-
-### Pages slider clipping fixed (search.js)
-- `setupCollapsible` rewritten to use `maxHeight: none` when open instead of `scrollHeight` measurement
-
-### Ko-fi nudge removed (search.js)
-- All `maybeShowNudge()` call sites removed
-
-### Rating/review count restored to row display (search.js)
-- Now displays below delivery info: e.g. `4.5★ (1,234 reviews)`
-
----
+### Pages slider clipping fixed · Ko-fi nudge removed · Rating/review count restored
 
 ## **v0.6.1.19 — April 22, 2026 (Chat 27)**
-### Pages slider always visible (search.js)
+### Pages slider always visible
 
 ## **v0.6.1.18 — April 22, 2026 (Chat 27)**
-### Pages slider show/hide fix — partial (search.js)
+### Pages slider show/hide fix — partial
 
 ## **index.html — April 22, 2026 (Chat 27)**
 ### Content updates — shortlist blurb, affiliate disclaimer, feedback form URL
 
 ## **v0.6.1.17 — April 22, 2026 (Chat 26)**
-### Delivery time fixed on compare.html (search.js, compare.html)
+### Delivery time fixed on compare.html
 
 ## **v0.6.1.16 — April 22, 2026 (Chat 26)**
-### Notes field reworked — link/preview pattern (search.js); imgUrl added to compare payload
+### Notes field reworked — link/preview pattern; imgUrl added to compare payload
 
 ## **v0.6.1.15 — April 21, 2026 (Chat 25)**
 ### Notes field, price range filter, expanded compare payload, compare table updates

@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.29 (overall) · v0.6.1 (manifest) · v0.6.1.28 (search.js) · v0.6.1.29 (compare.html) · Updated April 28, 2026 (Chat 37)*
+*Current version: v0.6.1.34 (overall) · v0.6.1 (manifest) · v0.6.1.34 (search.js) · v0.6.1.30 (compare.html) · Updated April 29, 2026 (Chat 39)*
 
 ---
 
@@ -42,7 +42,7 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 
 The **persistent shortlist** is the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-**Shortlist item object shape sent to compare.html (current — v0.6.1.28):**
+**Shortlist item object shape sent to compare.html (current — v0.6.1.34):**
 ```
 { asin, title, price (raw float), listPrice (raw float), ppu (raw float), ppuUnit,
   isPrime (bool), isSponsored (bool),
@@ -54,7 +54,8 @@ The **persistent shortlist** is the user's active research file. Currently sessi
   freeQualifier (string), fastCutoff (string),
   paidDate (formatted string), paidCutoff (string), paidPrice (string),
   retailerKey (string), rating, reviewCount,
-  note (string), imgUrl (string), isSnap (bool) }
+  note (string — user's note), ppuNote (string — AU inference note), imgUrl (string),
+  isSnap (bool), isFsaHsa (bool), isClimatePledge (bool), isSmallBusiness (bool) }
 ```
 Payload also includes: `searchTerm` (string), `searchUrl` (string).
 
@@ -72,7 +73,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 5. Version Numbering
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.28** (search.js) / **v0.6.1.29** (compare.html)
+- Current: **v0.6.1** (manifest) / **v0.6.1.34** (search.js) / **v0.6.1.30** (compare.html)
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
 
@@ -142,7 +143,15 @@ Note: Palette redesign still wanted for future store update. Use Claude Design t
 
 ### Price-per-unit (PPU)
 - Scraped from Amazon's reported unit price; calculated from price ÷ count when not available
-- Solid product override: when title contains pod/sheet/strip/load/pac/fling/tab keywords and Amazon reports a weight unit or whole-package $/ct, calculates price/count instead
+- **ITEM_UNITS** contains count-type units only — weight/liquid units intentionally excluded so they fall through to Fix 2
+- **Fix 1:** When Amazon's $/ct equals full item price and count > 1, recalculates from count (fixes cardstock, bandages, binder clips, etc.)
+- **Fix 2:** Suppresses PPU when Amazon reports weight/liquid unit but title has no weight quantity; if footage (≥5ft) found instead, calculates $/ft; if no footage either, falls back to price/1 ct with note
+- **Solid product override:** when title contains pod/sheet/strip/load/pac/fling/tab keywords and Amazon reports a weight unit or whole-package $/ct, calculates price/count instead
+- **Footage support:** "25ft", "50 FT" extracted from titles; $/ft calculated and displayed
+- **normalizeUnit** strips leading numbers: "100 sheets" → "sheet", "50 count" → "ct"
+- **Pairs uncertainty note:** when title has "pair/pairs" and source is amazon, shows note; unit set to "pair"
+- **Mixed-units transparency banner:** fires when any item was overridden or recalculated; dismissible
+- **ppuNote** field in compare payload carries AU inference notes (separate from user note)
 - Liquid-dominant inference; best value star on all tied items
 
 ### Keyword filtering
@@ -163,13 +172,13 @@ Slider (1–10); always visible; 750ms throttle between fetches; "No more pages 
 Reloads results from Amazon's current page. Extra pages loaded will be lost.
 
 ### Clear all
-Nuclear reset — clears all AU filters, sort, keywords, sliders, price range, source filters, sponsored mode, SNAP filter; returns to page 1. Always active. Clears sessionStorage so settings don't restore on rebuild.
+Nuclear reset — clears all AU filters, sort, keywords, sliders, price range, source filters, sponsored mode, SNAP/FSA/badge filters; returns to page 1. Always active. Clears sessionStorage so settings don't restore on rebuild.
 
 ### Shortlist (session-scoped)
 Checkbox per row. Per-item notes (link/preview pattern). Compare button POSTs to Supabase, opens compare.html?id=xxx. No item limit.
 
 ### Delivery sorting
-- Parses free delivery, fastest delivery, and paid express delivery ("Or $4.99 delivery in 3 hours")
+- Parses free delivery, fastest delivery, and paid express delivery
 - Free delivery shows full window range: e.g. `5 PM–10 PM`
 - Paid delivery displayed in row: e.g. `$4.99: in 3 hrs`
 - "Soonest ANY delivery" sort factors in free, fastest, and paid dates
@@ -183,6 +192,14 @@ Rating (stars) and review count shown in each panel row, below delivery info.
 - "SNAP EBT eligible only" checkbox appears in price range row — only when at least one result is SNAP-eligible
 - `isSnap` included in compare payload; green SNAP EBT pill shown in Coupon/promo column on compare.html
 - "SNAP EBT only" filter on compare.html — only shown when at least one item in the comparison is SNAP-eligible
+- Verified working on real grocery searches (Chat 38) ✅
+
+### FSA/HSA, Climate Pledge Friendly, Small Business badges
+- `detectFsaHsa()`, `detectClimatePledge()`, `detectSmallBusiness()` — same aria-label + leaf text scan pattern as SNAP EBT
+- Panel note lines per item when detected: "FSA or HSA eligible" (blue), "Climate Pledge Friendly" (dark green), "Small Business" (orange)
+- Conditional filter checkboxes in price range row — appear only when at least one result in the set qualifies
+- All three included in compare payload; pills shown in Coupon/promo column; conditional filters in compare filter bar
+- Not yet verified on live Amazon searches (Chat 39)
 
 ### Telemetry
 Sent via background.js. User can opt out via popup.
@@ -193,10 +210,11 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 ### Comparison page
 - Loads from Supabase by ?id= (primary) or ?data= Base64 (legacy fallback)
 - Sortable columns; **defaults to PPU ascending (lowest first)** on load; best-value star; shareable links
-- Filter bar: keyword, min reviews, min rating, min/max price, source/retailer, hide sponsored, Prime only, SNAP EBT only (conditional)
+- PPU inference notes shown as italic muted text below PPU value (both render paths)
+- Filter bar: keyword, min reviews, min rating, min/max price, source/retailer, hide sponsored, Prime only, SNAP EBT only, FSA/HSA only, Climate Pledge only, Small Business only (all conditional)
 - Column hide toggles: Price, Per unit, Delivery, Rating, Reviews, Prime, Coupon/promo, Source, Notes (per-session)
 - Columns: Product (with thumbnail), Price, Per unit, Delivery, Rating, Reviews, Prime, Coupon/promo, Source, Notes
-- Coupon column: "Coupon" pill + optional "SNAP EBT" pill; S&S shows actual discount string; price/was-price info is in the Price column
+- Coupon column: pills for Coupon, SNAP EBT, FSA or HSA eligible, Climate Pledge Friendly, Small Business; S&S shows actual discount string
 - Liquid unit toggle when liquid items present
 - Action bar when rows checked: Open in tabs, Show checked only, Share checked items, Deselect all
 
@@ -205,11 +223,15 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 ## 10. Known Issues / Deferred
 
 - **Palette redesign still wanted** — use Claude Design for iteration
-- **SNAP EBT detection** — relies on Amazon rendering "SNAP EBT" text in the search card; needs real-world testing with grocery searches
+- **SNAP EBT detection** — verified working ✅; relies on Amazon rendering "SNAP EBT" in the card
+- **FSA/HSA, Climate Pledge, Small Business detection** — not yet verified on live Amazon searches
+- **Rice / weight-sold-by-pound items:** solid product override firing incorrectly on "15 lbs (Pack of 2)"; word-form weights ("5-Pound", "18 Pound") not matching Fix 2 regex
+- **Cat food single bags:** showing $/ct instead of $/lb — Fix 2 weight regex not matching word-form weights
+- **Cardstock "1 Pack (250 Sheets)":** extractCount picks up 1 from "1 Pack" before 250 — wrong unit
+- **Pairs ambiguity:** socks/gloves sold in pairs AND multiples — unit accuracy uncertain; uncertainty note added as interim
 - **Other discount types** — buy-multiple deals, vague "save X%" promos; post-alpha
 - **Product page panel** — disabled in manifest, deferred until post-alpha
 - **Laundry sheets edge cases** — some $/ct = whole-package price slipping through; post-alpha
-- **Mixed units in same search** — investigate
 - **actuallyuseful.net** — not yet pointed at GitHub Pages
 - **compare.html soldBy/shipsFrom/returnPolicy** — blank until product.js re-enabled
 - **"Amazon search" link** — only works for comparisons created after v0.6.1.14
@@ -217,11 +239,13 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 - **Delivery time on compare.html** — only correct for comparisons created after v0.6.1.17
 - **Paid delivery on compare.html** — only available for comparisons created after v0.6.1.27
 - **isSnap on compare.html** — only available for comparisons created after v0.6.1.28
+- **ppuNote on compare.html** — only available for comparisons created after v0.6.1.29
+- **isFsaHsa/isClimatePledge/isSmallBusiness on compare.html** — only available for comparisons created after v0.6.1.34
 - **Collapsible animation gone** — snap only; post-alpha
 - **Ko-fi nudge removed** — redesign post-alpha
-- **No selector resilience** — single-string CSS selectors throughout search.js; one Amazon DOM change breaks scraping silently for all users
-- **No kill switch** — no mechanism to disable a bad release between CWS reviews (1–3 day window); post-public-listing risk
-- **No self-test mode** — extension cannot detect its own breakage; users notice before we do
+- **No selector resilience** — single-string CSS selectors throughout search.js
+- **No kill switch** — no mechanism to disable a bad release between CWS reviews
+- **No self-test mode** — extension cannot detect its own breakage
 
 ---
 
@@ -259,9 +283,9 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 - Permanently visible UI elements are preferred — conditional visibility only when there's a clear reason
 - The comparison page is the destination — the extension is the on-ramp
 - All text in the extension interface must be selectable (user-select:text; cursor:text) — applies to every visible text element
-- **Fail loud at the system level, fail quiet per item.** 90% of items parsing correctly and 10% failing silently = normal. 90% failing = surface a banner. Don't let systemic breakage look like normal operation.
-- **Show our work.** When AU interprets data — inferring units, applying a solid-product override, choosing between Amazon's $/ct and a calculated $/load, detecting variations — surface that interpretation to the user as a brief, dismissible note. Transparency is an accessibility feature.
-- **Sustainability features are features.** Selector resilience, self-test mode, and a kill switch are not polish. They're what makes 1,000 users survivable. They belong in the pre-public-listing checklist, not the post-alpha backlog.
+- **Fail loud at the system level, fail quiet per item.** 90% parsing / 10% failing = normal. 90% failing = surface a banner.
+- **Show our work.** When AU interprets data — inferring units, applying solid-product override, triggering liquid-dominant inference — surface that interpretation as a brief, dismissible note. Transparency is an accessibility feature.
+- **Sustainability features are features.** Selector resilience, self-test mode, and a kill switch belong in the pre-public-listing checklist, not the post-alpha backlog.
 
 ---
 
@@ -275,11 +299,12 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 - Many Google accounts — InPrivate Edge + butactuallyuseful@gmail.com only
 - Always include context/token status when asking "continue or wrap up?"
 - Bundle small changes — don't ship a one-line fix alone
+- **Always provide a commit message when a GitHub push is needed** — standing rule added Chat 38
 - **End-of-session checklist:**
   1. Project_Briefing.md updated
   2. Changelog.md appended
   3. Roadmap.md updated
   4. Handover.md written
   5. All changed code files presented
-  6. If code changed: GitHub push reminder given
+  6. If code changed: GitHub push reminder given + commit message provided
   7. Remind Melissa to update Project files in Claude after the push
