@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.34 (overall) · v0.6.1 (manifest) · v0.6.1.34 (search.js) · v0.6.1.30 (compare.html) · Updated April 29, 2026 (Chat 39)*
+*Current version: v0.6.1.35 (overall) · v0.6.1 (manifest) · v0.6.1.35 (search.js) · v0.6.1.30 (compare.html) · Updated April 29, 2026 (Chat 40)*
 
 ---
 
@@ -42,7 +42,7 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 
 The **persistent shortlist** is the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-**Shortlist item object shape sent to compare.html (current — v0.6.1.34):**
+**Shortlist item object shape sent to compare.html (current — v0.6.1.35):**
 ```
 { asin, title, price (raw float), listPrice (raw float), ppu (raw float), ppuUnit,
   isPrime (bool), isSponsored (bool),
@@ -73,7 +73,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 5. Version Numbering
 
-- Current: **v0.6.1** (manifest) / **v0.6.1.34** (search.js) / **v0.6.1.30** (compare.html)
+- Current: **v0.6.1** (manifest) / **v0.6.1.35** (search.js) / **v0.6.1.30** (compare.html)
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
 
@@ -189,7 +189,6 @@ Rating (stars) and review count shown in each panel row, below delivery info.
 ### SNAP EBT
 - `detectSnap()` checks aria-label and leaf text for "SNAP EBT" on each card
 - "SNAP EBT eligible" note line shown in panel row (green text)
-- "SNAP EBT eligible only" checkbox appears in price range row — only when at least one result is SNAP-eligible
 - `isSnap` included in compare payload; green SNAP EBT pill shown in Coupon/promo column on compare.html
 - "SNAP EBT only" filter on compare.html — only shown when at least one item in the comparison is SNAP-eligible
 - Verified working on real grocery searches (Chat 38) ✅
@@ -197,9 +196,13 @@ Rating (stars) and review count shown in each panel row, below delivery info.
 ### FSA/HSA, Climate Pledge Friendly, Small Business badges
 - `detectFsaHsa()`, `detectClimatePledge()`, `detectSmallBusiness()` — same aria-label + leaf text scan pattern as SNAP EBT
 - Panel note lines per item when detected: "FSA or HSA eligible" (blue), "Climate Pledge Friendly" (dark green), "Small Business" (orange)
-- Conditional filter checkboxes in price range row — appear only when at least one result in the set qualifies
 - All three included in compare payload; pills shown in Coupon/promo column; conditional filters in compare filter bar
 - Not yet verified on live Amazon searches (Chat 39)
+
+### Badge filters (v0.6.1.35)
+- All four badge filter checkboxes (SNAP EBT, FSA/HSA, Climate Pledge, Small Business) render as a vertical stack in `#ppu-badge-filter-row` below the price range row
+- One per line, regular weight text, consistent left alignment
+- Whole block only appears when at least one qualifying result is present
 
 ### Telemetry
 Sent via background.js. User can opt out via popup.
@@ -223,10 +226,16 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 ## 10. Known Issues / Deferred
 
 - **Palette redesign still wanted** — use Claude Design for iteration
-- **SNAP EBT detection** — verified working ✅; relies on Amazon rendering "SNAP EBT" in the card
 - **FSA/HSA, Climate Pledge, Small Business detection** — not yet verified on live Amazon searches
-- **Rice / weight-sold-by-pound items:** solid product override firing incorrectly on "15 lbs (Pack of 2)"; word-form weights ("5-Pound", "18 Pound") not matching Fix 2 regex
-- **Cat food single bags:** showing $/ct instead of $/lb — Fix 2 weight regex not matching word-form weights
+- **Word-form weights not matched** — "5-Pound", "18 Pound", "3 Ounce", "0.85 OZ" not matching Fix 2 regex; affects rice, cat food, toothpaste, personal care
+- **Toothpaste classified as liquid** — Amazon reports fl oz; "toothpaste" / "tooth paste" need adding to SOLID_KEYWORDS
+- **Contact lens solution liquid PPU unreliable** — Amazon's $/fl oz wrong when title has stray numbers (e.g. "(12)"); needs recalculate-and-compare check against title volume
+- **Cotton swabs extractCount** — grabs pack count instead of item count ("500 per Pack - 2 Pack" → 2 ct); one case where count found but PPU calculates price/1
+- **PPU formatting — $0.1/ct** — missing zero-pad to two decimal places
+- **PPU display — sub-penny items** — need 3 decimal places when PPU ≤ $0.01 (cotton swabs, bandages, pills)
+- **Results summary line doesn't update for badge filters** — should reflect filtered count when badge filters active, same as keyword filter
+- **Rice / weight-sold-by-pound items:** solid product override firing incorrectly on "15 lbs (Pack of 2)"
+- **Cat food single bags:** showing $/ct instead of $/lb — word-form weight not matched
 - **Cardstock "1 Pack (250 Sheets)":** extractCount picks up 1 from "1 Pack" before 250 — wrong unit
 - **Pairs ambiguity:** socks/gloves sold in pairs AND multiples — unit accuracy uncertain; uncertainty note added as interim
 - **Other discount types** — buy-multiple deals, vague "save X%" promos; post-alpha
@@ -305,6 +314,7 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
   2. Changelog.md appended
   3. Roadmap.md updated
   4. Handover.md written
-  5. All changed code files presented
-  6. If code changed: GitHub push reminder given + commit message provided
-  7. Remind Melissa to update Project files in Claude after the push
+  5. bug-test.md updated
+  6. All changed code files presented
+  7. If code changed: GitHub push reminder given + commit message provided
+  8. Remind Melissa to update Project files in Claude after the push

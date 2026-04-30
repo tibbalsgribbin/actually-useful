@@ -20,7 +20,14 @@
 
 | Date | Version | Category | Search term | Expected | Actual | Status | Notes |
 |---|---|---|---|---|---|---|---|
-| | | | | | | | |
+| Apr 29 | v0.6.1.35 | Personal care | travel size shampoo | $/oz | $/oz | ✅ | Correct. Mixed $/oz and $/ml across results — both reasonable |
+| Apr 29 | v0.6.1.35 | Personal care | travel size conditioner | $/oz | $/oz | ✅ | Correct |
+| Apr 29 | v0.6.1.35 | Personal care | lip balm | $/ct or $/oz | $/ct or $/oz (mixed) | ⚠️ | Can't show both; cosmetics $/oz reveals extreme price differences (one item: $191/oz). Showing both units is a post-alpha feature |
+| Apr 29 | v0.6.1.35 | Personal care | razor blade refills | $/ct | $/ct | ✅ | Correct. $0.1/ct formatting bug noted (should be $0.10/ct) |
+| Apr 29 | v0.6.1.35 | Personal care | disposable razors | $/ct | $/ct | ✅ | Correct |
+| Apr 29 | v0.6.1.35 | Personal care | contact lens solution | $/fl oz or $/ct | $/fl oz wrong on many | ❌ | Amazon's reported $/fl oz is wrong when title has stray number e.g. "(12)". Vista Clean 12 fl oz: shows $6.76/oz, should be $1.92/oz. Needs liquid PPU sanity check |
+| Apr 29 | v0.6.1.35 | Personal care | travel size toothpaste | $/oz or $/ct | $/ct or $/fl oz (wrong) | ⚠️ | "3 Ounce" word-form not matched — Tom's showing $/ct instead of $/oz. Toothpaste treated as liquid (Amazon reports fl oz). Needs SOLID_KEYWORDS entry |
+| Apr 29 | v0.6.1.35 | Personal care | cotton swabs | $/ct (sub-penny) | $/ct but wrong counts | ❌ | Pack count grabbed instead of item count ("500 per Pack - 2 Pack" → 2 ct, not 1000). One item: count found (500) but PPU shows price/1. Sub-penny items need 3 decimal places |
 
 ---
 
@@ -54,11 +61,16 @@
 - "binder clips assorted"
 - "thread spools"
 
-### 5. Personal care — small sizes
-- "travel size shampoo"
-- "lip balm"
-- "razor blade refills"
-- "contact lens solution"
+### 5. Personal care — small sizes ⚠️ partially tested Apr 29
+- ~~"travel size shampoo"~~ ✅
+- ~~"travel size conditioner"~~ ✅
+- ~~"lip balm"~~ ⚠️
+- ~~"razor blade refills"~~ ✅
+- ~~"disposable razors"~~ ✅
+- ~~"contact lens solution"~~ ❌ known bug
+- ~~"travel size toothpaste"~~ ⚠️ known bug
+- ~~"cotton swabs"~~ ❌ known bug
+- Remaining: "dental floss", "deodorant travel size"
 
 ### 6. Baby & kids (high purchase volume)
 - "baby wipes 720 count"
@@ -103,3 +115,8 @@
 - **Mixed unit families** — $/lb and $/ct appearing in same sorted results. Note which items and what units.
 - **No PPU available** — single-item categories should show price but no PPU, and not sort erroneously.
 - **SNAP EBT detection** — grocery items should show green "SNAP EBT eligible" note when eligible.
+- **Word-form weights** — "3 Ounce", "18 Pound", "0.85 OZ" not matched by Fix 2 regex — item may show $/ct instead of $/oz or $/lb.
+- **Toothpaste as liquid** — Amazon reports fl oz; AU inherits it. Should be solid override.
+- **Sub-penny PPU** — high-count items (cotton swabs, bandages, pills) need 3 decimal places. $0.01/ct is meaningless at scale.
+- **Pack count vs item count** — "500 per Pack - 2 Pack" should yield 1000 ct, not 2 ct.
+- **Amazon liquid PPU sanity** — when title has explicit volume, check Amazon's figure against price ÷ volume. Flag if they diverge significantly.
