@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.35)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.36)
 'use strict';
 
 function auFeedbackUrl() {
@@ -32,7 +32,8 @@ const AU_FILTERS_KEY = 'au_search_filters'; // persists filter state per search 
     'jerky','gummy','gummies','candy','chocolate','snack','snacks',
     'powder','capsule','capsules','tablet','tablets','pill','pills',
     'supplement','vitamin','protein powder','coffee','pod','pods','k-cup','kcup',
-    'sheet','sheets','strip','strips'
+    'sheet','sheets','strip','strips',
+    'toothpaste','tooth paste'
   ];
 
   const LIQUID_UNITS  = ['fl oz','fluid ounce','fluid ounces','ml','milliliter','milliliters','l','liter','liters'];
@@ -152,7 +153,8 @@ const ITEM_UNITS = [
   }
 
   function formatPPU(ppu) {
-    if (ppu < 0.10) return '$'+ppu.toFixed(3).replace(/0+$/,'').replace(/\.$/,'0');
+    if (ppu <= 0.01) return '$'+ppu.toFixed(3);
+    if (ppu < 0.10)  return '$'+ppu.toFixed(2);
     return '$'+ppu.toFixed(2);
   }
 
@@ -881,7 +883,7 @@ const ITEM_UNITS = [
     // Fix 2: Amazon reported a weight/liquid unit but the title has no weight quantity.
     // Before suppressing, check if we can calculate $/ft from footage in the title instead.
     if(ap&&(WEIGHT_UNITS.includes(ap.unit)||LIQUID_UNITS.includes(ap.unit))) {
-      var titleHasWeightQty=/\b\d+(?:\.\d+)?\s*(?:lb|lbs|oz|g\b|kg|ml|fl\s*oz|litre|liter)/i.test(title);
+      var titleHasWeightQty=/\b\d+(?:\.\d+)?[-\s]*(?:lb\.?|lbs\.?|pound|pounds|oz\.?|ounce|ounces|g\b|kg|ml|fl\s*oz|litre|liter)/i.test(title);
       if(!titleHasWeightQty) {
         // If title has footage (e.g. "25ft hose"), calculate $/ft instead of suppressing
         var ftMatch=title.match(/(?<![\d\/])(\d+)\s*(?:ft|feet)\b/i);
