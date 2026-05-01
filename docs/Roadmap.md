@@ -261,7 +261,7 @@ Two of these = stop and wrap up.
 - [x] Chrome Web Store submission — unlisted
 - [x] CWS approved — published unlisted
 - [x] actuallyuseful.net pointed at GitHub Pages — DNS configured (Chat 42)
-- [ ] actuallyuseful.net HTTPS enforcement — pending SSL certificate provisioning
+- [ ] actuallyuseful.net HTTPS enforcement — pending DNS propagation of deleted URL Redirect Record (Chat 43); check dnschecker.org for rogue IP 162.255.119.244 — once gone, do remove-and-re-save in GitHub Pages
 - [ ] Create Amazon account (prerequisite for Associates)
 - [ ] Apply for Amazon Associates (after real user base established)
 - [ ] Hero CTA button added to index.html ✅ done in Chat 42 overhaul
@@ -321,6 +321,7 @@ Everything here should be complete before moving the CWS listing from unlisted t
 - [ ] Add laundry pods and laptop sample comparison links to index.html (pending unit display verification)
 
 **Outreach**
+- [ ] **"Reddit comparison drops"** — find threads where people ask for help choosing a specific product; run AU, generate a real comparison table, share it with them + extension install link. Gate: unit consistency sorted and comparison table reliable first.
 - [ ] Outreach to frugality blogs — The Non-Consumer Advocate, The Frugal Girl — send demo video, lead with accessibility/retiree angle
 - [ ] r/SideProject post with demo video
 - [ ] r/alphaandbetausers + r/betatests + r/TestMyApp — triple post asking for testers

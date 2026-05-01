@@ -1,6 +1,6 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.36 (overall) · v0.6.1 (manifest) · v0.6.1.36 (search.js) · v0.6.1.30 (compare.html) · Updated May 1, 2026 (Chat 42)*
+*Current version: v0.6.1.36 (overall) · v0.6.1 (manifest) · v0.6.1.36 (search.js) · v0.6.1.30 (compare.html) · Updated May 1, 2026 (Chat 43)*
 
 ---
 
@@ -14,7 +14,7 @@ Actually Useful began as a Tampermonkey userscript. As of April 2026, it has piv
 |---|---|
 | Brand | Actually Useful |
 | Tagline | Actually Useful: Amazon but better. |
-| Domain | actuallyuseful.net (Namecheap) — pointed at GitHub Pages ✅ (Chat 42) |
+| Domain | actuallyuseful.net (Namecheap) — pointed at GitHub Pages ✅; HTTPS enforcement pending DNS propagation (Chat 43) |
 | GitHub | github.com/tibbalsgribbin/actually-useful (public) |
 | GitHub Pages | tibbalsgribbin.github.io/actually-useful/ (live) |
 | Ko-fi | ko-fi.com/butactuallyuseful |
@@ -286,7 +286,7 @@ Explains correct workflow sequence. Dismissible; resets on Clear all. Text is se
 | Project docs | `docs/` folder in GitHub repo |
 | Supabase | Actually Useful / actually-useful, free tier |
 | Chrome Web Store | Published unlisted — approved April 2026 |
-| Usage log | Google Sheet — payload relayed via background.js |
+| Usage log | Google Sheet (single merged sheet) — extension + userscript data combined; script version column allows filtering |
 | Feedback form | https://forms.gle/XU8RpYM3cGFTwQQ86 |
 | Ko-fi | ko-fi.com/butactuallyuseful |
 | Contact | butactuallyuseful@gmail.com |
