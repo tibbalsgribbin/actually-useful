@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.36)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.37)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1196,18 +1196,18 @@ const ITEM_UNITS = [
         '</div>'+
         pillHtml+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-sort-toggle" data-target="ppu-sort-collapsible">'+
-          '<span>Sort <span class="ppu-chevron">\u25be</span></span>'+
+          '<span>Sort <span id="ppu-sort-label-text"></span><span class="ppu-chevron">\u25be</span></span>'+
         '</div>'+
         '<div id="ppu-sort-collapsible" class="ppu-collapsible-section">'+
           '<div id="ppu-controls">'+
-            '<select id="ppu-sort" class="ppu-sort-select">'+
+            '<select id="ppu-sort" class="ppu-sort-select" title="Sort products by different criteria">'+
               '<option value="ppu-asc">Best value \u2191</option>'+
               '<option value="price-asc">Price low\u2192high</option>'+
               '<option value="delivery-free">Soonest FREE delivery</option>'+
               '<option value="delivery-any">Soonest ANY delivery</option>'+
               '<option value="default">As shown in Amazon results</option>'+
             '</select>'+
-            '<button id="ppu-btn-hide-sponsored" class="ppu-btn">Move ads to end of results</button>'+
+            '<button id="ppu-btn-hide-sponsored" class="ppu-btn" title="Control how sponsored products appear in results">Move ads to end of results</button>'+
           '</div>'+
           '<div id="ppu-pages-row">'+
             '<span id="ppu-pages-label">'+(nextPageUrl?'Pages to load: <em>1</em>':'No more pages available')+'</span>'+
@@ -1229,12 +1229,12 @@ const ITEM_UNITS = [
           '<div id="ppu-pages-warning" style="margin:0 14px 6px;display:none;">\u26a0\ufe0f Amazon sometimes limits results beyond 7 pages, and those results may be less relevant to your search.</div>'+
         '</div>'+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-filters-toggle" data-target="ppu-filters-collapsible">'+
-          '<span>Filters <span class="ppu-chevron">\u25be</span></span>'+
+          '<span>Filters <span id="ppu-filters-count" style="display:none"></span><span class="ppu-chevron">\u25be</span></span>'+
         '</div>'+
         '<div id="ppu-filters-collapsible" class="ppu-collapsible-section">'+
           '<div id="ppu-sliders-row">'+
             '<div class="ppu-slider-half">'+
-              '<span class="ppu-slider-label">Minimum reviews: <em id="ppu-min-reviews-val">'+(minReviews||0)+'</em></span>'+
+              '<span class="ppu-slider-label" title="Hide products with fewer reviews">Minimum reviews: <em id="ppu-min-reviews-val">'+(minReviews||0)+'</em></span>'+
               '<div class="ppu-slider-wrap">'+
                 '<span class="ppu-slider-startlabel">0</span>'+
                 '<div class="ppu-slider-track-wrap">'+
@@ -1248,7 +1248,7 @@ const ITEM_UNITS = [
               '</div>'+
             '</div>'+
             '<div class="ppu-slider-half">'+
-              '<span class="ppu-slider-label">Minimum rating: <em id="ppu-min-rating-val">'+(minRating>0?(minRating+'\u2605'):'Any')+'</em></span>'+
+              '<span class="ppu-slider-label" title="Hide products below this star rating">Minimum rating: <em id="ppu-min-rating-val">'+(minRating>0?(minRating+'\u2605'):'Any')+'</em></span>'+
               '<div class="ppu-slider-wrap">'+
                 '<span class="ppu-slider-startlabel">0</span>'+
                 '<div class="ppu-slider-track-wrap">'+
@@ -1263,7 +1263,7 @@ const ITEM_UNITS = [
             '</div>'+
           '</div>'+
           '<div id="ppu-price-range-row">'+
-            '<span class="ppu-slider-label">Price: </span>'+
+            '<span class="ppu-slider-label" title="Filter products by price range">Price: </span>'+
             '<span class="ppu-price-prefix">$</span><input id="ppu-min-price" type="number" class="ppu-price-input" min="0" placeholder="min" value="'+(minPrice||'')+'">'+
             '<span class="ppu-price-sep">\u2013</span>'+
             '<span class="ppu-price-prefix">$</span><input id="ppu-max-price" type="number" class="ppu-price-input" min="0" placeholder="max" value="'+(maxPrice||'')+'">'+
@@ -1298,8 +1298,8 @@ const ITEM_UNITS = [
               '<div class="ppu-select-menu-item" data-action="none">None</div>'+
             '</div>'+
           '</div>'+
-          '<span id="ppu-compare-hint">Select items to compare them.</span>'+
-          '<button id="ppu-btn-compare" class="ppu-btn" style="display:none">Compare selected items in new tab</button>'+
+          '<span id="ppu-compare-hint">Check items to compare side-by-side</span>'+
+          '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary" title="View side-by-side comparison table">Compare</button>'+
         '</div>'+
         '<div id="ppu-list"></div>'+
         '<div id="ppu-load-more-row" style="'+(nextPageUrl?'':'display:none')+'">'+
@@ -1312,8 +1312,8 @@ const ITEM_UNITS = [
         '<div id="ppu-sort-note"></div>'+
         '<div id="ppu-info"></div>'+
         '<div id="ppu-footer-links">'+
-          '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">\ud83d\udcac Give feedback</a>'+
-          '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">\u2615 Buy me a coffee</a>'+
+          '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">Give feedback</a>'+
+          '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">Buy me a coffee</a>'+
         '</div>'+
       '</div>';
 
@@ -1545,7 +1545,7 @@ const ITEM_UNITS = [
         selectAllBox.className = 'ppu-select-box'+(checkedCount===0?' empty': checkedCount===allAsins.length?' checked':' indeterminate');
       }
 
-      if(compareBtn){ compareBtn.style.display=cc>0?'block':'none'; }
+      if(compareBtn){ compareBtn.textContent=cc>0?'Compare ('+cc+')':'Compare'; }
       if(compareHint){ compareHint.style.display=cc>0?'none':'block'; }
       var sortLabels={'ppu-asc':'best value','price-asc':'price','delivery-free':'soonest free delivery','delivery-any':'soonest delivery','default':'Amazon order'};
 
@@ -1848,13 +1848,45 @@ const ITEM_UNITS = [
             selectAllBox.textContent = cnt===0?'':cnt===total?'\u2713':'\u2013';
             selectAllBox.className = 'ppu-select-box'+(cnt===0?' empty':cnt===total?' checked':' indeterminate');
           }
-          if(compareBtn){ compareBtn.style.display=cnt>0?'block':'none'; }
+          if(compareBtn){ compareBtn.textContent=cnt>0?'Compare ('+cnt+')':'Compare'; }
           if(compareHint){ compareHint.style.display=cnt>0?'none':'block'; }
+          updateActiveIndicators();
         });
       });
             scheduleLog();
       persistFilters();
+      updateActiveIndicators();
     } // end render
+
+    // ── Active state indicators ──────────────────────────────────────────
+    function updateActiveIndicators() {
+      // Filter count badge
+      var activeCount = 0;
+      if (minReviews > 0) activeCount++;
+      if (minRating > 0) activeCount++;
+      if (minPrice) activeCount++;
+      if (maxPrice) activeCount++;
+      var filterCount = document.getElementById('ppu-filters-count');
+      if (filterCount) {
+        if (activeCount > 0) {
+          filterCount.textContent = activeCount;
+          filterCount.className = 'ppu-active-badge';
+          filterCount.style.display = 'inline';
+        } else {
+          filterCount.style.display = 'none';
+        }
+      }
+      // Sort label
+      var sortLabel = document.getElementById('ppu-sort-label-text');
+      if (sortLabel) {
+        var sortText = '';
+        if (sortVal === 'ppu-asc')        sortText = 'Best value · ';
+        else if (sortVal === 'price-asc') sortText = 'Price · ';
+        else if (sortVal === 'delivery-free') sortText = 'FREE delivery · ';
+        else if (sortVal === 'delivery-any')  sortText = 'ANY delivery · ';
+        sortLabel.textContent = sortText;
+      }
+    }
 
     // ── Helper: slider fill track ────────────────────────────────────────
     function updateSliderFill(el, min, max) {
@@ -2084,7 +2116,7 @@ const ITEM_UNITS = [
             compareHint.style.display='block';
             compareHint.style.color='#c94b2e';
             setTimeout(function(){
-              compareHint.textContent='Select items to compare them.';
+              compareHint.textContent='Check items to compare side-by-side';
               compareHint.style.color='';
               compareHint.style.display=Object.keys(checkedAsins).length>0?'none':'block';
             },4000);
