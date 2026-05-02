@@ -1,21 +1,21 @@
 /* ── Option C palette — Electric violet + saffron ────────────────────── */
 :root {
   --au-bg:           #FFFFFF;
-  --au-surface:      #f9fafb;    /* panel background */
-  --au-header:       #2563eb;    /* panel header & footer — vivid violet */
-  --au-orchid:       #3b82f6;    /* sliders, active states, nudge */
-  --au-orchid-dark:  #60a5fa;    /* links & interactive accents */
-  --au-orchid-hover: #93c5fd;    /* hover */
-  --au-periwinkle:   #eff6ff;   /* buttons, inactive pills */
-  --au-periwinkle-h: #dbeafe;   /* button hover */
-  --au-seafoam:      #60a5fa;    /* mid accent */
+  --au-surface:      oklch(97% 0.01 280);    /* panel background */
+  --au-header:       oklch(52% 0.24 285);    /* panel header & footer — vivid violet */
+  --au-orchid:       oklch(58% 0.22 285);    /* sliders, active states, nudge */
+  --au-orchid-dark:  oklch(65% 0.18 285);    /* links & interactive accents */
+  --au-orchid-hover: oklch(68% 0.16 285);    /* hover */
+  --au-periwinkle:   oklch(91% 0.035 280);   /* buttons, inactive pills */
+  --au-periwinkle-h: oklch(94% 0.018 280);   /* button hover */
+  --au-seafoam:      oklch(75% 0.10 285);    /* mid accent */
   --au-coral:        #FFA590;                /* warnings — unchanged */
   --au-coral-dark:   #c94b2e;
-  --au-text:         #111827;    /* near-black */
-  --au-text-muted:   #6b7280;    /* muted text */
-  --au-border:       #d1d5db;    /* borders & dividers */
-  --au-row-hover:    #dbeafe;   /* row hover */
-  --au-success:      #60a5fa;    /* delivery text */
+  --au-text:         oklch(14% 0.02 280);    /* near-black */
+  --au-text-muted:   oklch(52% 0.06 280);    /* muted text */
+  --au-border:       oklch(88% 0.04 280);    /* borders & dividers */
+  --au-row-hover:    oklch(94% 0.018 280);   /* row hover */
+  --au-success:      oklch(65% 0.18 285);    /* delivery text */
   --au-best-value:   #FFFFFF;                /* best value row — white */
   --au-saffron:      oklch(72% 0.18 62);     /* saffron — best value badge */
   --au-saffron-l:    oklch(96% 0.06 80);     /* saffron light — badge bg */
