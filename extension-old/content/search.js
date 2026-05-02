@@ -1173,10 +1173,7 @@ const ITEM_UNITS = [
       '<div id="ppu-bottom-handle"></div>'+
       '<div id="ppu-controls-wrap">'+
         '<div id="ppu-header">'+
-          '<div id="ppu-header-brand">'+
-            '<span id="ppu-header-mark">AU</span>'+
-            '<h3>Actually Useful</h3>'+
-          '</div>'+
+          '<h3>Actually Useful</h3>'+
           '<div id="ppu-header-btns">'+
             '<a id="ppu-help" href="https://actuallyuseful.net" target="_blank" title="Help &amp; instructions">?</a>'+
             '<button id="ppu-collapse" title="Collapse/expand">\u2195</button>'+
@@ -1199,7 +1196,7 @@ const ITEM_UNITS = [
         '</div>'+
         pillHtml+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-sort-toggle" data-target="ppu-sort-collapsible">'+
-          '<span>Sort <span id="ppu-sort-label-text"></span><span class="ppu-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></span>'+
+          '<span>Sort <span id="ppu-sort-label-text"></span><span class="ppu-chevron">\u25be</span></span>'+
         '</div>'+
         '<div id="ppu-sort-collapsible" class="ppu-collapsible-section">'+
           '<div id="ppu-controls">'+
@@ -1232,7 +1229,7 @@ const ITEM_UNITS = [
           '<div id="ppu-pages-warning" style="margin:0 14px 6px;display:none;">\u26a0\ufe0f Amazon sometimes limits results beyond 7 pages, and those results may be less relevant to your search.</div>'+
         '</div>'+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-filters-toggle" data-target="ppu-filters-collapsible">'+
-          '<span>Filters <span id="ppu-filters-count" style="display:none"></span><span class="ppu-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></span>'+
+          '<span>Filters <span id="ppu-filters-count" style="display:none"></span><span class="ppu-chevron">\u25be</span></span>'+
         '</div>'+
         '<div id="ppu-filters-collapsible" class="ppu-collapsible-section">'+
           '<div id="ppu-sliders-row">'+
@@ -1301,7 +1298,7 @@ const ITEM_UNITS = [
               '<div class="ppu-select-menu-item" data-action="none">None</div>'+
             '</div>'+
           '</div>'+
-          '<span id="ppu-compare-hint"><span id="ppu-compare-main">Check items to compare</span><span id="ppu-compare-sub" style="display:block;font-size:10px;color:#9ca3af;margin-top:1px;font-weight:400;">Click for the full comparison table, more filters, and to save &amp; share your results</span></span>'+
+          '<span id="ppu-compare-hint">Check items to compare side-by-side</span>'+
           '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary" title="View side-by-side comparison table">Compare</button>'+
         '</div>'+
         '<div id="ppu-list"></div>'+
@@ -1549,8 +1546,7 @@ const ITEM_UNITS = [
       }
 
       if(compareBtn){ compareBtn.textContent=cc>0?'Compare ('+cc+')':'Compare'; }
-      if(compareHint){ compareHint.style.display='block'; }
-      if(shortlistBar){ shortlistBar.classList.toggle('active',cc>0); }
+      if(compareHint){ compareHint.style.display=cc>0?'none':'block'; }
       var sortLabels={'ppu-asc':'best value','price-asc':'price','delivery-free':'soonest free delivery','delivery-any':'soonest delivery','default':'Amazon order'};
 
       var anyFilterActive = keyword.trim().length>0 || minReviews>0 || minRating>0 ||
@@ -1853,8 +1849,7 @@ const ITEM_UNITS = [
             selectAllBox.className = 'ppu-select-box'+(cnt===0?' empty':cnt===total?' checked':' indeterminate');
           }
           if(compareBtn){ compareBtn.textContent=cnt>0?'Compare ('+cnt+')':'Compare'; }
-          if(compareHint){ compareHint.style.display='block'; }
-          if(shortlistBar){ shortlistBar.classList.toggle('active',cnt>0); }
+          if(compareHint){ compareHint.style.display=cnt>0?'none':'block'; }
           updateActiveIndicators();
         });
       });
@@ -2117,12 +2112,13 @@ const ITEM_UNITS = [
           compareBtn.textContent=originalLabel;
           compareBtn.disabled=false;
           if(compareHint){
-            var mainEl=document.getElementById('ppu-compare-main');
-            if(mainEl){ mainEl.textContent='Couldn\u2019t open comparison \u2014 check your connection and try again.'; }
+            compareHint.textContent='Couldn\u2019t open comparison \u2014 check your connection and try again.';
+            compareHint.style.display='block';
             compareHint.style.color='#c94b2e';
             setTimeout(function(){
-              if(mainEl){ mainEl.textContent='Check items to compare'; }
+              compareHint.textContent='Check items to compare side-by-side';
               compareHint.style.color='';
+              compareHint.style.display=Object.keys(checkedAsins).length>0?'none':'block';
             },4000);
           }
         });

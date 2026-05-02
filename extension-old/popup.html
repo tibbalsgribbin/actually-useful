@@ -8,9 +8,9 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --primary:    #4f46e5;               /* indigo-600 */
-      --primary-d:  #4338ca;               /* indigo-700 */
-      --mid:        #6366f1;               /* indigo-500 — links */
+      --primary:    #2563eb;               /* blue-600 */
+      --primary-d:  #1d4ed8;               /* blue-700 */
+      --mid:        #3b82f6;               /* blue-500 — links */
       --surface:    #f9fafb;               /* gray-50 */
       --border:     #d1d5db;               /* gray-300 */
       --text:       #111827;               /* gray-900 */
@@ -28,49 +28,23 @@
 
     /* ─── HEADER ─── */
     #au-popup-header {
-      background: #4f46e5;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-d) 100%);
       color: #fff;
-      padding: 10px 14px;
+      padding: 14px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-    }
-
-    #au-popup-header-brand {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: 1;
-    }
-
-    #au-mark {
-      width: 26px;
-      height: 24px;
-      border-radius: 6px;
-      background: rgba(255,255,255,0.18);
-      border: 1px solid rgba(255,255,255,0.25);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-size: 9px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -0.01em;
     }
 
     #au-popup-header h1 {
-      font-size: 13.5px;
-      font-weight: 600;
-      letter-spacing: -0.022em;
-      line-height: 1;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
     }
 
     #au-popup-header span {
-      font-size: 9.5px;
-      color: rgba(255,255,255,0.55);
-      letter-spacing: 0.02em;
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
     }
 
     /* ─── BODY ─── */
@@ -218,10 +192,7 @@
 <body>
 
   <div id="au-popup-header">
-    <div id="au-popup-header-brand">
-      <div id="au-mark">AU</div>
-      <h1>Actually Useful</h1>
-    </div>
+    <h1>Actually Useful</h1>
     <span id="au-version"></span>
   </div>
 
