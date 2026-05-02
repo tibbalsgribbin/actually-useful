@@ -1893,7 +1893,7 @@ const ITEM_UNITS = [
       if (!el) return;
       var pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
       var filled = pct.toFixed(1) + '%';
-      el.style.background = 'linear-gradient(to right,#007185 ' + filled + ',#d0d5d8 ' + filled + ')';
+      el.style.background = 'linear-gradient(to right,#059669 ' + filled + ',#d1d5db ' + filled + ')';
     }
     function updatePagesSliderFill(el) { if (el) updateSliderFill(el, 1, 10); }
     function updatePagesLabel() {
