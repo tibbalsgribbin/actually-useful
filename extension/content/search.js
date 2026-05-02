@@ -1189,25 +1189,25 @@ const ITEM_UNITS = [
           '<button id="ppu-workflow-dismiss" title="Dismiss">\u00d7</button>'+
         '</div>')+
         '<div id="ppu-filter-row">'+
-          '<label for="ppu-keyword" title="Search within product titles">Keywords:</label>'+
-          '<input id="ppu-keyword" type="text" title="Use -word to exclude, OR for alternatives" placeholder="e.g. unscented -refill \u00b7 6ft OR 72 inches \u00b7 organic -sponsored" value="'+keyword.replace(/"/g,'&quot;')+'">'+
+          '<label for="ppu-keyword">Keywords:</label>'+
+          '<input id="ppu-keyword" type="text" placeholder="e.g. unscented -refill \u00b7 6ft OR 72 inches \u00b7 organic -sponsored" value="'+keyword.replace(/"/g,'&quot;')+'">'+
           '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
-          '<button id="ppu-btn-reset-filters" class="ppu-btn" title="Reset all filters and sorting to defaults. Clears all filters, sorting, and returns to page 1 results.">Clear all</button>'+
+          '<button id="ppu-btn-reset-filters" class="ppu-btn" title="Clears all filters, sorting, and returns to page 1 results.">Clear all</button>'+
         '</div>'+
         pillHtml+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-sort-toggle" data-target="ppu-sort-collapsible">'+
-          '<span><span id="ppu-sort-label-text">Sort</span> <span class="ppu-chevron">\u25be</span></span>'+
+          '<span>Sort <span class="ppu-chevron">\u25be</span></span>'+
         '</div>'+
         '<div id="ppu-sort-collapsible" class="ppu-collapsible-section">'+
           '<div id="ppu-controls">'+
-            '<select id="ppu-sort" title="Sort products by different criteria" class="ppu-sort-select">'+
+            '<select id="ppu-sort" class="ppu-sort-select">'+
               '<option value="ppu-asc">Best value \u2191</option>'+
               '<option value="price-asc">Price low\u2192high</option>'+
               '<option value="delivery-free">Soonest FREE delivery</option>'+
               '<option value="delivery-any">Soonest ANY delivery</option>'+
               '<option value="default">As shown in Amazon results</option>'+
             '</select>'+
-            '<button id="ppu-btn-hide-sponsored" title="Control sponsored product visibility" class="ppu-btn">Move ads to end of results</button>'+
+            '<button id="ppu-btn-hide-sponsored" class="ppu-btn">Move ads to end of results</button>'+
           '</div>'+
           '<div id="ppu-pages-row">'+
             '<span id="ppu-pages-label">'+(nextPageUrl?'Pages to load: <em>1</em>':'No more pages available')+'</span>'+
@@ -1229,12 +1229,12 @@ const ITEM_UNITS = [
           '<div id="ppu-pages-warning" style="margin:0 14px 6px;display:none;">\u26a0\ufe0f Amazon sometimes limits results beyond 7 pages, and those results may be less relevant to your search.</div>'+
         '</div>'+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-filters-toggle" data-target="ppu-filters-collapsible">'+
-          '<span><span id="ppu-filters-label-text">Filters</span> <span id="ppu-filters-count"></span> <span class="ppu-chevron">\u25be</span></span>'+
+          '<span>Filters <span class="ppu-chevron">\u25be</span></span>'+
         '</div>'+
         '<div id="ppu-filters-collapsible" class="ppu-collapsible-section">'+
           '<div id="ppu-sliders-row">'+
             '<div class="ppu-slider-half">'+
-              '<span class="ppu-slider-label" title="Hide products with fewer reviews">Minimum reviews: <em id="ppu-min-reviews-val">'+(minReviews||0)+'</em></span>'+
+              '<span class="ppu-slider-label">Minimum reviews: <em id="ppu-min-reviews-val">'+(minReviews||0)+'</em></span>'+
               '<div class="ppu-slider-wrap">'+
                 '<span class="ppu-slider-startlabel">0</span>'+
                 '<div class="ppu-slider-track-wrap">'+
@@ -1248,7 +1248,7 @@ const ITEM_UNITS = [
               '</div>'+
             '</div>'+
             '<div class="ppu-slider-half">'+
-              '<span class="ppu-slider-label" title="Hide products below this star rating">Minimum rating: <em id="ppu-min-rating-val">'+(minRating>0?(minRating+'\u2605'):'Any')+'</em></span>'+
+              '<span class="ppu-slider-label">Minimum rating: <em id="ppu-min-rating-val">'+(minRating>0?(minRating+'\u2605'):'Any')+'</em></span>'+
               '<div class="ppu-slider-wrap">'+
                 '<span class="ppu-slider-startlabel">0</span>'+
                 '<div class="ppu-slider-track-wrap">'+
@@ -1263,10 +1263,10 @@ const ITEM_UNITS = [
             '</div>'+
           '</div>'+
           '<div id="ppu-price-range-row">'+
-            '<span class="ppu-slider-label" title="Filter products by price range">Price: </span>'+
-            '<span class="ppu-price-prefix">$</span><input id="ppu-min-price" type="number" class="ppu-price-input" min="0" title="Minimum price" placeholder="min" value="'+(minPrice||'')+'">'+
+            '<span class="ppu-slider-label">Price: </span>'+
+            '<span class="ppu-price-prefix">$</span><input id="ppu-min-price" type="number" class="ppu-price-input" min="0" placeholder="min" value="'+(minPrice||'')+'">'+
             '<span class="ppu-price-sep">\u2013</span>'+
-            '<span class="ppu-price-prefix">$</span><input id="ppu-max-price" type="number" class="ppu-price-input" min="0" title="Maximum price" placeholder="max" value="'+(maxPrice||'')+'">'+
+            '<span class="ppu-price-prefix">$</span><input id="ppu-max-price" type="number" class="ppu-price-input" min="0" placeholder="max" value="'+(maxPrice||'')+'">'+
           '</div>'+
           ((hasSnap||hasFsaHsa||hasClimatePledge||hasSmallBusiness)?
             '<div id="ppu-badge-filter-row">'+
@@ -1298,8 +1298,8 @@ const ITEM_UNITS = [
               '<div class="ppu-select-menu-item" data-action="none">None</div>'+
             '</div>'+
           '</div>'+
-          '<span id="ppu-compare-hint">Check items to compare side-by-side</span>'+
-          '<button id="ppu-btn-compare" class="ppu-btn" title="View side-by-side comparison table">Compare</button>'+
+          '<span id="ppu-compare-hint">Select items to compare them.</span>'+
+          '<button id="ppu-btn-compare" class="ppu-btn" style="display:none">Compare selected items in new tab</button>'+
         '</div>'+
         '<div id="ppu-list"></div>'+
         '<div id="ppu-load-more-row" style="'+(nextPageUrl?'':'display:none')+'">'+
@@ -1312,8 +1312,8 @@ const ITEM_UNITS = [
         '<div id="ppu-sort-note"></div>'+
         '<div id="ppu-info"></div>'+
         '<div id="ppu-footer-links">'+
-          '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">Give feedback</a>'+
-          '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">Buy me a coffee</a>'+
+          '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">\ud83d\udcac Give feedback</a>'+
+          '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">\u2615 Buy me a coffee</a>'+
         '</div>'+
       '</div>';
 
@@ -1532,58 +1532,6 @@ const ITEM_UNITS = [
       auRefreshNoteWidget(widget, asin);
       row.querySelector('.ppu-row-content').appendChild(widget);
     }
-
-
-  // ── Update UI indicators for active states ────────────────────────────
-  function updateActiveIndicators() {
-    // Count active filters
-    var activeCount = 0;
-    if (minReviews > 0) activeCount++;
-    if (minRating > 0) activeCount++;
-    if (minPrice) activeCount++;
-    if (maxPrice) activeCount++;
-    
-    // Update filter count badge
-    var filterLabel = document.getElementById('ppu-filters-label-text');
-    var filterCount = document.getElementById('ppu-filters-count');
-    if (filterLabel && filterCount) {
-      if (activeCount > 0) {
-        filterCount.textContent = activeCount;
-        filterCount.style.display = 'inline';
-        filterCount.className = 'ppu-active-badge';
-      } else {
-        filterCount.style.display = 'none';
-      }
-    }
-    
-    // Update sort label
-    var sortLabel = document.getElementById('ppu-sort-label-text');
-    if (sortLabel) {
-      var sortText = 'Sort';
-      if (sortVal === 'ppu-asc') sortText = 'Sort: Best value';
-      else if (sortVal === 'price-asc') sortText = 'Sort: Price ↑';
-      else if (sortVal === 'delivery-free') sortText = 'Sort: FREE delivery';
-      else if (sortVal === 'delivery-any') sortText = 'Sort: ANY delivery';
-      else if (sortVal === 'default') sortText = 'Sort: Amazon order';
-      sortLabel.textContent = sortText;
-    }
-    
-    // Update compare button visibility and text
-    var compareBtn = document.getElementById('ppu-btn-compare');
-    var compareHint = document.getElementById('ppu-compare-hint');
-    var checkedCount = Object.keys(checkedAsins).length;
-    if (compareBtn && compareHint) {
-      if (checkedCount > 0) {
-        compareBtn.style.display = 'inline-block';
-        compareBtn.textContent = 'Compare (' + checkedCount + ')';
-        compareHint.style.display = 'none';
-      } else {
-        compareBtn.style.display = 'inline-block';
-        compareBtn.textContent = 'Compare';
-        compareHint.textContent = checkedCount + ' items selected';
-      }
-    }
-  }
 
     // ── Render ────────────────────────────────────────────────────────────
     function render() {
@@ -1900,13 +1848,13 @@ const ITEM_UNITS = [
             selectAllBox.textContent = cnt===0?'':cnt===total?'\u2713':'\u2013';
             selectAllBox.className = 'ppu-select-box'+(cnt===0?' empty':cnt===total?' checked':' indeterminate');
           }
-          updateActiveIndicators();
+          if(compareBtn){ compareBtn.style.display=cnt>0?'block':'none'; }
+          if(compareHint){ compareHint.style.display=cnt>0?'none':'block'; }
         });
       });
             scheduleLog();
       persistFilters();
     } // end render
-      updateActiveIndicators();
 
     // ── Helper: slider fill track ────────────────────────────────────────
     function updateSliderFill(el, min, max) {
