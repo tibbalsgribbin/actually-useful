@@ -1,24 +1,3 @@
-/* ── Electric palette — vivid violet + saffron ───────────────────────── */
-:root {
-  --au-bg:           #FFFFFF;
-  --au-surface:      #F5F4FE;   /* very light violet — panel bg */
-  --au-header:       #5B2FD4;   /* vivid violet — panel header & footer */
-  --au-orchid:       #7B6FE8;       /* medium violet — sliders, active states */
-  --au-orchid-dark:  #3D1FAA;  /* deeper violet — links & accents */
-  --au-orchid-hover: #9B8FF0;           /* hover */
-  --au-periwinkle:   #ECE9FD;      /* light violet tint — buttons, inactive pills */
-  --au-periwinkle-h: #E0DDF8;           /* button hover */
-  --au-seafoam:      #ECE9FD;      /* light violet — Fresh/WF tags */
-  --au-coral:        #FFA590;           /* keep coral for warnings */
-  --au-coral-dark:   #c94b2e;
-  --au-text:         #1A1535;      /* near-black */
-  --au-text-muted:   #706585;     /* muted text */
-  --au-border:       #D8D5F5;    /* light border */
-  --au-row-hover:    #ECE9FD;      /* row hover */
-  --au-success:      #7B6FE8;       /* delivery text */
-  --au-best-value:   #FDF3E0;   /* saffron tint — best value row */
-}search panel (ppu-sorter-panel) and product panel (ppu-product-panel). v0.6.1.12. */
-
 /* ── Option C palette — Electric violet + saffron ────────────────────── */
 :root {
   --au-bg:           #FFFFFF;
@@ -396,7 +375,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-thumb       { width:60px;height:60px;object-fit:contain;display:block; }
 .ppu-row-content { flex:1;min-width:0; }
 .ppu-row a {
-  font-size:0.9rem;color:#5B2FD4;text-decoration:none;display:block;
+  font-size:0.9rem;color:#2563eb;text-decoration:none;display:block;
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
   overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;
 }
