@@ -89,23 +89,32 @@
 
 /* Keyword hint text */
 #ppu-workflow-banner {
-  display:flex;align-items:flex-start;gap:8px;
-  margin:6px 10px 4px;padding:8px 10px;
-  background:var(--au-surface);border:1px solid var(--au-border);border-radius:6px;
-  border-left:3px solid var(--au-header);
+  display:flex;align-items:center;gap:8px;flex-shrink:0;
+  padding:7px 10px 7px 12px;
+  background:#f0f2ff;border-bottom:1px solid #e0e4ff;
+}
+#ppu-workflow-banner-dot {
+  width:6px;height:6px;border-radius:50%;background:#4f46e5;flex-shrink:0;margin-top:1px;
+  animation:ppu-pulse-dot 2.4s ease-in-out infinite;
+}
+@keyframes ppu-pulse-dot {
+  0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.5);}
+  60%{box-shadow:0 0 0 4px rgba(79,70,229,0);}
 }
 #ppu-workflow-banner-text {
-  flex:1;font-size:12px;color:var(--au-text);line-height:1.45;
+  flex:1;font-size:11.5px;color:#434376;line-height:1.48;
   user-select:text;cursor:text;
 }
-#ppu-workflow-banner-text strong { color:var(--au-header); }
-#ppu-workflow-learn { color:var(--au-orchid-dark);text-decoration:none;white-space:nowrap; }
+#ppu-workflow-banner-text strong { color:#1e1b72;font-weight:600; }
+#ppu-workflow-learn { color:#4f46e5;font-weight:500;text-decoration:none; }
 #ppu-workflow-learn:hover { text-decoration:underline; }
 #ppu-workflow-dismiss {
   flex-shrink:0;background:none;border:none;cursor:pointer;
-  font-size:16px;line-height:1;padding:0 2px;color:var(--au-text-muted);opacity:0.6;
+  font-size:13px;width:20px;height:20px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  color:#9898b8;transition:all .1s;
 }
-#ppu-workflow-dismiss:hover { opacity:1; }
+#ppu-workflow-dismiss:hover { color:#4f46e5;background:rgba(79,70,229,.1); }
 /* ── Controls wrapper ──────────────────────────────────────────────────── */
 #ppu-controls-wrap { flex-shrink:0;user-select:none;background:var(--au-surface);border-bottom:1px solid var(--au-border); }
 
@@ -192,21 +201,28 @@
 
 /* ── Sort row ────────────────────────────────────────────────────────── */
 #ppu-controls {
-  padding:6px 14px 4px;
+  padding:6px 12px 4px;
   display:flex;gap:6px;align-items:center;flex-wrap:wrap;
 }
 #ppu-sort {
-  font-size:12px;padding:4px 7px;border:1px solid var(--au-border);border-radius:5px;
-  background:var(--au-bg);cursor:pointer;color:var(--au-text);
-  box-shadow:0 1px 2px rgba(26,16,53,0.08);
+  flex:1;font-size:12px;padding:5px 24px 5px 10px;
+  border:1px solid #e5e5ea;border-radius:7px;
+  background:#fff;cursor:pointer;color:#1a1a1a;
+  -webkit-appearance:none;appearance:none;outline:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;
+  transition:border-color .12s,box-shadow .12s;
 }
+#ppu-sort:focus { border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.1); }
 #ppu-btn-resort       { display:none; }
 
 /* ── Pages slider row ────────────────────────────────────────────────── */
 #ppu-pages-row {
-  padding:4px 14px 14px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;
+  padding:3px 12px 10px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;
 }
-#ppu-pages-label { font-size:13px;color:var(--au-text);white-space:nowrap;flex-shrink:0; }
+#ppu-pages-label { font-size:12px;color:var(--au-text-muted);white-space:nowrap;flex-shrink:0; }
+#ppu-pages-label b { font-weight:700;color:var(--au-text);font-style:normal; }
+#ppu-pages-label em { font-weight:700;color:var(--au-text);font-style:normal; }
 #ppu-pages-slider { flex:1;min-width:60px;accent-color:var(--au-orchid); }
 #ppu-pages-warning {
   font-size:11px;color:#7a6000;background:#fffbe6;border:1px solid #ffe58f;
@@ -219,7 +235,7 @@
   padding:4px 14px 6px;
   display:flex;gap:5px;align-items:center;flex-wrap:wrap;
 }
-#ppu-unit-pill-row .pill-label { font-size:12px;color:var(--au-text);white-space:nowrap; }
+#ppu-unit-pill-row .pill-label { font-size:11px;font-weight:500;color:#6b7280;white-space:nowrap; }
 .ppu-unit-pill {
   font-size:12px;padding:3px 10px;border-radius:10px;cursor:pointer;
   border:1px solid #c7d2fe;
@@ -239,40 +255,46 @@
 
 /* ── Keyword filter row ──────────────────────────────────────────────── */
 #ppu-filter-row {
-  padding:6px 14px 2px;
-  display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+  padding:7px 12px 5px;
+  display:flex;gap:6px;align-items:center;flex-wrap:nowrap;
 }
-#ppu-filter-row label { font-size:12px;color:var(--au-text);white-space:nowrap; }
+.ppu-kw-wrap { flex:1;min-width:0;position:relative; }
 #ppu-btn-reset-filters {
-  font-size:12px;padding:3px 8px;white-space:nowrap;flex-shrink:0;
-  border-color:var(--au-border);color:var(--au-text-muted);background:var(--au-surface);box-shadow:none;
+  font-size:11px;padding:5px 10px;white-space:nowrap;flex-shrink:0;
+  border-color:#e5e5ea;color:#71717a;background:#f9f9fc;box-shadow:none;border-radius:7px;
 }
-#ppu-btn-reset-filters:hover { border-color:#c7d2fe;color:var(--au-text);background:var(--au-periwinkle); }
+#ppu-btn-reset-filters:hover { border-color:#d4d4d8;color:#3f3f46;background:#f3f3f6; }
+#ppu-btn-reset-filters.btn-danger { border-color:#fca5a5;color:#dc2626;background:#fef2f2; }
+#ppu-btn-reset-filters.btn-danger:hover { background:#fee2e2; }
 #ppu-keyword {
-  flex:1;min-width:0;font-size:12px;padding:4px 7px;
-  border:1px solid var(--au-border);border-radius:5px;background:var(--au-bg);
-  box-shadow:inset 0 1px 2px rgba(26,16,53,0.06);color:var(--au-text);
+  width:100%;font-size:12px;padding:5px 28px 5px 10px;
+  border:1px solid #e5e5ea;border-radius:7px;background:#f9f9fc;
+  color:#1a1a1a;outline:none;
+  transition:border-color .15s,box-shadow .15s,background .12s;line-height:1;
 }
-#ppu-keyword.active { border-color:var(--au-header);outline:none;box-shadow:0 0 0 2px rgba(81,43,211,0.2),inset 0 1px 2px rgba(26,16,53,0.04); }
-#ppu-keyword:focus { outline:none;box-shadow:inset 0 1px 2px rgba(26,16,53,0.08),0 0 0 2px rgba(107,96,224,0.2); }
-#ppu-keyword.active:focus { box-shadow:0 0 0 2px rgba(81,43,211,0.3),inset 0 1px 2px rgba(26,16,53,0.04); }
+#ppu-keyword::placeholder { color:#b8b8c4;font-size:11.5px; }
+#ppu-keyword.active { background:#fff;border-color:rgba(79,70,229,.4); }
+#ppu-keyword:focus { background:#fff;border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.1); }
+#ppu-keyword.active:focus { box-shadow:0 0 0 3px rgba(79,70,229,.1); }
 #ppu-btn-clear-kw {
-  font-size:13px;padding:2px 6px;border:1px solid var(--au-border);border-radius:5px;
-  background:var(--au-surface);cursor:pointer;color:var(--au-text-muted);display:none;line-height:1.2;
+  position:absolute;right:7px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:#b0b0bc;font-size:10px;
+  width:17px;height:17px;border-radius:50%;padding:0;
+  display:none;align-items:center;justify-content:center;cursor:pointer;transition:all .1s;line-height:1;
 }
-#ppu-btn-clear-kw:hover { background:var(--au-periwinkle);color:var(--au-text); }
+#ppu-btn-clear-kw:hover { background:#ededfb;color:#4f46e5; }
 
 /* ── Dual slider row (min reviews + min rating side by side) ─────────── */
 #ppu-sliders-row {
-  display:flex;gap:0;padding:3px 14px 14px;
+  display:flex;gap:0;padding:6px 12px 12px;
 }
 .ppu-slider-half {
-  flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;
+  flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;
 }
-.ppu-slider-half:first-child { padding-right:10px;border-right:1px solid var(--au-border); }
-.ppu-slider-half:last-child  { padding-left:10px; }
-.ppu-slider-label { font-size:13px;color:var(--au-header);white-space:nowrap; }
-.ppu-slider-label em { font-style:normal;font-weight:700;color:var(--au-header); }
+.ppu-slider-half:first-child { padding-right:12px; }
+.ppu-slider-half:last-child  { padding-left:12px;border-left:1px solid #ebebf5; }
+.ppu-slider-label { font-size:11px;font-weight:500;color:#6b7280;white-space:nowrap; }
+.ppu-slider-label em { font-style:normal;font-weight:700;color:#1a1a1a; }
 .ppu-slider-wrap { display:flex;align-items:center;gap:4px;flex:1; }
 .ppu-slider-endlabel, .ppu-slider-startlabel {
   font-size:10px;color:var(--au-text);white-space:nowrap;flex-shrink:0;font-weight:400;min-width:14px;
@@ -286,25 +308,25 @@
 /* Custom range slider */
 input[type=range].ppu-slider {
   -webkit-appearance:none;appearance:none;
-  width:100%;height:6px;border-radius:3px;outline:none;cursor:pointer;
-  background:var(--au-border);
+  width:100%;height:3px;border-radius:2px;outline:none;cursor:pointer;
+  background:#e5e5ea;
   transition:none;position:relative;z-index:1;
 }
 input[type=range].ppu-slider::-webkit-slider-thumb {
   -webkit-appearance:none;appearance:none;
-  width:18px;height:18px;border-radius:50%;
-  background:var(--au-header);
-  border:2px solid #ffffff;
-  box-shadow:0 1px 4px rgba(0,0,0,0.2);
+  width:13px;height:13px;border-radius:50%;
+  background:#ffffff;
+  border:2px solid #4f46e5;
+  box-shadow:0 1px 3px rgba(79,70,229,0.3);
   cursor:pointer;transition:transform 0.1s,box-shadow 0.1s;
 }
 input[type=range].ppu-slider::-webkit-slider-thumb:hover {
-  transform:scale(1.15);box-shadow:0 2px 6px rgba(79,70,229,0.4);
+  transform:scale(1.2);box-shadow:0 0 0 4px rgba(79,70,229,.12),0 1px 3px rgba(79,70,229,.3);
 }
 input[type=range].ppu-slider::-moz-range-thumb {
-  width:18px;height:18px;border-radius:50%;
-  background:var(--au-header);
-  border:2px solid #ffffff;box-shadow:0 1px 4px rgba(0,0,0,0.2);
+  width:13px;height:13px;border-radius:50%;
+  background:#ffffff;
+  border:2px solid #4f46e5;box-shadow:0 1px 3px rgba(79,70,229,0.3);
   cursor:pointer;
 }
 /* Tick marks */
@@ -319,6 +341,33 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-slider-ticks span.major { height:5px; }
 .ppu-slider-ticks span.minor { height:3px; }
 
+/* ── Active decisions bar ────────────────────────────────────────────── */
+#ppu-dec-bar {
+  margin:3px 12px 7px;padding:4px 10px 4px 14px;
+  background:#f4f4fc;border:1px solid #e2e2f0;border-radius:7px;
+  min-height:26px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;
+  position:relative;overflow:hidden;
+}
+#ppu-dec-bar::before {
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:#4f46e5;border-radius:7px 0 0 7px;
+}
+.ppu-dc {
+  font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;
+  white-space:nowrap;line-height:1.4;
+}
+.ppu-dc-s { background:#eef2ff;color:#3730a3; }
+.ppu-dc-k { background:#f5f3ff;color:#5b21b6; }
+.ppu-dc-f { background:#fefce8;color:#a16207; }
+.ppu-dc-p { background:#ecfeff;color:#0e7490; }
+.ppu-dc-none { font-size:11px;color:#b8b8ce;font-style:italic; }
+/* Section collapse chips */
+.ppu-sec-chip {
+  font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;
+  display:inline-flex;align-items:center;letter-spacing:.01em;margin-left:4px;line-height:1.4;
+}
+.ppu-sec-chip-indigo { background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe; }
+.ppu-sec-chip-amber  { background:#fef3c7;color:#b45309;border:1px solid #fde68a; }
 /* ── Source pills row ────────────────────────────────────────────────── */
 #ppu-source-row {
   padding:4px 14px 8px;
@@ -394,7 +443,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-row {
   padding:6px 10px 6px 8px;border-bottom:1px solid var(--au-border);
   transition:opacity 0.15s;display:flex;gap:8px;align-items:flex-start;
-  background:var(--au-surface);
+  background:#ffffff;
 }
 .ppu-row:last-child         { border-bottom:none; }
 .ppu-row.kw-mismatch        { opacity:0.28; }
@@ -407,8 +456,8 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-row.checked            { background:var(--au-surface); }
 .ppu-cb-wrap     { padding-top:2px;flex-shrink:0; }
 .ppu-cb          { cursor:pointer;width:14px;height:14px;accent-color:var(--au-orchid); }
-.ppu-thumb-wrap  { flex-shrink:0;width:60px; }
-.ppu-thumb       { width:60px;height:60px;object-fit:contain;display:block; }
+.ppu-thumb-wrap  { flex-shrink:0;width:52px; }
+.ppu-thumb       { width:52px;height:52px;object-fit:contain;display:block;border-radius:5px; }
 .ppu-row-content { flex:1;min-width:0; }
 .ppu-row a {
   font-size:0.9rem;color:var(--au-header);text-decoration:none;display:block;

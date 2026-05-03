@@ -1156,7 +1156,7 @@ const ITEM_UNITS = [
 
     var pillHtml='';
     if(hasPills){
-      pillHtml='<div id="ppu-unit-pill-row"><span class="pill-label">Display as:</span>';
+      pillHtml='<div id="ppu-unit-pill-row"><span class="pill-label">Per:</span>';
       unitPills.forEach(function(p){
         var isActive=(p.unit===selectedUnit);
         var cls='ppu-unit-pill'+(isActive?' active':(!isActive&&p.isRecommended?' recommended':''));
@@ -1185,16 +1185,18 @@ const ITEM_UNITS = [
         '</div>'+
         (localStorage.getItem('au-banner-dismissed')==='1' ? '' :
         '<div id="ppu-workflow-banner">'+
+          '<div id="ppu-workflow-banner-dot"></div>'+
           '<div id="ppu-workflow-banner-text">'+
-            '<strong>New to Actually Useful?</strong> For best results: set Amazon\u2019s filters first, then load more pages to expand your results, then use Actually Useful filters and sorting to find the best value. When you\u2019re ready, shortlist items and compare.'+
-            ' <a href="https://actuallyuseful.net" target="_blank" id="ppu-workflow-learn">Learn more \u2197</a>'+
+            '<strong>New here?</strong> Set Amazon\u2019s filters first, then load more pages, then sort &amp; filter here.'+
+            '&ensp;<a href="https://actuallyuseful.net" target="_blank" id="ppu-workflow-learn">Learn more \u2197</a>'+
           '</div>'+
           '<button id="ppu-workflow-dismiss" title="Dismiss">\u00d7</button>'+
         '</div>')+
         '<div id="ppu-filter-row">'+
-          '<label for="ppu-keyword">Keywords:</label>'+
-          '<input id="ppu-keyword" type="text" placeholder="e.g. unscented -refill \u00b7 6ft OR 72 inches \u00b7 organic -sponsored" value="'+keyword.replace(/"/g,'&quot;')+'">'+
-          '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
+          '<div class="ppu-kw-wrap">'+
+            '<input id="ppu-keyword" type="text" placeholder="Keyword filter \u00b7 e.g. organic -refill" value="'+keyword.replace(/"/g,'&quot;')+'">'+
+            '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
+          '</div>'+
           '<button id="ppu-btn-reset-filters" class="ppu-btn" title="Clears all filters, sorting, and returns to page 1 results.">Clear all</button>'+
         '</div>'+
         pillHtml+
@@ -1213,7 +1215,7 @@ const ITEM_UNITS = [
             '<button id="ppu-btn-hide-sponsored" class="ppu-btn" title="Control how sponsored products appear in results">Move ads to end of results</button>'+
           '</div>'+
           '<div id="ppu-pages-row">'+
-            '<span id="ppu-pages-label">'+(nextPageUrl?'Pages to load: <em>1</em>':'No more pages available')+'</span>'+
+            '<span id="ppu-pages-label">'+(nextPageUrl?'Pages: <b>1</b>':'No more pages available')+'</span>'+
             '<div class="ppu-slider-wrap">'+
               '<span class="ppu-slider-startlabel">1</span>'+
               '<div class="ppu-slider-track-wrap">'+
@@ -1290,6 +1292,9 @@ const ITEM_UNITS = [
               }).join('')+
             '</div>':'')+
         '</div>'+
+      '<div id="ppu-dec-bar">'+
+        '<span class="ppu-dc-none">No filters or custom sort applied</span>'+
+      '</div>'+
       '</div>'+
       '<div id="ppu-scroll-area">'+
         '<div id="ppu-shortlist-bar">'+
@@ -1346,8 +1351,11 @@ const ITEM_UNITS = [
         '.ppu-note-fsa{color:#1558b0;}' +
         '.ppu-note-climate{color:#2d6a4f;}' +
         '.ppu-note-sb{color:#c45500;}' +
-        '#ppu-badge-filter-row{display:flex;flex-direction:column;gap:4px;padding:4px 14px 6px;}' +
-        '.ppu-badge-label{font-size:13px;font-weight:normal;color:#351E45;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;}' +
+        '#ppu-badge-filter-row{display:flex;flex-wrap:wrap;gap:5px;padding:4px 12px 8px;}' +
+        '.ppu-badge-label{font-size:11px;font-weight:500;padding:4px 10px;border-radius:6px;border:1px solid #e5e5ea;background:#f9f9fc;color:#6b7280;cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:0;transition:all .12s;}' +
+        '.ppu-badge-label input[type=checkbox]{display:none;}' +
+        '.ppu-badge-label:hover{border-color:#d4d4d8;color:#3f3f46;background:#f3f3f6;}' +
+        '.ppu-badge-label:has(input:checked){background:#eef2ff;border-color:#c7d2fe;color:#3730a3;font-weight:600;}' +
         '#ppu-mixed-units-banner{display:none;padding:7px 12px 7px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;line-height:1.5;display:flex;align-items:flex-start;gap:8px;}' +
         '.ppu-mixed-msg{flex:1;user-select:text;cursor:text;}' +
         '.ppu-mixed-dismiss{flex-shrink:0;background:none;border:none;font-size:14px;color:#877891;cursor:pointer;padding:0;line-height:1;}';
@@ -1474,7 +1482,7 @@ const ITEM_UNITS = [
     var compareBtn=document.getElementById('ppu-btn-compare');
     var compareHint=document.getElementById('ppu-compare-hint');
 
-    if(keyword){kwInput.classList.add('active');clearKw.style.display='block';}
+    if(keyword){kwInput.classList.add('active');clearKw.style.display='flex';}
     updateSliderFill(minReviewsSlider,0,1000);
     updateSliderFill(minRatingSlider,0,5);
     if(hasSponsored){
@@ -1865,7 +1873,7 @@ const ITEM_UNITS = [
 
     // ── Active state indicators ──────────────────────────────────────────
     function updateActiveIndicators() {
-      // Filter count badge
+      // Filter count chip (shows when section is collapsed)
       var activeCount = 0;
       if (minReviews > 0) activeCount++;
       if (minRating > 0) activeCount++;
@@ -1874,22 +1882,39 @@ const ITEM_UNITS = [
       var filterCount = document.getElementById('ppu-filters-count');
       if (filterCount) {
         if (activeCount > 0) {
-          filterCount.textContent = activeCount;
-          filterCount.className = 'ppu-active-badge';
-          filterCount.style.display = 'inline';
+          filterCount.textContent = activeCount + ' active';
+          filterCount.className = 'ppu-sec-chip ppu-sec-chip-amber';
+          filterCount.style.display = 'inline-flex';
         } else {
           filterCount.style.display = 'none';
         }
       }
-      // Sort label
+      // Sort chip (shows when section is collapsed)
       var sortLabel = document.getElementById('ppu-sort-label-text');
       if (sortLabel) {
-        var sortText = '';
-        if (sortVal === 'ppu-asc')        sortText = 'Best value · ';
-        else if (sortVal === 'price-asc') sortText = 'Price · ';
-        else if (sortVal === 'delivery-free') sortText = 'FREE delivery · ';
-        else if (sortVal === 'delivery-any')  sortText = 'ANY delivery · ';
-        sortLabel.textContent = sortText;
+        var sortChip = '';
+        if (sortVal === 'ppu-asc')            sortChip = 'Best value \u2191';
+        else if (sortVal === 'price-asc')     sortChip = 'Price \u2191';
+        else if (sortVal === 'delivery-free') sortChip = 'Free delivery';
+        else if (sortVal === 'delivery-any')  sortChip = 'Soonest delivery';
+        sortLabel.textContent = sortChip;
+        sortLabel.className = sortChip ? 'ppu-sec-chip ppu-sec-chip-indigo' : '';
+      }
+      // Active decisions bar
+      var decBar = document.getElementById('ppu-dec-bar');
+      if (decBar) {
+        var chips = [];
+        var sortNames = {'price-asc':'Price \u2191','delivery-free':'Free delivery','delivery-any':'Soonest delivery','default':'Amazon order'};
+        if (sortVal !== 'ppu-asc') chips.push('<span class="ppu-dc ppu-dc-s">' + (sortNames[sortVal] || sortVal) + '</span>');
+        if (keyword.trim()) chips.push('<span class="ppu-dc ppu-dc-k">\u201c' + keyword.trim().slice(0,20) + (keyword.trim().length > 20 ? '\u2026' : '\u201d') + '</span>');
+        if (minReviews > 0) chips.push('<span class="ppu-dc ppu-dc-f">\u2265' + minReviews + ' reviews</span>');
+        if (minRating > 0)  chips.push('<span class="ppu-dc ppu-dc-f">\u2265' + minRating + '\u2605</span>');
+        if (minPrice || maxPrice) {
+          var lo = minPrice ? '$' + parseFloat(minPrice).toFixed(0) : '';
+          var hi = maxPrice ? '$' + parseFloat(maxPrice).toFixed(0) : '';
+          chips.push('<span class="ppu-dc ppu-dc-p">' + (lo && hi ? lo + '\u2013' + hi : lo ? lo + '+' : '\u2264' + hi) + '</span>');
+        }
+        decBar.innerHTML = chips.length > 0 ? chips.join('') : '<span class="ppu-dc-none">No filters or custom sort applied</span>';
       }
     }
 
@@ -1898,14 +1923,14 @@ const ITEM_UNITS = [
       if (!el) return;
       var pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
       var filled = pct.toFixed(1) + '%';
-      el.style.background = 'linear-gradient(to right,#059669 ' + filled + ',#d1d5db ' + filled + ')';
+      el.style.background = 'linear-gradient(to right,#4f46e5 ' + filled + ',#e5e5ea ' + filled + ')';
     }
     function updatePagesSliderFill(el) { if (el) updateSliderFill(el, 1, 10); }
     function updatePagesLabel() {
       var labelEl = document.getElementById('ppu-pages-label');
       if (!labelEl || !pagesSlider) return;
       var v = parseInt(pagesSlider.value, 10);
-      labelEl.innerHTML = 'Pages to load: <em>' + v + '</em>';
+      labelEl.innerHTML = 'Pages: <b>' + v + '</b>';
       var warnEl = document.getElementById('ppu-pages-warning');
       if (warnEl) warnEl.style.display = v >= 7 ? 'block' : 'none';
     }
@@ -2133,7 +2158,7 @@ const ITEM_UNITS = [
     kwInput.addEventListener('input',function(){
       keyword=this.value;
       this.classList.toggle('active',this.value.trim().length>0);
-      clearKw.style.display=this.value.trim().length>0?'block':'none';
+      clearKw.style.display=this.value.trim().length>0?'flex':'none';
       clearTimeout(kwDebounceTimer);
       kwDebounceTimer=setTimeout(function(){render();},250);
     });
