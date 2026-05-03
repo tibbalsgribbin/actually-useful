@@ -38,6 +38,7 @@
 
   "host_permissions": [
     "https://www.amazon.com/*",
-    "https://script.google.com/*"
+    "https://script.google.com/*",
+    "https://actuallyuseful.net/*"
   ]
 }

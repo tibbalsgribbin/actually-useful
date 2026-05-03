@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.44)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.45)
 'use strict';
 
 function auFeedbackUrl() {
@@ -2460,4 +2460,31 @@ const ITEM_UNITS = [
     else console.log('[PPU] Timed out.');
   }
 
-  setTimeout(function(){tryBuild(15);},1500);
+  (function(){
+    var KS_URL='https://actuallyuseful.net/killswitch.json';
+    var proceeded=false;
+    function proceed(){
+      if(proceeded)return;
+      proceeded=true;
+      setTimeout(function(){tryBuild(15);},1500);
+    }
+    var ksTimeout=setTimeout(proceed,3000);
+    fetch(KS_URL,{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(data){
+        clearTimeout(ksTimeout);
+        if(data&&data.disabled){
+          var msg=data.message||'Actually Useful is temporarily unavailable. Check actuallyuseful.net for updates.';
+          var banner=document.createElement('div');
+          banner.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#b91c1c;color:#fff;padding:10px 16px;font-family:sans-serif;font-size:14px;font-weight:500;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+          banner.textContent='\u26a0\ufe0f '+msg;
+          document.body.appendChild(banner);
+        } else {
+          proceed();
+        }
+      })
+      .catch(function(){
+        clearTimeout(ksTimeout);
+        proceed();
+      });
+  })();
