@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.37)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.40)
 'use strict';
 
 function auFeedbackUrl() {
@@ -164,6 +164,8 @@ const ITEM_UNITS = [
     // Strip leading "N " prefix from Amazon unit strings like "100 sheets", "50 count"
     // so they normalize to the base unit and compare correctly.
     u = u.replace(/^\d+\s+/, '');
+    // Strip "per ..." suffix from Amazon compound labels like "pack per load", "pod per wash"
+    u = u.replace(/\s+per\s+.*$/, '');
     if (u==='fluid ounce'||u==='fluid ounces'||u==='fl. oz'||u==='fl. oz.') return 'fl oz';
     if (u==='ounce'||u==='ounces') return 'oz';
     if (u==='count') return 'ct';
@@ -782,7 +784,29 @@ const ITEM_UNITS = [
     return result;
   }
 
-  // ── Scrape one card ───────────────────────────────────────────────────────
+  // ── Weight quantity parser ───────────────────────────────────────────────────
+  // Returns the weight quantity in the given unit found in the title.
+  // Used to sanity-check Amazon's reported unit price (e.g. Amazon says $5/oz
+  // but item is $9.99 for 32 oz — detect and recalculate).
+  function parseTitleWeightQty(title, unit) {
+    var ozM = title.match(/\b(\d+(?:\.\d+)?)\s*(?:oz|ounce|ounces)\b/i);
+    var lbM = title.match(/\b(\d+(?:\.\d+)?)\s*[-\s]*(?:lb\.?|lbs\.?|pound|pounds)\b/i);
+    var gM  = title.match(/\b(\d+(?:\.\d+)?)\s*(?:g|gram|grams)\b/i);
+    var kgM = title.match(/\b(\d+(?:\.\d+)?)\s*(?:kg|kilogram|kilograms)\b/i);
+    if (unit === 'oz') {
+      if (ozM) return parseFloat(ozM[1]);
+      if (lbM) return parseFloat(lbM[1]) * 16;
+    }
+    if (unit === 'lb') {
+      if (lbM) return parseFloat(lbM[1]);
+      if (ozM) return parseFloat(ozM[1]) / 16;
+    }
+    if (unit === 'g')  { if (gM)  return parseFloat(gM[1]);  }
+    if (unit === 'kg') { if (kgM) return parseFloat(kgM[1]); }
+    return 0;
+  }
+
+    // ── Scrape one card ───────────────────────────────────────────────────────
   function scrapeCard(el,pageNum,originalIndex) {
     var h2El=el.querySelector('h2[aria-label]')||el.querySelector('h2');
     var brandEl=el.querySelector('h2.a-size-mini span,h2[class*="a-size-mini"] span');
@@ -839,10 +863,10 @@ const ITEM_UNITS = [
       'sheet','sheets','strip','strips','load','loads'
     ];
     var titleLower = title.toLowerCase();
-    var titleIsSolid = COUNTABLE_SOLID_TITLE_KEYWORDS.some(function(kw){ return titleLower.includes(kw); });
+    var titleIsSolid = COUNTABLE_SOLID_TITLE_KEYWORDS.some(function(kw){ return new RegExp('\\b' + kw + '\\b', 'i').test(title); });
     var solidUnitIsWrong = ap && titleIsSolid && count && price && (
       WEIGHT_UNITS.includes(ap.unit) ||
-      (ap.unit === 'ct' && ap.ppu === price)
+      (Math.abs(ap.ppu - price) / price < 0.01)
     );
     if(solidUnitIsWrong) {
       var solidUnit = guessCountUnit(title) || guessUnitFromTitle(title) || 'ct';
@@ -896,6 +920,15 @@ const ITEM_UNITS = [
           note:'No weight or count data found; showing price per item.'});
         return Object.assign(base,{ppu:null,unit:null,source:'none',
           note:'PPU hidden \u2014 Amazon reported a weight/volume unit but this item doesn\u2019t appear to be sold by weight.'});
+      }
+      // Weight sanity check: if Amazon's $/unit × weight-in-title ≠ item price, recalculate.
+      // Catches listings where Amazon reports a wrong unit price (e.g. $5/oz on a $9.99/32oz item).
+      if(WEIGHT_UNITS.includes(ap.unit) && price) {
+        var wQty = parseTitleWeightQty(title, ap.unit) * (count || 1);
+        if(wQty > 0 && Math.abs(ap.ppu * wQty - price) / price > 0.10) {
+          return Object.assign(base,{ppu:price/wQty,unit:ap.unit,source:'calc',
+            note:'Amazon\u2019s unit price didn\u2019t add up \u2014 recalculated from weight in title.'});
+        }
       }
     }
     if(ap) return applyPairsNote(Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'}),title);
@@ -1219,14 +1252,12 @@ const ITEM_UNITS = [
             '<div class="ppu-slider-wrap">'+
               '<span class="ppu-slider-startlabel">1</span>'+
               '<div class="ppu-slider-track-wrap">'+
-                '<input id="ppu-pages-slider" type="range" class="ppu-slider" min="1" max="10" step="1" value="1"'+(nextPageUrl?'':' disabled')+'>'+
+                '<input id="ppu-pages-slider" type="range" class="ppu-slider" min="1" max="7" step="1" value="1"'+(nextPageUrl?'':' disabled')+'>'+
                 '<div class="ppu-slider-ticks">'+
-                  '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="minor"></span>'+
-                  '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="minor"></span>'+
-                  '<span class="minor"></span><span class="major"></span>'+
+                  '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="minor"></span><span class="major"></span>'+
                 '</div>'+
               '</div>'+
-              '<span class="ppu-slider-endlabel">10</span>'+
+              '<span class="ppu-slider-endlabel">7</span>'+
             '</div>'+
             '<span id="ppu-pages-status"></span>'+
             '<button id="ppu-btn-refresh" class="ppu-btn" style="margin-left:6px;flex-shrink:0;" title="Re-syncs with the Amazon page. Use this if you changed Amazon\u2019s filters or categories. Extra pages loaded will be lost.">\u21ba Re-sync</button>'+
