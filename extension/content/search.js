@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.41)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.44)
 'use strict';
 
 function auFeedbackUrl() {
@@ -209,8 +209,21 @@ const ITEM_UNITS = [
     return null;
   }
 
+  // ── Weight-dominant inference ─────────────────────────────────────────────
+  // True when results contain two or more distinct weight units (e.g. oz + lb),
+  // meaning items were calculated from different title formats and need normalizing.
+  function inferWeightDominant(data) {
+    var weightUnits = {};
+    data.forEach(function(r) {
+      if (!r.unit || !r.ppu) return;
+      var u = r.unit.toLowerCase();
+      if (WEIGHT_UNITS.indexOf(u) !== -1) weightUnits[u] = (weightUnits[u]||0)+1;
+    });
+    return Object.keys(weightUnits).length >= 2;
+  }
+
   // ── Unit pill generation ──────────────────────────────────────────────────
-  function generateUnitPills(data, isLiqDom) {
+  function generateUnitPills(data, isLiqDom, isWeightDom) {
     var unitCounts = {};
     data.forEach(function(r){
       if (!r.unit||!r.ppu) return;
@@ -232,8 +245,10 @@ const ITEM_UNITS = [
       pills.push({ unit:'ml',    label:'ml',    isRecommended: false });
     }
     if (hasWeightUnit) {
-      pills.push({ unit:'oz', label:'oz (weight)', isRecommended: false });
+      pills.push({ unit:'oz', label:'oz', isRecommended: !!isWeightDom });
+      pills.push({ unit:'lb', label:'lb', isRecommended: false });
       pills.push({ unit:'g',  label:'g',  isRecommended: false });
+      pills.push({ unit:'kg', label:'kg', isRecommended: false });
     }
     if ((hasCountUnit || hasAltPPU) && (hasLiquidUnit || hasWeightUnit) && !isLiqDom) {
       pills.push({ unit:'ct', label:'per item', isRecommended: false });
@@ -870,6 +885,7 @@ const ITEM_UNITS = [
     var titleIsSolid = COUNTABLE_SOLID_TITLE_KEYWORDS.some(function(kw){ return new RegExp('\\b' + kw + '\\b', 'i').test(title); });
     var solidUnitIsWrong = ap && titleIsSolid && count && price && (
       WEIGHT_UNITS.includes(ap.unit) ||
+      LIQUID_UNITS.includes(ap.unit) ||
       (Math.abs(ap.ppu - price) / price < 0.01)
     );
     if(solidUnitIsWrong) {
@@ -940,7 +956,24 @@ const ITEM_UNITS = [
       var unit2=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
       return Object.assign(base,{ppu:price/count,unit:unit2,source:'calc'});
     }
-    if(price) return Object.assign(base,{ppu:price,unit:'ct',source:'calc-single'});
+    // Weight-from-title: when Amazon gives no unit price and title has a weight,
+    // calculate $/unit instead of falling back to price/ct.
+    // Handles single-bag rice, dog food bags, etc.
+    if(price) {
+      var wtUnit=null,wtQty=0;
+      var ozM2=title.match(/\b(\d+(?:\.\d+)?)\s*(?:oz|ounce|ounces)\b/i);
+      var lbM2=title.match(/\b(\d+(?:\.\d+)?)\s*[-\s]*(?:lb\.?|lbs\.?|pound|pounds)\b/i);
+      var gM2 =title.match(/\b(\d+(?:\.\d+)?)\s*(?:g|gram|grams)\b/i);
+      var kgM2=title.match(/\b(\d+(?:\.\d+)?)\s*(?:kg|kilogram|kilograms)\b/i);
+      if(ozM2){wtQty=parseFloat(ozM2[1]);wtUnit='oz';}
+      else if(lbM2){wtQty=parseFloat(lbM2[1]);wtUnit='lb';}
+      else if(gM2){wtQty=parseFloat(gM2[1]);wtUnit='g';}
+      else if(kgM2){wtQty=parseFloat(kgM2[1]);wtUnit='kg';}
+      if(wtQty>0&&wtUnit)
+        return Object.assign(base,{ppu:price/wtQty,unit:wtUnit,source:'calc-weight',
+          note:'No Amazon unit price \u2014 calculated from weight in title.'});
+      return Object.assign(base,{ppu:price,unit:'ct',source:'calc-single'});
+    }
     if(!price) return Object.assign(base,{ppu:null,unit:null,source:'unavailable'});
     return Object.assign(base,{ppu:null,unit:null,source:'none'});
   }
@@ -1008,6 +1041,7 @@ const ITEM_UNITS = [
   var climatePledgeOnly= false;
   var smallBusinessOnly= false;
   var isLiquidDominant = false;
+  var isWeightDominant = false;
   var unitPills        = [];
   var panelMoved       = false;
   var sortChanged      = false;
@@ -1147,7 +1181,8 @@ const ITEM_UNITS = [
     isLiquidDominant=inferLiquidDominant(allData);
     if(isLiquidDominant) applyLiquidCtConversion(allData);
     isLiquidDominant=inferLiquidDominant(allData);
-    unitPills=generateUnitPills(allData,isLiquidDominant);
+    isWeightDominant=inferWeightDominant(allData);
+    unitPills=generateUnitPills(allData,isLiquidDominant,isWeightDominant);
 
     var detectedRetailers = {};
     allData.forEach(function(r) {
@@ -1664,6 +1699,11 @@ const ITEM_UNITS = [
         return false;
       }).length:0;
       var matchCt=hasKw?displayData.filter(function(r){return r.kwMatch;}).length:null;
+      var badgeFilterActive=snapOnly||fsaHsaOnly||climatePledgeOnly||smallBusinessOnly;
+      var badgeHiddenCt=badgeFilterActive?allData.filter(function(r){
+        return (snapOnly&&!r.isSnap)||(fsaHsaOnly&&!r.isFsaHsa)||
+               (climatePledgeOnly&&!r.isClimatePledge)||(smallBusinessOnly&&!r.isSmallBusiness);
+      }).length:0;
       var info=withData+'/'+allData.length+' have unit data';
       if(loadedPages>1){
         if(nextPageUrl) info+=' \u00b7 '+loadedPages+' pages';
@@ -1673,11 +1713,13 @@ const ITEM_UNITS = [
       if(hiddenSrc>0)              info+=' \u00b7 '+hiddenSrc+' source-hidden';
       if(selectedUnit)             info+=' \u00b7 showing in '+selectedUnit;
       if(isLiquidDominant&&!selectedUnit) info+=' \u00b7 liquid category (oz\u2248fl oz)';
+      if(isWeightDominant&&!selectedUnit) info+=' \u00b7 weight mix \u2014 click \u201coz\u201d to compare all items in the same unit';
       if(sponsoredMode==='demote'&&sponCount>0) info+=' \u00b7 '+sponCount+' ads demoted';
       if(sponsoredMode==='hide'&&sponCount>0)   info+=' \u00b7 '+sponCount+' ads hidden';
       if(revHiddenCt>0)            info+=' \u00b7 '+revHiddenCt+' below min reviews';
       if(ratingHiddenCt>0)         info+=' \u00b7 '+ratingHiddenCt+' below min rating';
       if(priceHiddenCt>0)          info+=' \u00b7 '+priceHiddenCt+' outside price range';
+      if(badgeHiddenCt>0)          info+=' \u00b7 '+badgeHiddenCt+' hidden by badge filter';
       document.getElementById('ppu-info').textContent=info;
 
       var sortNoteEl=document.getElementById('ppu-sort-note');
@@ -2346,7 +2388,8 @@ const ITEM_UNITS = [
             isLiquidDominant=inferLiquidDominant(allData);
             if(isLiquidDominant) applyLiquidCtConversion(result.rows);
             isLiquidDominant=inferLiquidDominant(allData);
-            unitPills=generateUnitPills(allData,isLiquidDominant);
+            isWeightDominant=inferWeightDominant(allData);
+            unitPills=generateUnitPills(allData,isLiquidDominant,isWeightDominant);
             if(result.nextUrl&&remaining>1){
               setTimeout(function(){loadNext(remaining-1);},750);
             } else {
@@ -2374,7 +2417,8 @@ const ITEM_UNITS = [
           isLiquidDominant=inferLiquidDominant(allData);
           if(isLiquidDominant) applyLiquidCtConversion(result.rows);
           isLiquidDominant=inferLiquidDominant(allData);
-          unitPills=generateUnitPills(allData,isLiquidDominant);
+          isWeightDominant=inferWeightDominant(allData);
+          unitPills=generateUnitPills(allData,isLiquidDominant,isWeightDominant);
           btn.disabled=false; updateLoadMoreRow(); render();
         }).catch(function(err){console.log('[PPU] Load more failed:',err);btn.textContent='Load failed \u2014 try Re-sync';btn.disabled=false;});
       });
