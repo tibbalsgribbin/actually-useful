@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.40)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.41)
 'use strict';
 
 function auFeedbackUrl() {
@@ -153,8 +153,7 @@ const ITEM_UNITS = [
   }
 
   function formatPPU(ppu) {
-    if (ppu <= 0.01) return '$'+ppu.toFixed(3);
-    if (ppu < 0.10)  return '$'+ppu.toFixed(2);
+    if (ppu < 0.10) return '$'+ppu.toFixed(3);
     return '$'+ppu.toFixed(2);
   }
 
@@ -711,6 +710,11 @@ const ITEM_UNITS = [
       /(\d[\d,]*)\s+\w+\s+sheets?\b/i,        // "100 Scrapbook Sheets"
       /(\d[\d,]*)\s*-?\s*strips?\b/i,
       /(\d[\d,]*)\s*-?\s*pairs?\b/i,          // "6 pairs", "3-pair"
+      // "4 Mini Tubes", "2 Lip Sticks", "3 Travel Bottles", "5 Small Jars"
+      /(?<![.\d])(\d[\d,]*)(?!\.\d)\s+\w+\s+tubes?\b/i,
+      /(?<![.\d])(\d[\d,]*)(?!\.\d)\s+\w+\s+sticks?\b/i,
+      /(?<![.\d])(\d[\d,]*)(?!\.\d)\s+\w+\s+bottles?\b/i,
+      /(?<![.\d])(\d[\d,]*)(?!\.\d)\s+\w+\s+jars?\b/i,
     ];
     for(var i=0;i<pats.length;i++){var m=text.match(pats[i]);if(m){var n=parseInt(m[1].replace(/,/g,''),10);if(n>1&&n<10000)return n;}}
     // Footage extraction: min 5ft, not preceded by fraction digit (avoids 5/8")
