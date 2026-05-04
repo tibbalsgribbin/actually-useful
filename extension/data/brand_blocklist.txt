@@ -1,0 +1,82 @@
+# Actually Useful — Bundled Brand Blocklist
+# Known low-quality / pseudo-brand / dropship brands.
+# Case-insensitive match. One brand per line.
+# Maintained by AU author. Updated via telemetry review.
+# Wired up in Session 3 alongside brand_allowlist.txt.
+#
+# Sources: console testing (Chat 48, May 2026), known repeat offenders.
+# DO NOT add brands without verifying they are definitively junk.
+
+ABYOVRT
+AGYMNX
+AIMCOO
+AELSON
+ANRABESS
+ASKHOPE
+AUSELILY
+AUNEAL
+BIRW
+BIVENANT
+BKRIVE
+BLENCOT
+BTFBM
+CHARTOU
+CHICGAL
+DRESSFO
+ETCYY
+FENSACE
+FISOEW
+FLOERNS
+FLESSIBILI
+GLNEGE
+GORGLITTER
+GGOOB
+GRACYOGA
+HOTOUCH
+HOTYD
+HTZMO
+HUHOT
+JECEIKA
+JOCAFIYE
+KILIG
+KIRUNDO
+KUTUMAI
+LUNAEU
+MANYDRESS
+MISFAY
+MOLERANI
+MSVLDR
+NOLLSOM
+NILOUFO
+OFEEFAN
+OSTOO
+OUGES
+OYOANGLE
+PRETTYGARDEN
+QZOOK
+RUMIA
+SAUKOLE
+SHENHE
+SPRIME
+STYLEWORD
+TICIFEN
+TORARY
+UEAL
+ULTRANICE
+VOTEPRETTY
+WEACZZY
+WEESO
+WDIRARA
+WIHOLL
+WNEEDU
+WOKANSE
+XIEERDUO
+XPONNI
+YBSKG
+YATHON
+YESNO
+YOBECHO
+ZAFUL
+ZESICA
+ZMPSIISA
+ZOCAVIA

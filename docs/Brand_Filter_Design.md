@@ -1,7 +1,7 @@
 # Brand Filter + Delivery Window Filter — Design Doc
 
 *Design only. Companion to Chat 47 research. Spans 5–6 build sessions.*
-*Created May 4, 2026 (Chat 47)*
+*Created May 4, 2026 (Chat 47). Updated May 4, 2026 (Chat 48 — Session 1 complete).*
 
 ---
 
@@ -9,7 +9,7 @@
 
 Two new filters for the search.js panel:
 
-1. **Brand filter** — flags low-quality / pseudo-brand / dropship listings using a heuristic detector, with a personal blocklist for user overrides and a starter allowlist as a false-positive escape hatch. Optional Amazon-brands demote toggle.
+1. **Brand filter** — flags low-quality / pseudo-brand / dropship listings using a heuristic detector, with a bundled blocklist for known-bad brands, a personal blocklist for user overrides, and a bundled allowlist as a false-positive escape hatch. Optional Amazon-brands demote toggle.
 2. **Delivery window filter** — hides or demotes items whose fastest available delivery is beyond a user-set threshold. Doubles as a soft proxy for overseas shipping.
 
 Both filters use the same hide/demote toggle pattern, the same "show our work" results-summary line, and the same expand-to-view-hidden footer.
@@ -22,6 +22,8 @@ Search results are clogged with dropship junk under gibberish brand names — Pu
 
 Long shipping times are a separate but overlapping signal. Even when brand detection misses, slow shipping catches a lot of the same listings.
 
+Real-world testing (Chat 48) confirmed that in categories like "floral summer dress," the entire search space can be dropship junk. Heuristics alone don't catch everything — fake brand names are a moving target, and many invented names are pronounceable enough to dodge signal-based detection. The bundled blocklist exists to cover known repeat offenders that heuristics miss.
+
 ---
 
 ## Design principles for this work
@@ -29,8 +31,8 @@ Long shipping times are a separate but overlapping signal. Even when brand detec
 - **Spell things out.** Every filter action is visible. No silent hiding. Counts, expandable views, ability to inspect.
 - **Wrong is worse than no answer.** When brand can't be detected, leave the item alone. Don't guess.
 - **User decides.** Defaults are gentle (demote rather than hide for brand, hide for clearly-too-slow delivery). User can flip either toggle.
-- **Heuristics scale; lists don't.** Detection logic is the primary lever. Allowlist exists only to override known false positives.
-- **Telemetry is the feedback channel.** No "report this brand" button. The usage log captures what's being filtered and we curate the allowlist from that signal.
+- **Heuristics catch new junk; lists catch known junk.** Both are needed. Neither alone is sufficient.
+- **Telemetry is the feedback channel.** No "report this brand" button. The usage log captures what's being filtered and we curate the lists from that signal.
 
 ---
 
@@ -43,49 +45,84 @@ Before any filter logic, we need to reliably get the brand string off each searc
 Amazon shows brand in one of three places, in priority order:
 
 1. **`<h2 class="a-size-mini">` "by [Brand]" line** — most explicit. Often present on apparel and beauty.
-2. **First word of title in `<span class="a-size-base-plus">`** — many categories follow "BrandName Product Description" convention.
-3. **`<span class="a-size-base a-color-secondary">` second-row text** — sometimes contains "Visit the X Store" or brand byline.
+2. **`.a-size-base.a-color-secondary` second-row text** — sometimes contains "Visit the X Store" or brand byline.
+3. **First word of title in `<h2 a span>`** — many categories follow "BrandName Product Description" convention.
 
 Detection approach: try selectors in priority order; first match wins. If none match, brand is `null`. Items with `null` brand are exempt from the filter — they pass through unchanged.
 
+### Status: implemented in search.js v0.6.1.48
+
+`scrapeBrand(el)` — multi-strategy fallback, returns string or null. Extracting "Visit the X Store" pattern. First-word-of-title fallback with sanity check (length ≥ 3, not an article or preposition).
+
 ### Risk: selector fragility
 
-This is the same problem flagged in the Briefing's known issues. Brand selectors will break when Amazon updates. **The brand filter should not ship before the broader selector resilience refactor — or, at minimum, brand selectors should use the multi-strategy fallback pattern from day one** (try selector A, fall back to B, fall back to C). Don't compound fragility on fragility.
+Brand selectors use multi-strategy fallback from day one. Still subject to Amazon updates, but more resilient than single-selector approach.
 
 ---
 
 ## Layer 2: Heuristic gibberish detector
 
-The core logic. Each brand string is scored on multiple signals; only acts on high-confidence cases.
+The core logic. Each brand string is scored on multiple signals.
 
-### Signals (placeholder names — finalize during build)
+### Signals (as implemented in v0.6.1.48)
 
-1. **`signalNoDict`** — brand has no dictionary match (English wordlist). Weak signal alone.
-2. **`signalNoVowel`** — vowel-to-consonant ratio under 0.25, and length ≥ 5. Catches MOFFBUZW, KMUYSL.
-3. **`signalConsonantCluster`** — contains 3+ consecutive consonants from a "rare cluster" set (MFB, XCQ, WHL, NGC, etc.). Strong signal.
-4. **`signalShortAllCaps`** — 5–8 chars, all caps, no vowel pattern. Catches OUGES, WIHOLL.
+1. **`signalNoVowel`** — vowel-to-consonant ratio under 0.25, length ≥ 5. Catches MOFFBUZW, KMUYSL.
+2. **`signalConsonantCluster`** — rare consonant cluster OR 4+ consecutive consonants. Catches BTFBM, WIHOLL.
+3. **`signalShortAllCaps`** — 5–8 chars, all caps, ≤1 vowel. Catches HTZMO, AGYMNX.
+4. **`signalFakeMashup`** — no spaces, 5+ chars, 2+ common English word fragments found via substring match or CamelCase split. Catches Prettygarden, Soulomelody, RoseSeek, Newshows. **Flags alone at score 1.**
+5. **`signalAllCapsInvented`** — all caps, no spaces, 5+ letters, not on passlist. Catches OUGES, ZESICA, GORGLITTER, GLNEGE. **Flags alone at score 1.**
 
-(Possible additional signals to consider during build: brand has no detectable web presence — too expensive live, but could be precomputed. Brand contains digits or special chars in unusual positions. Romanized-Chinese-name pattern.)
+### Flagging rule
 
-### Scoring rule
+- `signalFakeMashup` or `signalAllCapsInvented` fires → flagged regardless of other signals
+- All other signals: score ≥ 2 = flagged
 
-Sum the signals. **Default action threshold: 3 or more signals fire.** Below that, the brand passes through unchanged. This deliberately leaves "weakly suspicious but possibly legitimate" brands (e.g. OUGES on its own) untouched.
+### Passlist (within detector)
 
-The threshold is tunable per release. If telemetry shows we're missing too much junk, lower to 2. If we're catching too many real brands, raise to 4.
+Small inline list of known real all-caps brands that would otherwise trigger `signalAllCapsInvented`: ZARA, ASOS, NIKE, ADIDAS, CUPSHE, CIDER, SHEIN, ZAFUL, GRACE, KARIN, SOLY, BIVENANT, ANRABESS, MEROKEETY, and others.
 
-### Allowlist override
+### Allowlist override (Session 3)
 
-Before scoring, check the allowlist. If brand is on the allowlist, never filter it regardless of signals. This is the safety valve for the "OUGES is actually a real brand" case once we discover it via telemetry.
+Before scoring, check the bundled allowlist. If brand is on the allowlist, never filter it regardless of signals.
 
-### Personal blocklist override
+### Bundled blocklist override (Session 3)
 
-After scoring, check the personal blocklist. If brand is on the user's personal blocklist, always filter it regardless of signals. This is for legitimate brands the user personally dislikes (e.g. "I hate AmazonBasics" or "I never buy from this seller").
+Before scoring, check the bundled blocklist. If brand is on the blocklist, always filter it regardless of signals. Takes priority over allowlist.
+
+### Personal blocklist override (Session 3)
+
+After scoring, check the personal blocklist. If brand is on the user's personal blocklist, always filter it regardless of signals.
 
 ---
 
-## Layer 3: Allowlist — small, additive, telemetry-driven
+## Layer 3: Bundled blocklist — known-bad brands
 
-A flat-text file of brand names that should never be filtered, regardless of heuristic.
+**Added Chat 48.** Parallel to the allowlist. Brands confirmed as dropship junk that heuristics miss.
+
+### File
+
+`extension/data/brand_blocklist.txt` — one brand per line, uppercase, case-insensitive match. Created in Chat 48 with 70 starter brands from session testing.
+
+### Maintenance
+
+Same telemetry workflow as allowlist:
+1. Review `topFilteredBrands` in Google Sheet — look for brands scoring 0 that keep appearing
+2. Google the brand — if it's definitively junk, add to blocklist
+3. Ship in next release
+
+### Detection priority
+
+Blocklist check runs before heuristics. Blocklist match → always flagged. No heuristic scoring needed.
+
+---
+
+## Layer 4: Allowlist — small, additive, telemetry-driven
+
+A flat-text file of brand names that should never be filtered, regardless of heuristic or blocklist.
+
+### File
+
+`extension/data/brand_allowlist.txt` — one brand per line, alphabetized, lowercase comparison (case-insensitive match).
 
 ### Initial seed
 
@@ -94,157 +131,86 @@ Ship v1 with ~200–500 brands. Sources:
 - Brands from the AU bug-test categories that have been verified working
 - A subset of the Mosley list (MIT licensed) — only brands that look unambiguously legitimate
 
-### Format
-
-`extension/data/brand_allowlist.txt` — one brand per line, alphabetized, lowercase comparison (case-insensitive match).
-
 ### Maintenance
 
-Driven by usage log. Workflow:
-1. Sort the Google Sheet by `brandsDistinctCount` descending
-2. Read the `topFilteredBrands` field
-3. Pick brands you don't recognize → google → if real, add to allowlist
-4. Bundle additions into a release every few weeks
-
-No PR mechanism, no GitHub issues for users to file, no "report" button. Telemetry does the work. (This matches Melissa's stated preference for keeping things simple.)
-
-### What ships in the extension
-
-The allowlist is bundled with the extension as a static file. Loaded once at panel init. Updates ship in the next extension release. No live remote fetching — keeps things simple, deterministic, and avoids another network dependency.
+Driven by telemetry. Sort Google Sheet by `brandsDistinctCount` descending, read `topFilteredBrands`, google unknowns, add legitimate ones to allowlist.
 
 ---
 
-## Layer 4: Personal blocklist
+## Layer 5: Personal blocklist
 
-User can right-click any product card and add its brand or seller to a personal hide list.
+User can right-click any product card and add its brand to a personal hide list.
 
 ### Storage
 
-`chrome.storage.local` — survives across sessions and reloads, but is per-device. Keys:
-- `auBlocklistBrands` — array of strings
-- `auBlocklistSellers` — array of strings (future, when seller info is available on cards)
+`chrome.storage.local` — keys: `auBlocklistBrands` (array of strings), `auBlocklistSellers` (future).
 
 ### UI on search results
 
-Each card with a detectable brand gets a small `[•••]` action menu (or right-click context). Options:
+Each card with a detectable brand gets a `[•••]` action menu. Options:
 - "Hide all [BrandName] forever"
 - "Hide this seller forever" *(future, post-MVP)*
 
-After clicking, the brand is added to local storage and immediately filtered.
-
 ### UI for managing the blocklist
 
-A small "My blocklist (N brands)" link in the panel footer or in the popup. Clicking opens a simple list with remove buttons. No bulk actions in v1.
+"My blocklist (N brands)" link in panel footer or popup. Simple list with remove buttons.
 
 ### Sync
 
-Out of scope for v1. Single-device. Cross-device sync via `chrome.storage.sync` is post-alpha — has a 100KB cap which is plenty for a brand list, but adds complexity around merge conflicts.
+Out of scope for v1. Single-device.
 
 ---
 
-## Layer 5: Optional Amazon-brands demote toggle
+## Layer 6: Optional Amazon-brands demote toggle
 
-Off by default. When on, items detected as Amazon house brands (AmazonBasics, Solimo, Amazon Essentials, Amazon Aware, etc.) are pushed to the end of results — *not* hidden.
+Off by default. Amazon house brands (AmazonBasics, Solimo, Amazon Essentials, etc.) pushed to end of results — not hidden.
 
-### Detection
+### Why demote-only
 
-Cross-reference against a small static list of Amazon's known house brands. Source: Amazon's own "our brands" filter (which The Markup used) plus their published list.
-
-### Why demote-only, no hide
-
-Strategic. AU's positioning is "Amazon but better" — neutral, not adversarial. Hiding Amazon's own products feels like picking a fight. Demoting them is a transparency tool: "you can still see them, but you won't be steered to them by accident."
-
-### Logging
-
-Single new field: `amazonBrandsDemoteActive` (bool) and `amazonBrandsCountDemoted` (int).
+Strategic neutrality. AU's positioning is "Amazon but better" — not adversarial.
 
 ---
 
 ## Delivery window filter
 
-Smaller, slots into the same UI patterns.
-
 ### Source data
 
-Already scraped: `freeDateTs`, `fastDateTs` (epoch ms). Use the **earlier of the two** — fastest available delivery, paid or free. Reasoning: at the research stage, what matters is whether fast delivery is *possible*. The user can decide later whether to pay for it.
-
-If both are null, the filter exempts the item (don't filter what we can't measure).
+`freeDateTs`, `fastDateTs` (epoch ms). Use the earlier of the two — fastest possible delivery. If both null, exempt the item.
 
 ### UI
 
-Single checkbox: **"Hide slow shipping"** — off by default.
+Single checkbox: "Hide slow shipping." When checked, slider appears: "Hide items not arriving within [7] days." Range 2–21 days, default 7.
 
-When checked, a slider appears:
-> Hide items not arriving within **[7]** days
-> Range: 2–21 days, default 7
+### Hide vs demote
 
-Slider label updates live.
-
-### Hide vs demote toggle
-
-Same pattern as brand filter. Default for delivery: **hide**. Reasoning: a delivery date is a clear-cut signal — either it's fast enough or it isn't, no judgment call. Hide is the natural default. User can flip to demote if they want.
-
-### Logging
-
-New fields:
-- `deliveryFilterActive` (bool)
-- `deliveryFilterMaxDays` (int)
-- `deliveryCountFiltered` (int)
+Default: hide. Delivery is a clear-cut signal.
 
 ---
 
 ## Hide vs demote — how the toggles work
 
-Two independent toggles, one per filter. Each lives next to its filter controls.
-
-### UI pattern
-
-```
-[ Brand filter on/off ]
-   When something fails: [ Hide ] [ Demote ]      ← two-button pill, demote highlighted by default
-   ▼ N demoted by brand filter                     ← expand to see what was demoted
-
-[ Delivery filter on/off ]
-   When something fails: [ Hide ] [ Demote ]      ← hide highlighted by default
-   ▼ N hidden by delivery filter
-```
-
-### Behaviors
+Two independent toggles, one per filter.
 
 - **Hide**: item removed from rendered list; counted in summary line; recoverable via expand
-- **Demote**: item moved to end of results, after a thin divider that says "Below the line: items flagged by [filter name]"
+- **Demote**: item moved to end of results after a "Below the line: items flagged by [filter name]" divider
 
-The "below the line" divider matters. It tells the user "we did flag these, but here they are if you want them." Spell it out, every time.
-
-### Defaults
-
-- Brand filter → **Demote** (judgment call, user might want to see them anyway)
-- Delivery filter → **Hide** (clear-cut signal)
-
-User-changed toggles persist via `chrome.storage.local`.
+Defaults: brand → demote, delivery → hide. Persist via `chrome.storage.local`.
 
 ---
 
 ## Logging fields summary
 
-12 new fields total across all this work:
-
-**Brand filter (7 fields):**
+**Brand filter (~9 fields):**
 - `brandFilterActive` (bool)
 - `brandFilterMode` ("hide" | "demote")
 - `topFilteredBrands` (string, top 10 brands with counts)
 - `brandsFilteredTotal` (int)
 - `brandsDistinctCount` (int)
-- `signalNoDictHits` (int)
-- `signalNoVowelHits` (int)
-- `signalConsonantClusterHits` (int)
-- `signalShortAllCapsHits` (int)
-
-(Actually 9 fields. I miscounted. Adjust during build.)
+- `signalNoVowelHits`, `signalConsonantClusterHits`, `signalShortAllCapsHits`, `signalFakeMashupHits`, `signalAllCapsInventedHits` (int each)
 
 **Personal blocklist (2 fields):**
-- `personalBlocklistSize` (int — total brands user has blocked)
-- `personalBlocklistHits` (int — items hidden by it this session)
+- `personalBlocklistSize` (int)
+- `personalBlocklistHits` (int)
 
 **Amazon-brands demote (2 fields):**
 - `amazonBrandsDemoteActive` (bool)
@@ -255,167 +221,149 @@ User-changed toggles persist via `chrome.storage.local`.
 - `deliveryFilterMaxDays` (int)
 - `deliveryCountFiltered` (int)
 
-**Total: ~16 new fields.** Sheet goes from 46 columns to ~62.
+**Total: ~18 new fields.** Sheet goes from 46 columns to ~64.
 
 ---
 
 ## Compare.html implications
 
-Brand string and brand-filter classification need to flow into the compare payload so the comparison page can display them.
+New payload fields (forward-compat, added in v0.6.1.47):
+- `brand` (string | null) — detected brand string
 
-New payload fields:
-- `brand` (string | null) — the detected brand string
-- `brandFilterClass` ("none" | "demoted" | "hidden") — what the filter did to this item
+To add in Session 2+:
+- `brandFilterClass` ("none" | "demoted" | "hidden")
 - `isAmazonBrand` (bool)
 
-Compare.html will need a brand column (toggleable, like the others), a brand filter on the filter bar, and possibly visual indication on rows that were demoted in the original results. **All of this is post-MVP for compare.html — out of scope until search.js side is solid.**
+Compare.html integration is Session 6 (optional).
 
 ---
 
 ## Build order — 5 sessions
 
-This is **all the same files** — primarily search.js, styles.css, core.js. So one design doc covers all of it. But the work is too much for one session.
+### Session 1 — Brand text scraping + detection scaffolding ✅ COMPLETE (Chat 48)
 
-### Session 1 — Brand text scraping + detection scaffolding
+Files touched: `search.js`
 
-Files touched: `search.js`, `core.js`
+- `scrapeBrand(el)` — 3-selector fallback, returns string or null ✅
+- `detectGibberishBrand(brand)` — 5 signals, solo-signal flagging for signalFakeMashup and signalAllCapsInvented ✅
+- `brand` and `brandFlagged` added to scraped item object ✅
+- `brand` added to compare payload (forward-compat) ✅
+- Console logging for verification ✅
+- `brand_blocklist.txt` starter file created (70 brands), placed in `extension/data/` ✅
 
-- Implement brand-text scraping with multi-strategy fallback (3 selectors, first match wins)
-- Add `brand` field to scraped item object
-- Add `brand` to compare payload (forward-compat; compare.html ignores it for now)
-- Implement the heuristic detector (4 signals, sum-and-threshold)
-- **No UI yet.** Just scrape + classify, log to console for verification.
-- Test against bug-test categories. Tune signals if needed.
+Versions: search.js bumped to v0.6.1.48.
 
-Test plan:
-- Run searches on 5+ categories from bug-test
-- Verify brand text scraped on >70% of items (some legitimately won't have brand text)
-- Inspect classification results in console — flag items that the detector misclassifies
-- Adjust signal thresholds if needed
+Key Session 1 findings:
+- signalAllCapsInvented needed 5+ char limit with no upper bound (not 5–8)
+- signalFakeMashup word list needed significant expansion
+- Both signals are high-confidence enough to flag alone (threshold lowered to 1 for each)
+- Bundled blocklist added to architecture — heuristics alone insufficient for apparel category
+- Catch rate on dress search: strong for all-caps gibberish and mashup brands; misses for mixed-case invented words (Floerns, Wenrine, Verdusa, etc.) — accepted gap
 
 ### Session 2 — Brand filter UI + hide/demote toggle
 
 Files touched: `search.js`, `styles.css`
 
-- Add brand filter on/off toggle to panel
-- Add hide/demote two-button pill
-- Add results summary line ("N demoted by brand filter")
-- Add expand-to-view hidden/demoted footer with "below the line" divider
-- Implement the demote rendering logic (push items to end of list with divider)
+- Brand filter on/off toggle
+- Hide/demote two-button pill
+- Results summary line ("N demoted by brand filter")
+- Expand-to-view footer with "below the line" divider
+- Demote rendering logic
 - Persist filter state in `chrome.storage.local`
-- Add new logging fields to doLog()
+- Add logging fields to doLog()
 - Update Apps Script + sheet header row
 
-Test plan:
-- Toggle filter on, verify panel updates
-- Switch hide/demote, verify behavior changes
-- Verify telemetry rows show new fields populated correctly
+### Session 3 — Allowlist + bundled blocklist + personal blocklist
 
-### Session 3 — Allowlist + personal blocklist
-
-Files touched: `search.js`, `core.js`, `extension/data/brand_allowlist.txt` (new file), `manifest.json` (web_accessible_resources)
+Files touched: `search.js`, `core.js`, `extension/data/brand_allowlist.txt` (new), `extension/data/brand_blocklist.txt` (wire up), `manifest.json`
 
 - Create `brand_allowlist.txt` with starter list (~300 brands)
-- Load allowlist at panel init
-- Wire allowlist override into detector (allowlist always passes)
+- Load both allowlist and blocklist at panel init via `chrome.runtime.getURL()`
+- Wire blocklist check before heuristics (blocklist always flags)
+- Wire allowlist check before heuristics (allowlist always passes)
 - Implement `[•••]` per-card menu with "Hide all [Brand] forever"
-- Wire personal blocklist into detector (blocklist always filters)
-- Implement "My blocklist" management view (popup or panel footer)
+- Wire personal blocklist into detector
+- Implement "My blocklist" management view
 - Update logging with personal blocklist fields
-
-Test plan:
-- Search for a brand on the allowlist → verify it's never filtered
-- Add a known-good brand to personal blocklist → verify it's always filtered
-- Remove from blocklist → verify it goes back to normal classification
 
 ### Session 4 — Delivery window filter
 
 Files touched: `search.js`, `styles.css`
 
-- Add delivery filter checkbox + slider
-- Implement filter logic using earlier of `freeDateTs` / `fastDateTs`
-- Apply same hide/demote toggle pattern (default: hide)
-- Apply same results summary line + expand footer
+- Delivery filter checkbox + slider
+- Filter logic using earlier of `freeDateTs` / `fastDateTs`
+- Same hide/demote toggle pattern (default: hide)
+- Same results summary line + expand footer
 - Persist state
 - Add logging fields
 
-Test plan:
-- Search a category with mixed shipping times
-- Set threshold to 5 days → verify slow items hide/demote correctly
-- Verify items with no delivery date pass through unfiltered
-
 ### Session 5 — Amazon-brands demote toggle + polish
 
-Files touched: `search.js`, `styles.css`, `extension/data/amazon_brands.txt` (new file)
+Files touched: `search.js`, `styles.css`, `extension/data/amazon_brands.txt` (new)
 
 - Create `amazon_brands.txt` with Amazon's known house brands
-- Add toggle (off by default) — "Demote Amazon brands"
-- Implement detection + demotion (always demote, never hide)
+- Toggle (off by default) — "Demote Amazon brands"
+- Detection + demotion (always demote, never hide)
 - Add logging fields
-- General polish pass — hover states, keyboard nav, accessibility check
+- General polish pass
 - Update bug-test.md with new test categories
 
 ### Session 6 (optional) — compare.html integration
 
 Files touched: `compare.html`
 
-- Add brand column (toggleable)
-- Add brand filter on the filter bar
-- Visual indication for items that were demoted/filtered in original results
-
-Out of scope for first launch — can ship the search.js side independently and follow up later.
+- Brand column (toggleable)
+- Brand filter on filter bar
+- Visual indication for demoted/filtered items
 
 ---
 
-## Open design questions for the build sessions
+## Open design questions
 
-These don't need to be answered now. They'll surface during build and are flagged as "decide during implementation":
-
-1. **Allowlist starter list** — do we fork the Mosley list, hand-curate from his entries, or build fresh? Decide during Session 3.
+1. **Allowlist starter list** — fork Mosley list, hand-curate, or build fresh? Decide during Session 3.
 2. **`[•••]` menu placement** — top-right corner of card? Below price? Decide during Session 2.
-3. **Below-the-line divider styling** — full width? Just text? With separator line? Decide during Session 2.
+3. **Below-the-line divider styling** — Decide during Session 2.
 4. **Slider granularity** — 1-day increments or jumpy (2/3/5/7/10/14/21)? Decide during Session 4.
-5. **Brand filter affecting the best-value star** — should a demoted item still be eligible for the best-value star? Probably yes (demoted = "below the line but still ranked"). Confirm during Session 2.
-6. **What counts as "the brand" for compare.html** — first scraped value, or one consistent canonical string? Decide during Session 1 testing.
+5. **Brand filter affecting the best-value star** — demoted items still eligible? Probably yes. Confirm during Session 2.
+6. **Blocklist curation cadence** — how often to review telemetry and ship list updates? Decide post-alpha.
 
 ---
 
 ## Risks and dependencies
 
-**Selector resilience refactor.** Brand-text scraping uses multi-strategy fallback from the start, but the broader codebase still has fragile selectors. If Amazon updates while this work is in flight, brand detection breaks silently. Mitigation: Session 1 test plan includes a sanity check ("does it find brand on >70% of items"). If that drops, surface a banner.
+**Selector resilience.** Brand scraping uses multi-strategy fallback. Broader codebase refactor still pending.
 
-**False-positive overflagging.** Heuristic might catch real brands (small US makers with unusual names). Mitigation: default mode is demote, not hide. User can see what was flagged. Telemetry surfaces patterns. Allowlist absorbs known false positives.
+**False-positive overflagging.** Default mode is demote. Allowlist absorbs known false positives. Telemetry surfaces patterns.
 
-**False-negative underflagging.** Heuristic might miss obvious junk. Mitigation: signal threshold is tunable per release. Telemetry on signal counts shows whether we're firing enough.
+**False-negative underflagging.** Mixed-case invented names (Floerns, Verdusa, Wenrine) are an accepted gap for now. Bundled blocklist covers known repeat offenders. Signal tuning continues post-alpha.
 
-**Scope creep.** This doc covers a lot. Each session is intentionally bounded. If a session gets long, stop and resume next time — don't push through.
+**Moving target.** New fake brands appear constantly. Blocklist + heuristics together are more resilient than either alone. Telemetry drives ongoing curation.
 
-**Brain fog.** This is multi-session work. The handover at end of each session matters more than usual.
+**Scope creep.** Each session is intentionally bounded. Stop and resume rather than push through.
 
 ---
 
 ## Out of scope
 
-- Country-of-origin detection (unreliable, see research notes)
-- Per-product page fetches to enrich brand data (cost too high)
+- Country-of-origin detection (unreliable)
+- Per-product page fetches to enrich brand data
 - Cross-device blocklist sync (post-alpha)
-- Walmart / Target / other platforms (post-alpha by definition)
+- Walmart / Target (post-alpha)
 - Public-facing "report a brand" form (telemetry handles this)
-- Brand quality ratings (subjective, out of AU's mission)
+- Brand quality ratings
 
 ---
 
-## Success criteria for the brand filter feature as a whole
+## Success criteria
 
 The feature ships when:
 
-1. Brand text is scraped reliably on >70% of search cards across the bug-test categories
-2. Heuristic detector catches >50% of obvious gibberish brands without flagging known good brands
+1. Brand text scraped reliably on >70% of search cards across bug-test categories
+2. Heuristic detector + bundled blocklist together catch the majority of obvious junk brands
 3. Personal blocklist works across reloads
 4. Allowlist starter is at least 200 brands
-5. Hide and demote modes both work correctly
-6. Telemetry logs the new fields and the Apps Script + sheet are updated
-7. Filtered items are visible via expand-to-view (no silent hiding)
-8. The "below the line" divider is clear and readable when demote is active
-
-When all 8 are green, the feature is alpha-ready.
+5. Bundled blocklist has at least 50 confirmed junk brands (70 at Session 1 close)
+6. Hide and demote modes both work correctly
+7. Telemetry logs new fields; Apps Script + sheet updated
+8. Filtered items visible via expand-to-view (no silent hiding)
+9. "Below the line" divider clear and readable when demote is active

@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.46)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.48)
 'use strict';
 
 function auFeedbackUrl() {
@@ -825,6 +825,163 @@ const ITEM_UNITS = [
     return 0;
   }
 
+  // ── Brand scraping — multi-strategy fallback ──────────────────────────────
+  // Returns a brand string or null. Tries 3 selectors in priority order.
+  // null means "couldn't detect" — item is exempt from brand filter.
+  function scrapeBrand(el) {
+    // Strategy 1: explicit "by [Brand]" line (apparel, beauty)
+    var s1 = el.querySelector('h2.a-size-mini span, h2[class*="a-size-mini"] span');
+    if (s1) {
+      var t1 = s1.textContent.trim();
+      // Exclude sponsored labels that live in the same selector
+      if (t1 && !/sponsor/i.test(t1)) return t1;
+    }
+    // Strategy 2: dedicated brand byline span (second-row text)
+    var s2 = el.querySelector('.a-size-base.a-color-secondary');
+    if (s2) {
+      var t2 = s2.textContent.trim();
+      // "Visit the X Store" → extract X
+      var storeMatch = t2.match(/^Visit the (.+?) Store$/i);
+      if (storeMatch) return storeMatch[1].trim();
+      // Plain byline that isn't a shipping/rating note
+      if (t2 && t2.length < 60 && !/deliver|rating|review|result|star/i.test(t2)) return t2;
+    }
+    // Strategy 3: first word of title (BrandName ProductDescription convention)
+    var titleEl = el.querySelector('h2 a span, h2 span');
+    if (titleEl) {
+      var titleText = titleEl.textContent.trim();
+      var firstWord = titleText.split(/\s+/)[0];
+      // Only use if it looks like a brand token (not a generic word, number, or article)
+      if (firstWord && firstWord.length >= 3 && !/^\d|^(the|a|an|for|with|by)$/i.test(firstWord)) {
+        return firstWord;
+      }
+    }
+    return null;
+  }
+
+  // ── Heuristic gibberish brand detector ───────────────────────────────────
+  // Returns { signals: [...], score: N, flagged: bool }
+  // Threshold: score >= 2 = flagged (lowered from design doc's 3,
+  // to catch fake-mashup portmanteau brands like Prettygarden, Soulomelody).
+  function detectGibberishBrand(brand) {
+    if (!brand || typeof brand !== 'string') return { signals: [], score: 0, flagged: false };
+    var b = brand.trim();
+    var bUp = b.toUpperCase();
+    var signals = [];
+
+    // Signal 1: signalNoVowel
+    // Vowel-to-consonant ratio under 0.25 AND length >= 5.
+    // Catches MOFFBUZW, KMUYSL, OUGES-style strings.
+    var letters = b.replace(/[^a-zA-Z]/g, '');
+    if (letters.length >= 5) {
+      var vowels = (letters.match(/[aeiouAEIOU]/g) || []).length;
+      var ratio = vowels / letters.length;
+      if (ratio < 0.25) signals.push('signalNoVowel');
+    }
+
+    // Signal 2: signalConsonantCluster
+    // 3+ consecutive consonants from a rare-cluster set.
+    // Catches MOFFBUZW (MFB, WBZ), WIHOLL (WHL).
+    var RARE_CLUSTERS = ['mfb','xcq','whl','ngc','bzw','kml','fzb','wzb','wbz','bwz',
+                         'kms','ngr','xbl','vkl','qbl','fbl','wzk','kmz','ngz'];
+    var lowerB = b.toLowerCase();
+    var consonantsOnly = lowerB.replace(/[aeiou\s]/g, '');
+    var hasRareCluster = RARE_CLUSTERS.some(function(cl) { return consonantsOnly.includes(cl); });
+    // Also catch any run of 4+ consonants
+    var longConsonantRun = /[^aeiou\s]{4,}/i.test(b.replace(/[^a-zA-Z\s]/g, ''));
+    if (hasRareCluster || longConsonantRun) signals.push('signalConsonantCluster');
+
+    // Signal 3: signalShortAllCaps
+    // 5–8 chars, all caps, low vowel density.
+    // Catches OUGES, WIHOLL, KMUYSL.
+    if (b === bUp && letters.length >= 5 && letters.length <= 8) {
+      var capsVowels = (letters.match(/[AEIOU]/g) || []).length;
+      if (capsVowels <= 1) signals.push('signalShortAllCaps');
+    }
+
+    // Signal 4: signalFakeMashup
+    // Brand looks like 2+ real English words concatenated with no spaces.
+    // Catches Prettygarden, Soulomelody, Styleword, Newshows, RoseSeek, etc.
+    // Strategy: split on CamelCase boundaries and substring-match against a broad
+    // word list. 2+ hits = mashup.
+    var COMMON_WORDS = [
+      // Colors & nature
+      'rose','red','blue','green','gold','silver','black','white','pink','coral',
+      'amber','ivory','jade','ruby','sky','sun','moon','star','cloud','storm',
+      'fire','ice','snow','rain','bloom','blossom','petal','leaf','grove','brook',
+      'creek','dale','field','wood','forest','stone','rock','iron','steel',
+      // Descriptors
+      'pretty','grace','glory','bright','light','fresh','pure','soft','wild',
+      'free','royal','prime','ultra','super','mega','mini','pro','max','plus',
+      'cool','warm','sweet','smart','sharp','quick','fast','easy','bold','calm',
+      'kind','true','nova','vita','zest','cozy','glow','flow','peak','core',
+      'base','edge','nest','crest','flair','charm','shine','spark','simple',
+      'life','real','safe','best','fine','good','nice','rich','rare','fair',
+      // Actions & concepts
+      'seek','show','shows','dream','wish','bliss','hope','dawn','dusk','love',
+      'care','wear','dress','mode','look','style','word','new','song','soul',
+      'melody','story','glory','magic','power','force','move','rise','shine',
+      'play','run','fly','flow','grow','make','find','keep','hold','lead',
+      // Common brand suffixes/prefixes
+      'go','co','lab','labs','fit','gear','wear','tech','shop','hub','zone',
+      'plus','pro','max','one','two','trio','four','five','six','seven',
+      'berry','cherry','sunny','happy','lucky','fancy','lacy','daisy','lily',
+      'violet','forest','garden','meadow','valley','canyon','harbor','coast',
+      // Body/fashion
+      'body','skin','silk','lace','knit','yarn','cotton','velvet','satin',
+      'chic','glam','luxe','vibe','trend','mod','retro','boho','urban',
+      // Common word fragments that appear in fake brands
+      'angel','belle','bella','luna','aurora','nova','stella','cleo','mia',
+      'zoe','ivy','eva','ada','leo','ace','axe','fox','owl','bee'
+    ];
+    var camelParts = b.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().split(/\s+/);
+    var bLower = b.toLowerCase();
+    var mashupHits = 0;
+    COMMON_WORDS.forEach(function(word) {
+      if (bLower.includes(word)) mashupHits++;
+    });
+    var camelHits = camelParts.filter(function(p) { return COMMON_WORDS.includes(p) && p.length >= 3; }).length;
+    // Require: no spaces in original brand, 2+ word hits, length >= 5
+    if (b.indexOf(' ') === -1 && b.length >= 5 && (camelHits >= 2 || mashupHits >= 2)) {
+      signals.push('signalFakeMashup');
+    }
+
+    // Signal 5: signalAllCapsInvented
+    // All-caps string, 5+ letters, no spaces, not a real dictionary word.
+    // Catches OUGES, ZESICA, GORGLITTER, GLNEGE, KUTUMAI, ANRABESS, ABYOVRT, etc.
+    // These dodge signalNoVowel because they have vowels, but are clearly invented.
+    // A small set of known real all-caps brands are excluded via a passlist.
+    var ALL_CAPS_PASSLIST = [
+      'ZARA','ASOS','NIKE','ADIDAS','GUCCI','PRADA','DKNY','BCBG','DKNY',
+      'H&M','GAP','COS','TED','REI','UGG','TEVA','KEEN','ECCO','ALDO',
+      'LOFT','SOMA','WHBM','CHICO','BEBE','BCBG','VANS','FILA','PUMA',
+      'REEBOK','ASICS','SKECHERS','MERRELL','COLE','HAAN','BOSS','DIOR',
+      'FENDI','LEVI','WRANGLER','CINCH','CARHARTT','DICKIES','WOLVERINE',
+      'TIMBERLAND','COLUMBIA','PATAGONIA','NORTHFACE','MARMOT','ARCTERYX',
+      'CIDER','CUPSHE','SHEIN','ROMWE','ZAFUL','VENUS','TORRID','ELOQUII',
+      'GRACE','KARIN','SOLY','BIVENANT','ANRABESS','MEROKEETY'
+    ];
+    var isAllCaps = b === bUp && b.indexOf(' ') === -1 && letters.length >= 5;
+    if (isAllCaps) {
+      var onPasslist = ALL_CAPS_PASSLIST.indexOf(b) !== -1;
+      if (!onPasslist) signals.push('signalAllCapsInvented');
+    }
+
+    var score = signals.length;
+    var hasSoloSignal = signals.indexOf("signalAllCapsInvented") !== -1 ||
+                        signals.indexOf("signalFakeMashup") !== -1;
+    var flagged = hasSoloSignal || score >= 2;
+
+    // Console output for Session 1 verification — remove when UI ships
+    if (typeof console !== 'undefined') {
+      console.log(
+        '[AU brand] "' + brand + '" → signals: [' + signals.join(', ') + '] score:' + score + ' flagged:' + flagged
+      );
+    }
+
+    return { signals: signals, score: score, flagged: flagged };
+  }
+
     // ── Scrape one card ───────────────────────────────────────────────────────
   function scrapeCard(el,pageNum,originalIndex) {
     var h2El=el.querySelector('h2[aria-label]')||el.querySelector('h2');
@@ -866,13 +1023,17 @@ const ITEM_UNITS = [
     var isFsaHsa=detectFsaHsa(el);
     var isClimatePledge=detectClimatePledge(el);
     var isSmallBusiness=detectSmallBusiness(el);
+    var brand=scrapeBrand(el);
+    var brandDetection=detectGibberishBrand(brand);
+    var brandFlagged=brandDetection.flagged;
     var base={title,href,asin,price,listPrice,count,page,retailer,wfFreeFlag,isSponsored,hasCoupon,
               couponPillOnly,sns,savings,cardText,reviewCount,rating,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
               freeCutoff:delivery.freeCutoff,fastCutoff:delivery.fastCutoff,
               freeWindowMinutes:freeWindowMinutes,freeWindowEnd:freeWindowEnd,freeQualifier:freeQualifier,imgUrl:imgUrl,
               paidDate:delivery.paidDate,paidCutoff:delivery.paidCutoff,paidPrice:delivery.paidPrice,isSnap:isSnap,
-              isFsaHsa:isFsaHsa,isClimatePledge:isClimatePledge,isSmallBusiness:isSmallBusiness};
+              isFsaHsa:isFsaHsa,isClimatePledge:isClimatePledge,isSmallBusiness:isSmallBusiness,
+              brand:brand,brandFlagged:brandFlagged};
 
     // Override: if Amazon reported a weight unit but the item title indicates a countable
     // solid product (pods, sheets, strips, loads, etc.), ignore the weight unit and
@@ -2187,7 +2348,8 @@ const ITEM_UNITS = [
             isSnap:      !!r.isSnap,
             isFsaHsa:    !!r.isFsaHsa,
             isClimatePledge: !!r.isClimatePledge,
-            isSmallBusiness: !!r.isSmallBusiness
+            isSmallBusiness: !!r.isSmallBusiness,
+            brand:           r.brand||null
           };
         }).filter(Boolean);
 
