@@ -4,7 +4,7 @@
 
 ---
 
-## Current version: v0.6.1.46 (overall) · v0.6.1 (manifest) · v0.6.1.46 (search.js) · v0.6.1.46 (core.js) · v0.6.1.30 (compare.html) · v0.6.1.16 (background.js)
+## Current version: v0.6.1.48 (overall) · v0.6.1 (manifest) · v0.6.1.48 (search.js) · v0.6.1.46 (core.js) · v0.6.1.30 (compare.html) · v0.6.1.16 (background.js)
 
 ---
 
@@ -29,6 +29,7 @@
 - **Collapsible animation gone** — snap only; post-alpha
 - **Other discount types not captured** — buy-multiple deals, vague "save X%" promos; post-alpha
 - **compare.html logging** — no logging on compare page yet
+- **Brand filter mixed-case invented names** — Floerns, Verdusa, Wenrine, Annebouti, Fisoew score 0 on heuristics; accepted gap, covered partially by bundled blocklist
 
 ---
 
@@ -55,7 +56,7 @@
 **Template literal rule:** Never use Python heredoc string escaping for JavaScript template literals in compare.html. Use string concatenation (+).
 
 **Version numbering:**
-- Overall / canonical: v0.6.1.46 (search.js number)
+- Overall / canonical: v0.6.1.48 (search.js number)
 - Per-file versions differ intentionally — files change at different rates
 - v1.0 = Web Store public launch
 
@@ -71,10 +72,10 @@
 
 **Rollback rule:** 3 failed fix attempts = stop, revert to last stable commit.
 
-**search.js stays as one file** until selector resilience is properly designed. The modular refactor (config.js / scraper.js / ui.js) was abandoned — stubs only, not functional.
+**search.js stays as one file** until selector resilience is properly designed.
 
 **End of every session:**
-1. Produce complete updated Project_Briefing.md, Roadmap.md, Changelog.md, Handover.md as downloadable files
+1. Produce complete updated Project_Briefing.md, Roadmap.md, Changelog entry, and Handover.md as downloadable files — complete documents, not snippets or merge instructions
 2. Give Melissa a suggested GitHub commit message
 3. Remind Melissa to push to GitHub
 4. Remind Melissa to update project files in Claude after the push
@@ -83,56 +84,35 @@
 
 ## Next session priorities (in order)
 
-1. **Brand filter — Session 1: scraping + detection scaffolding** — implement brand text scraping (multi-strategy selector fallback), add `brand` field to scraped item object and compare payload, implement heuristic detector (4 signals, sum-and-threshold). No UI yet — log to console for verification. See Brand_Filter_Design.md for full spec.
+1. **Brand filter — Session 2: brand filter UI + hide/demote toggle** — add brand filter on/off toggle to panel, hide/demote two-button pill, results summary line, expand-to-view footer with "below the line" divider, demote rendering logic, persist state in chrome.storage.local, add logging fields to doLog(), update Apps Script + sheet header row. Files: search.js, styles.css. See Brand_Filter_Design.md Session 2 scope.
 2. **compare.html logging** — direct fetch to Google Sheets endpoint; deferred from Chat 46
 3. **Welcome page on install** — chrome.runtime.onInstalled opens onboarding tab
 4. **Fix extractCount "1 Pack (250 Sheets)"** — pack/count ordering fix
 5. **Verify auto-resort fires on Re-sync page-add** — investigate and fix if needed
 
-**After Session 1 of brand filter, sessions 2–5 follow in order** — see Brand_Filter_Design.md for the per-session breakdown.
-
 ---
 
-## Release plan
+## v0.6.1.x release plan
 
-### v0.6.1.x — in progress
-
-- [x] All regression fixes and polish (Chats 4–9)
-- [x] Minimum rating filter fixed (Chat 13)
-- [x] product.js disabled in manifest (Chat 13)
-- [x] Affiliate tag machinery removed from core.js (Chat 13)
-- [x] Ko-fi link fixed (Chat 14)
-- [x] Page-fetch throttling (Chat 14)
-- [x] auSendLog moved to background.js (Chat 14)
-- [x] Telemetry opt-out toggle + popup (Chat 14)
-- [x] Feedback form verified (Chat 15)
-- [x] Landing page live (Chat 15)
-- [x] compare.html built (Chat 16)
-- [x] Compare button + Gmail select-all (Chat 17)
-- [x] Supabase shareable links (Chat 18)
-- [x] Feedback form pre-fill (Chat 19)
-- [x] Keyword filter bug fixed (Chat 20)
-- [x] privacy.html built (Chat 20)
-- [x] Supabase compare — no item limit (Chat 21)
-- [x] Lavender Fields palette → monochromatic indigo (Chat 21/27)
-- [x] Compare payload expanded — full coupon/delivery/retailer fields (Chat 22)
-- [x] Filter bar on compare.html (Chat 22)
-- [x] Delivery sort fixed (Chat 23)
-- [x] Price range filter (Chat 23)
-- [x] Notes field per item + in compare payload (Chat 25)
-- [x] Coupon/delivery/liquid unit toggle on compare.html (Chat 25)
-- [x] imgUrl added to compare payload (Chat 26)
-- [x] Pages slider always visible (Chat 27)
-- [x] Rating/review count in extension panel row (Chat 30)
-- [x] Workflow banner — dismissible, selectable, resets on Clear all (Chat 31)
-- [x] Buttons renamed: Start over → Clear all, Re-scan page → Re-sync (Chat 31)
-- [x] Solid product unit override — pods/sheets/strips (Chat 32)
-- [x] Paid express delivery scraped, displayed, factored into sort (Chat 32)
-- [x] Free delivery shows full window range (Chat 32)
-- [x] compare.html — column hide toggles added (Chat 34)
-- [x] SNAP EBT — detectSnap(), panel note, payload, filter (Chat 36)
-- [x] compare.html — default sort PPU ascending (Chat 36)
-- [x] SNAP EBT verified working on real grocery searches ✅ (Chat 38)
+- [x] Tampermonkey → Chrome extension (Chat 22)
+- [x] Popup + toggle (Chat 22)
+- [x] Search context relay via background.js (Chat 22)
+- [x] Panel redesign (Chat 22)
+- [x] Delivery dates — free and fast (Chat 23)
+- [x] Prime filter (Chat 23)
+- [x] Shortlist + compare (Chats 24–26)
+- [x] Screenshots taken (Chat 27)
+- [x] compare.html — full redesign (Chat 28)
+- [x] Chrome Web Store — published unlisted (Chat 29)
+- [x] Reddit posts live (Chats 29/30)
+- [x] Rating filter (Chat 31)
+- [x] Keyword filter (Chat 32)
+- [x] Sponsored filter (Chat 33)
+- [x] Source filter (Chat 33)
+- [x] Price range filter (Chat 34)
+- [x] Re-sync button (Chat 35)
+- [x] Pages slider (Chat 35)
+- [x] Reddit feedback received (Chat 38)
 - [x] PPU Fix 1 — recalculate when Amazon's $/ct equals full item price (Chat 38)
 - [x] PPU Fix 2 — suppress / calculate $/ft from footage (Chat 38)
 - [x] Pairs uncertainty note + mixed-units transparency banner (Chat 38)
@@ -161,8 +141,10 @@
 - [x] Logging audit — 10 new fields added to doLog() payload (Chat 46)
 - [x] Apps Script updated to Version 2; sheet ID corrected (Chat 46)
 - [x] Google Sheet header row updated to 46 columns (Chat 46)
-- [x] AU_VERSION bumped to 0.6.1.46 in core.js (Chat 46)
+- [x] AU_VERSION bumped to 0.6.1.46 in core.js and search.js (Chat 46)
 - [x] China/origin filter — research and design (Chat 47, see Brand_Filter_Design.md)
+- [x] Brand filter Session 1 — scrapeBrand(), detectGibberishBrand(), 5 signals, brand field in item object + compare payload (Chat 48)
+- [x] brand_blocklist.txt created — 70 starter brands, extension/data/ (Chat 48)
 - [ ] compare.html logging
 - [ ] Fix extractCount "1 Pack (250 Sheets)" ordering issue
 - [ ] Verify auto-resort fires on Re-sync page-add
@@ -187,13 +169,21 @@
 - [ ] Create Amazon account (prerequisite for Associates)
 - [ ] Apply for Amazon Associates (after real user base)
 
-### Pre-public-CWS-listing checklist
+### Chrome Web Store stats (as of May 2, 2026)
+- 15 total installs · 8 weekly active users · 0 uninstalls
+- 87% US · 7% Italy · 6% Canada (installs)
+- 82% Windows · 14% Mac · 4% ChromeOS (weekly users)
+- All installs began Apr 22 (Reddit post date)
+
+---
+
+## Pre-public-CWS-listing checklist
 
 - [x] SNAP EBT verified working ✅
 - [x] index.html copy and CTA overhauled ✅
 - [x] Kill switch in place ✅
 - [x] Logging audit session ✅ (Chat 46)
-- [ ] Brand filter feature suite (designed in Chat 47, see v0.7 section)
+- [ ] Brand filter feature suite (designed Chat 47, Session 1 complete Chat 48 — see v0.7 section)
 - [ ] Welcome page on install
 - [ ] Selector resilience refactor — CSS selectors into named constants object; multi-strategy fallbacks
 - [ ] Self-test mode — on a known search, verify N results have prices/units; surface degradation banner
@@ -203,71 +193,43 @@
 - [ ] Public-facing roadmap — GitHub Issues with roadmap label
 - [ ] CWS listing description updated
 
-### v0.7 — Brand filter feature suite (designed Chat 47)
+---
 
-Full design in Brand_Filter_Design.md. Five-session build:
+## v0.7 — Brand filter feature suite (designed Chat 47)
 
-- [ ] Session 1: brand text scraping + heuristic detector (no UI)
-- [ ] Session 2: brand filter UI + hide/demote two-button toggle + results summary line
-- [ ] Session 3: bundled allowlist + personal blocklist UI + chrome.storage.local plumbing
-- [ ] Session 4: delivery window filter (slider, hide/demote, same UI patterns)
-- [ ] Session 5: Amazon-brands demote toggle + polish + bug-test updates
-- [ ] Session 6 (optional): compare.html integration — brand column, brand filter on filter bar
+Full design in Brand_Filter_Design.md.
 
-### Post-alpha (v0.8+)
-
-**Extension**
-- [ ] Ko-fi nudge redesign
-- [ ] Collapsible animation restore
-- [ ] Other discount types — buy-multiple deals, vague "save X%" promos
-- [ ] Product page re-enabled
-- [ ] Cross-page shortlist persistence (chrome.storage.local) — note: brand filter Session 3 introduces chrome.storage.local plumbing, can build on it
-- [ ] Frequently Returned badge (deferred until product.js re-enabled)
-- [ ] Full in-extension onboarding overlay
-- [ ] "Lock/pin reference items" — from Reddit feedback
-- [ ] Pairs ambiguity full fix
-- [ ] Show both weight and count PPU side by side
-- [ ] Liquid PPU sanity check
-- [ ] hasVariations flag — "⚠ Has size/color variants"
-- [ ] Full palette unification (extension blue + website indigo → one consistent system)
-- [ ] Wallet version
-- [ ] Settings page
-- [ ] IIFE wrapping (pre-Web Store public)
-- [ ] Replace .innerHTML with createElement (pre-Web Store public)
-- [ ] OR/| include syntax for keyword filter
-- [ ] Cross-device blocklist sync via chrome.storage.sync
-
-**Website**
-- [ ] soldBy / shipsFrom / returnPolicy in compare table
-- [ ] Keepa price history link per item
-- [ ] Instructions/how-to page
-- [ ] Add laundry pods and laptop sample comparison links
-
-**Outreach**
-- [ ] "Reddit comparison drops" — find product-question threads, run AU, share real table + install link. Gate: unit consistency reliable first.
-- [ ] Outreach to frugality blogs — The Non-Consumer Advocate, The Frugal Girl
-- [ ] r/SideProject post with demo video
-- [ ] r/alphaandbetausers + r/betatests + r/TestMyApp
-- [ ] Amazon Associates application
+- [x] Session 1: brand text scraping + heuristic detector (no UI) ✅ Chat 48
+- [ ] Session 2: brand filter UI + hide/demote toggle
+- [ ] Session 3: allowlist + bundled blocklist wire-up + personal blocklist
+- [ ] Session 4: delivery window filter
+- [ ] Session 5: Amazon-brands demote toggle + polish
+- [ ] Session 6 (optional): compare.html integration
 
 ---
 
-## Design principles
+## Post-alpha (v0.8+)
 
-- Fill gaps in Amazon's interface — don't duplicate what Amazon already does well
-- Wrong numbers are worse than no numbers
-- Never drop results — sort what is rendered
-- User intent matters more than physical precision
-- One continuous app — state flows naturally between pages
-- Use Melissa's exact wording for UI copy
-- Copy tone: warm, direct, personal. "doesn't" not "won't"
-- Affiliate tags on website only — never in extension
-- Affiliate disclosure on every page
-- search.js sends raw numbers to compare.html — compare.html handles all formatting
-- All data in the extension panel listing must be in the compare.html payload
-- The comparison page is the destination — the extension is the on-ramp
-- All text in the extension interface must be selectable
-- **Fail loud at the system level, fail quiet per item.**
-- **Show our work.** Transparency is an accessibility feature.
-- **Sustainability features are features.**
-- **search.js stays as one file** until selector resilience is properly implemented.
+- Lazy product-page fetch architecture (Frequently Returned, variations, Sold by — progressive enrichment)
+- Cross-session shortlist persistence
+- "Hide this seller forever"
+- "Cheaper at Whole Foods/Fresh" cross-source alerts
+- Selector resilience refactor (if not completed pre-public)
+- Walmart version
+
+### Website (post-alpha)
+- [ ] "For nerds" transparency doc — explains every filter, signal, and assumption AU makes. Destination TBD (FAQ page or linked from onboarding). Drafting can begin before public launch. Post-alpha placement, but early drafting encouraged.
+- [ ] Demo video recorded and embedded
+- [ ] Search.html page
+
+---
+
+## Deferred / deprioritized
+
+- product.js — disabled during alpha; re-enable post-alpha
+- Per-item "Frequently Returned" badge — requires product page fetch (post-alpha)
+- Variation pricing warnings — requires product page fetch (post-alpha)
+- Amazon Associates — apply when 50+ weekly active installs + 500 monthly site visitors
+- Show HN / Product Hunt launch — coordinate with public CWS listing
+- r/InternetIsBeautiful — after polish pass
+- Cross-device blocklist sync — post-alpha (chrome.storage.sync, 100KB cap)
