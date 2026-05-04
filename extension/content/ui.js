@@ -69,7 +69,20 @@ function render() {
 
 // ── Initialization ────────────────────────────────────────────────────────
 // Start-up sequence with Killswitch check
+// Actually Useful — ui.js
+// Simplified initialization to test the new architecture
+
 (function init() {
-  // Fetch killswitch from AU_CONFIG.KILLSWITCH_URL
-  // If safe, call buildPanel()
+  console.log('[AU] Modular system initializing...');
+  
+  // Wait for the page to be ready
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('[AU] Page ready, building panel...');
+    buildPanel();
+  } else {
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('[AU] DOMContentLoaded, building panel...');
+      buildPanel();
+    });
+  }
 })();
