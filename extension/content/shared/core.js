@@ -3,7 +3,7 @@
 'use strict';
 
 // ── Version ───────────────────────────────────────────────────────────────
-const AU_VERSION = '0.6.1.45'; // Matches your latest Roadmap (1).md
+const AU_VERSION = '0.6.1.46'; // Matches your latest Roadmap (1).md
 
 // ── Storage keys ──────────────────────────────────────────────────────────
 const AU_SHORTLIST_KEY      = 'au_shortlist';

@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.45)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.46)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1065,6 +1065,7 @@ const ITEM_UNITS = [
       var countFresh=sourceCounts['fresh']||0;
       var countWF=sourceCounts['whole-foods']||0;
       var countPharmacy=sourceCounts['pharmacy']||0;
+      var countPartner=Object.keys(sourceCounts).filter(function(k){return k!=='standard'&&k!=='fresh'&&k!=='whole-foods'&&k!=='pharmacy';}).reduce(function(sum,k){return sum+(sourceCounts[k]||0);},0);
       var retailerSources=Object.keys(sourceCounts).join(', ');
       var couponCount=allData.filter(function(r){return r.hasCoupon;}).length;
       var snsCount=allData.filter(function(r){return r.sns;}).length;
@@ -1081,11 +1082,17 @@ const ITEM_UNITS = [
         sortMethod:sortVal,keywordFilterActive:keyword.trim().length>0,
         keywordFilter:keyword.trim()||'',
         pagesLoaded:loadedPages,retailerSources,
-        countStandard,countFresh,countWholeFoods:countWF,countPharmacy,
+        countStandard,countFresh,countWholeFoods:countWF,countPharmacy,countPartner,
         liquidDominant:isLiquidDominant,selectedUnit:selectedUnit||'as-listed',
         couponCount,snsCount,couponPillCount,couponUndetectedCount,
         couponUndetectedAsins,sponsoredCount,hideSponsoredActive:sponsoredMode,
         shortlistCount,minReviewsFilter:minReviews||0,minRatingFilter:minRating||0,
+        snapCount:allData.filter(function(r){return r.isSnap;}).length,
+        fsaHsaCount:allData.filter(function(r){return r.isFsaHsa;}).length,
+        snapFilterActive:snapOnly,fsaHsaFilterActive:fsaHsaOnly,
+        climatePledgeFilterActive:climatePledgeOnly,smallBusinessFilterActive:smallBusinessOnly,
+        priceFilterActive:!!(minPrice||maxPrice),priceFilterMin:minPrice||'',priceFilterMax:maxPrice||'',
+        sourceFilterActive:Object.values(srcFilter).some(function(v){return !v;}),
         panelMoved,sortChanged,sortChangedTo:sortChangedTo||'',
         sessionSource,userAgent:ua
       });
