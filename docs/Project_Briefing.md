@@ -1,7 +1,7 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
 *Current version: v0.6.1.46 (overall) · v0.6.1 (manifest) · v0.6.1.46 (search.js) · v0.6.1.46 (core.js) · v0.6.1.30 (compare.html) · v0.6.1.16 (background.js)*
-*Updated May 4, 2026 (Chat 46)*
+*Updated May 4, 2026 (Chat 47 — design session, no code changes)*
 
 ---
 

@@ -83,11 +83,13 @@
 
 ## Next session priorities (in order)
 
-1. **China/origin filter research** — research how existing extensions handle country-of-origin and low-quality seller filtering; design AU's approach. Research only — do not build anything until approach is designed.
-2. **compare.html logging** — direct fetch to Google Sheets endpoint; planned Chat 46, deferred
-3. **Welcome page on install** — chrome.runtime.onInstalled opens a one-tab onboarding page; currently first install is silence
+1. **Brand filter — Session 1: scraping + detection scaffolding** — implement brand text scraping (multi-strategy selector fallback), add `brand` field to scraped item object and compare payload, implement heuristic detector (4 signals, sum-and-threshold). No UI yet — log to console for verification. See Brand_Filter_Design.md for full spec.
+2. **compare.html logging** — direct fetch to Google Sheets endpoint; deferred from Chat 46
+3. **Welcome page on install** — chrome.runtime.onInstalled opens onboarding tab
 4. **Fix extractCount "1 Pack (250 Sheets)"** — pack/count ordering fix
 5. **Verify auto-resort fires on Re-sync page-add** — investigate and fix if needed
+
+**After Session 1 of brand filter, sessions 2–5 follow in order** — see Brand_Filter_Design.md for the per-session breakdown.
 
 ---
 
@@ -160,7 +162,7 @@
 - [x] Apps Script updated to Version 2; sheet ID corrected (Chat 46)
 - [x] Google Sheet header row updated to 46 columns (Chat 46)
 - [x] AU_VERSION bumped to 0.6.1.46 in core.js (Chat 46)
-- [ ] China/origin filter — research and design
+- [x] China/origin filter — research and design (Chat 47, see Brand_Filter_Design.md)
 - [ ] compare.html logging
 - [ ] Fix extractCount "1 Pack (250 Sheets)" ordering issue
 - [ ] Verify auto-resort fires on Re-sync page-add
@@ -191,7 +193,7 @@
 - [x] index.html copy and CTA overhauled ✅
 - [x] Kill switch in place ✅
 - [x] Logging audit session ✅ (Chat 46)
-- [ ] China/origin filter — research, design, build
+- [ ] Brand filter feature suite (designed in Chat 47, see v0.7 section)
 - [ ] Welcome page on install
 - [ ] Selector resilience refactor — CSS selectors into named constants object; multi-strategy fallbacks
 - [ ] Self-test mode — on a known search, verify N results have prices/units; surface degradation banner
@@ -201,21 +203,31 @@
 - [ ] Public-facing roadmap — GitHub Issues with roadmap label
 - [ ] CWS listing description updated
 
-### Post-alpha (v0.7+)
+### v0.7 — Brand filter feature suite (designed Chat 47)
+
+Full design in Brand_Filter_Design.md. Five-session build:
+
+- [ ] Session 1: brand text scraping + heuristic detector (no UI)
+- [ ] Session 2: brand filter UI + hide/demote two-button toggle + results summary line
+- [ ] Session 3: bundled allowlist + personal blocklist UI + chrome.storage.local plumbing
+- [ ] Session 4: delivery window filter (slider, hide/demote, same UI patterns)
+- [ ] Session 5: Amazon-brands demote toggle + polish + bug-test updates
+- [ ] Session 6 (optional): compare.html integration — brand column, brand filter on filter bar
+
+### Post-alpha (v0.8+)
 
 **Extension**
 - [ ] Ko-fi nudge redesign
 - [ ] Collapsible animation restore
 - [ ] Other discount types — buy-multiple deals, vague "save X%" promos
 - [ ] Product page re-enabled
-- [ ] Cross-page shortlist persistence (chrome.storage.local)
+- [ ] Cross-page shortlist persistence (chrome.storage.local) — note: brand filter Session 3 introduces chrome.storage.local plumbing, can build on it
 - [ ] Frequently Returned badge (deferred until product.js re-enabled)
 - [ ] Full in-extension onboarding overlay
 - [ ] "Lock/pin reference items" — from Reddit feedback
 - [ ] Pairs ambiguity full fix
 - [ ] Show both weight and count PPU side by side
 - [ ] Liquid PPU sanity check
-- [ ] "Hide this seller forever"
 - [ ] hasVariations flag — "⚠ Has size/color variants"
 - [ ] Full palette unification (extension blue + website indigo → one consistent system)
 - [ ] Wallet version
@@ -223,6 +235,7 @@
 - [ ] IIFE wrapping (pre-Web Store public)
 - [ ] Replace .innerHTML with createElement (pre-Web Store public)
 - [ ] OR/| include syntax for keyword filter
+- [ ] Cross-device blocklist sync via chrome.storage.sync
 
 **Website**
 - [ ] soldBy / shipsFrom / returnPolicy in compare table
