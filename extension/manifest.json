@@ -27,6 +27,12 @@
       "run_at": "document_idle"
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["data/brand_blocklist.txt"],
+      "matches": ["https://www.amazon.com/*"]
+    }
+  ],
   "permissions": ["storage"],
   "host_permissions": [
     "https://www.amazon.com/*",

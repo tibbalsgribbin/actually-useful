@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.49)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.50)
 'use strict';
 
 function auFeedbackUrl() {
@@ -869,6 +869,17 @@ const ITEM_UNITS = [
     if (!brand || typeof brand !== 'string') return { signals: [], score: 0, flagged: false };
     var b = brand.trim();
     var bUp = b.toUpperCase();
+
+    // Bundled blocklist — always flag, checked before heuristics
+    if (bundledBlocklist.length && bundledBlocklist.indexOf(bUp) !== -1) {
+      return { signals: ['bundledBlocklist'], score: 1, flagged: true };
+    }
+
+    // Personal blocklist — always flag, checked before heuristics
+    if (personalBlocklist.length && personalBlocklist.indexOf(bUp) !== -1) {
+      return { signals: ['personalBlocklist'], score: 1, flagged: true };
+    }
+
     var signals = [];
 
     // Signal 1: signalNoVowel
@@ -1198,6 +1209,8 @@ const ITEM_UNITS = [
   var smallBusinessOnly= false;
   var brandFilterActive= false;
   var brandFilterMode  = 'demote';
+  var bundledBlocklist = [];   // loaded from brand_blocklist.txt at startup
+  var personalBlocklist= [];   // loaded from chrome.storage.local (auBlocklistBrands)
   var isLiquidDominant = false;
   var isWeightDominant = false;
   var unitPills        = [];
@@ -1262,7 +1275,9 @@ const ITEM_UNITS = [
         signalConsonantClusterHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalConsonantCluster')!==-1;}).length,
         signalShortAllCapsHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalShortAllCaps')!==-1;}).length,
         signalFakeMashupHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalFakeMashup')!==-1;}).length,
-        signalAllCapsInventedHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalAllCapsInvented')!==-1;}).length
+        signalAllCapsInventedHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalAllCapsInvented')!==-1;}).length,
+        personalBlocklistSize:personalBlocklist.length,
+        personalBlocklistHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('personalBlocklist')!==-1;}).length
       });
     } catch(e){}
   }
@@ -1582,6 +1597,7 @@ const ITEM_UNITS = [
         '<div id="ppu-footer-links">'+
           '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">Give feedback</a>'+
           '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">Buy me a coffee</a>'+
+          '<span id="ppu-blocklist-link" style="cursor:pointer;text-decoration:underline;color:#4338ca;font-size:11px;">My blocklist (0)</span>'+
         '</div>'+
       '</div>';
 
@@ -1618,7 +1634,14 @@ const ITEM_UNITS = [
         '.ppu-badge-label:has(input:checked){background:#eef2ff;border-color:#c7d2fe;color:#3730a3;font-weight:600;}' +
         '#ppu-mixed-units-banner{display:none;padding:7px 12px 7px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;line-height:1.5;display:flex;align-items:flex-start;gap:8px;}' +
         '.ppu-mixed-msg{flex:1;user-select:text;cursor:text;}' +
-        '.ppu-mixed-dismiss{flex-shrink:0;background:none;border:none;font-size:14px;color:#877891;cursor:pointer;padding:0;line-height:1;}';
+        '.ppu-mixed-dismiss{flex-shrink:0;background:none;border:none;font-size:14px;color:#877891;cursor:pointer;padding:0;line-height:1;}' +
+        '.ppu-brand-row{font-size:11px;color:#6b7280;margin-top:2px;display:flex;align-items:center;gap:4px;user-select:text;cursor:text;}' +
+        '.ppu-brand-name{color:#6b7280;}' +
+        '.ppu-brand-menu{cursor:pointer;color:#9ca3af;letter-spacing:1px;user-select:none;padding:0 2px;border-radius:3px;}' +
+        '.ppu-brand-menu:hover{color:#4338ca;background:#eef2ff;}' +
+        '.ppu-brand-menu-dropdown{position:absolute;z-index:200;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);padding:4px 0;min-width:180px;}' +
+        '.ppu-brand-block-btn{display:block;width:100%;text-align:left;background:none;border:none;padding:7px 12px;font-size:12px;color:#111827;cursor:pointer;white-space:nowrap;}' +
+        '.ppu-brand-block-btn:hover{background:#f3f4f6;}';
       document.head.appendChild(styleEl);
     }
 
@@ -1945,7 +1968,7 @@ const ITEM_UNITS = [
         var noiseRatio=allData.length>0?allData.filter(function(r){return !!r.brandFlagged&&r.brand!==null;}).length/allData.length:0;
         if(noiseRatio>=0.25){
           highNoiseBanner.style.display='block';
-          highNoiseBanner.textContent='Over 25% of results have unrecognized brands. This category may have too much noise for the filter to fully help.';
+          highNoiseBanner.textContent='A lot of noise in these results. Try Amazon\u2019s brand filters on the far left before loading more pages. Hiding sponsored listings (above) also helps in categories like this.';
         } else {
           highNoiseBanner.style.display='none';
           highNoiseBanner.textContent='';
@@ -2106,13 +2129,20 @@ const ITEM_UNITS = [
             noteFieldHtml='<div class="ppu-note-widget"><span class="ppu-note-add-link" data-asin="'+safeAsin+'">＋ Add a note…</span></div>';
           }
         }
+        var safeBrand=r.brand?r.brand.replace(/"/g,'&quot;').replace(/'/g,'&#39;'):'';
+        var brandMenuHtml=r.brand?
+          '<div class="ppu-brand-row"><span class="ppu-brand-name">'+escapeHtml(r.brand)+'</span>'+
+          ' <span class="ppu-brand-menu" data-brand="'+safeBrand+'" title="Brand options">···</span>'+
+          '<span class="ppu-brand-menu-dropdown" style="display:none;">'+
+            '<button class="ppu-brand-block-btn" data-brand="'+safeBrand+'">'+'Hide all “'+escapeHtml(r.brand)+'” forever</button>'+
+          '</span></div>':'';
         var rowHtml =
           '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+snapC+fsaC+climateC+sbC+brandC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
             '<div class="ppu-cb-wrap"><input type="checkbox" class="ppu-cb"'+(isChecked?' checked':'')+' title="Add to shortlist"></div>'+
             '<div class="ppu-thumb-wrap">'+thumbHtml+'</div>'+
             '<div class="ppu-row-content">'+
               '<a href="'+r.href+'" target="_blank" title="'+escapeHtml(r.title)+'">'+titleHtml+'</a>'+
-              srcTag+
+              srcTag+brandMenuHtml+
               '<div class="ppu-meta"><span class="ppu-price">'+priceStr+'</span>'+(countStr?'<span class="ppu-count">'+countStr+'</span>':'')+badge+'</div>'+
               deliveryStr+ratingStr+noteStr+
               noteFieldHtml+
@@ -2162,6 +2192,48 @@ const ITEM_UNITS = [
           updateActiveIndicators();
         });
       });
+
+      // ── Brand [•••] menu ─────────────────────────────────────────────
+      document.querySelectorAll('.ppu-brand-menu').forEach(function(btn){
+        btn.addEventListener('click',function(e){
+          e.stopPropagation();
+          // Close any open dropdowns first
+          document.querySelectorAll('.ppu-brand-menu-dropdown').forEach(function(d){ d.style.display='none'; });
+          var dd=this.nextElementSibling;
+          if(dd) dd.style.display=(dd.style.display==='none'?'block':'none');
+        });
+      });
+      document.querySelectorAll('.ppu-brand-block-btn').forEach(function(btn){
+        btn.addEventListener('click',function(e){
+          e.stopPropagation();
+          var brand=this.getAttribute('data-brand');
+          if(!brand) return;
+          var bUp=brand.toUpperCase();
+          if(personalBlocklist.indexOf(bUp)===-1) personalBlocklist.push(bUp);
+          // Persist to chrome.storage.local
+          try{
+            chrome.storage.local.get('auBlocklistBrands',function(res){
+              var arr=(res&&res.auBlocklistBrands&&Array.isArray(res.auBlocklistBrands))?res.auBlocklistBrands:[];
+              var arrUp=arr.map(function(b){return b.toUpperCase();});
+              if(arrUp.indexOf(bUp)===-1) arr.push(brand);
+              chrome.storage.local.set({auBlocklistBrands:arr});
+            });
+          }catch(ex){}
+          // Re-flag all items with this brand and re-render
+          allData.forEach(function(r){
+            if(r.brand&&r.brand.toUpperCase()===bUp){
+              r.brandFlagged=true;
+              r.brandDetection={signals:['personalBlocklist'],score:1,flagged:true};
+            }
+          });
+          render();
+        });
+      });
+      // Close dropdowns on outside click
+      document.addEventListener('click',function(){
+        document.querySelectorAll('.ppu-brand-menu-dropdown').forEach(function(d){ d.style.display='none'; });
+      },{once:false,capture:false});
+
             scheduleLog();
       persistFilters();
       updateActiveIndicators();
@@ -2604,6 +2676,74 @@ const ITEM_UNITS = [
     var coffeeLink=document.getElementById('ppu-coffee');
     if(coffeeLink) coffeeLink.addEventListener('click',function(){sendLog({event:'kofi_click'});});
 
+    // ── Blocklist link — update count + open management view ─────────────
+    function updateBlocklistLinkCount(){
+      var el=document.getElementById('ppu-blocklist-link');
+      if(el) el.textContent='My blocklist ('+personalBlocklist.length+')';
+    }
+    updateBlocklistLinkCount();
+
+    function showBlocklistView(){
+      var existing=document.getElementById('ppu-blocklist-view');
+      if(existing){existing.remove();return;}
+      var view=document.createElement('div');
+      view.id='ppu-blocklist-view';
+      view.style.cssText='position:absolute;bottom:36px;right:8px;width:260px;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:100;padding:10px 12px;font-size:12px;';
+      var title=document.createElement('div');
+      title.style.cssText='font-weight:600;color:#111827;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;';
+      title.innerHTML='My blocked brands <span id="ppu-blocklist-close" style="cursor:pointer;color:#6b7280;font-weight:400;">×</span>';
+      view.appendChild(title);
+      if(personalBlocklist.length===0){
+        var empty=document.createElement('div');
+        empty.style.cssText='color:#6b7280;font-style:italic;';
+        empty.textContent='No brands blocked yet.';
+        view.appendChild(empty);
+      } else {
+        personalBlocklist.forEach(function(brand){
+          var row=document.createElement('div');
+          row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #f3f4f6;';
+          var nameEl=document.createElement('span');
+          nameEl.textContent=brand;
+          nameEl.style.cssText='color:#111827;user-select:text;cursor:text;';
+          var removeBtn=document.createElement('button');
+          removeBtn.textContent='Remove';
+          removeBtn.style.cssText='font-size:11px;color:#6b7280;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;';
+          removeBtn.setAttribute('data-brand',brand);
+          removeBtn.addEventListener('click',function(){
+            var b=this.getAttribute('data-brand').toUpperCase();
+            personalBlocklist=personalBlocklist.filter(function(x){return x.toUpperCase()!==b;});
+            // Un-flag items that were only flagged by personal blocklist
+            allData.forEach(function(r){
+              if(r.brand&&r.brand.toUpperCase()===b&&r.brandDetection&&r.brandDetection.signals.indexOf('personalBlocklist')!==-1){
+                var fresh=detectGibberishBrand(r.brand);
+                r.brandFlagged=fresh.flagged;
+                r.brandDetection=fresh;
+              }
+            });
+            try{
+              chrome.storage.local.get('auBlocklistBrands',function(res){
+                var arr=(res&&res.auBlocklistBrands)?res.auBlocklistBrands:[];
+                arr=arr.filter(function(x){return x.toUpperCase()!==b;});
+                chrome.storage.local.set({auBlocklistBrands:arr});
+              });
+            }catch(ex){}
+            view.remove();
+            updateBlocklistLinkCount();
+            render();
+          });
+          row.appendChild(nameEl);
+          row.appendChild(removeBtn);
+          view.appendChild(row);
+        });
+      }
+      var panel=document.getElementById('ppu-sorter-panel');
+      if(panel) panel.appendChild(view);
+      document.getElementById('ppu-blocklist-close').addEventListener('click',function(){view.remove();});
+    }
+
+    var blocklistLink=document.getElementById('ppu-blocklist-link');
+    if(blocklistLink) blocklistLink.addEventListener('click',function(e){e.stopPropagation();showBlocklistView();});
+
     // ── Pages slider ─────────────────────────────────────────────────────
     if(pagesSlider){
       updatePagesSliderFill(pagesSlider);
@@ -2693,6 +2833,30 @@ const ITEM_UNITS = [
     }
   }
 
+  function loadBundledBlocklist(cb){
+    try{
+      var url=chrome.runtime.getURL('data/brand_blocklist.txt');
+      fetch(url).then(function(r){return r.text();}).then(function(text){
+        bundledBlocklist=text.split('\n')
+          .map(function(l){return l.trim();})
+          .filter(function(l){return l&&l[0]!=='#';})
+          .map(function(l){return l.toUpperCase();});
+        cb();
+      }).catch(function(){cb();});
+    }catch(e){cb();}
+  }
+
+  function loadPersonalBlocklist(cb){
+    try{
+      chrome.storage.local.get('auBlocklistBrands',function(res){
+        if(res&&res.auBlocklistBrands&&Array.isArray(res.auBlocklistBrands)){
+          personalBlocklist=res.auBlocklistBrands.map(function(b){return b.toUpperCase();});
+        }
+        cb();
+      });
+    }catch(e){cb();}
+  }
+
   function tryBuild(n){
     var cards=document.querySelectorAll('[data-component-type="s-search-result"]');
     if(cards.length>0) buildPanel();
@@ -2706,7 +2870,11 @@ const ITEM_UNITS = [
     function proceed(){
       if(proceeded)return;
       proceeded=true;
-      setTimeout(function(){tryBuild(15);},1500);
+      loadBundledBlocklist(function(){
+        loadPersonalBlocklist(function(){
+          setTimeout(function(){tryBuild(15);},1500);
+        });
+      });
     }
     var ksTimeout=setTimeout(proceed,3000);
     fetch(KS_URL,{cache:'no-store'})
