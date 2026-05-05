@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.48)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.49)
 'use strict';
 
 function auFeedbackUrl() {
@@ -92,7 +92,9 @@ const ITEM_UNITS = [
         maxPrice:      maxPrice,
         sponsoredMode: sponsoredMode,
         selectedUnit:  selectedUnit,
-        srcFilter:     srcFilter
+        srcFilter:     srcFilter,
+        brandFilterActive: brandFilterActive,
+        brandFilterMode:   brandFilterMode
       };
       sessionStorage.setItem(key, JSON.stringify(state));
     } catch(e) {}
@@ -972,13 +974,6 @@ const ITEM_UNITS = [
                         signals.indexOf("signalFakeMashup") !== -1;
     var flagged = hasSoloSignal || score >= 2;
 
-    // Console output for Session 1 verification — remove when UI ships
-    if (typeof console !== 'undefined') {
-      console.log(
-        '[AU brand] "' + brand + '" → signals: [' + signals.join(', ') + '] score:' + score + ' flagged:' + flagged
-      );
-    }
-
     return { signals: signals, score: score, flagged: flagged };
   }
 
@@ -1033,7 +1028,7 @@ const ITEM_UNITS = [
               freeWindowMinutes:freeWindowMinutes,freeWindowEnd:freeWindowEnd,freeQualifier:freeQualifier,imgUrl:imgUrl,
               paidDate:delivery.paidDate,paidCutoff:delivery.paidCutoff,paidPrice:delivery.paidPrice,isSnap:isSnap,
               isFsaHsa:isFsaHsa,isClimatePledge:isClimatePledge,isSmallBusiness:isSmallBusiness,
-              brand:brand,brandFlagged:brandFlagged};
+              brand:brand,brandFlagged:brandFlagged,brandDetection:brandDetection};
 
     // Override: if Amazon reported a weight unit but the item title indicates a countable
     // solid product (pods, sheets, strips, loads, etc.), ignore the weight unit and
@@ -1201,6 +1196,8 @@ const ITEM_UNITS = [
   var fsaHsaOnly       = false;
   var climatePledgeOnly= false;
   var smallBusinessOnly= false;
+  var brandFilterActive= false;
+  var brandFilterMode  = 'demote';
   var isLiquidDominant = false;
   var isWeightDominant = false;
   var unitPills        = [];
@@ -1255,7 +1252,17 @@ const ITEM_UNITS = [
         priceFilterActive:!!(minPrice||maxPrice),priceFilterMin:minPrice||'',priceFilterMax:maxPrice||'',
         sourceFilterActive:Object.values(srcFilter).some(function(v){return !v;}),
         panelMoved,sortChanged,sortChangedTo:sortChangedTo||'',
-        sessionSource,userAgent:ua
+        sessionSource,userAgent:ua,
+        brandFilterActive:brandFilterActive,
+        brandFilterMode:brandFilterMode,
+        brandsFilteredTotal:allData.filter(function(r){return !!r.brandFlagged&&r.brand!==null;}).length,
+        brandsDistinctCount:brandFilterActive?allData.filter(function(r){return !!r.brandFlagged&&r.brand!==null;}).reduce(function(acc,r){if(acc.indexOf(r.brand)===-1)acc.push(r.brand);return acc;},[]).length:0,
+        topFilteredBrands:(function(){if(!brandFilterActive)return '';var m={};allData.filter(function(r){return !!r.brandFlagged&&r.brand!==null;}).forEach(function(r){m[r.brand]=(m[r.brand]||0)+1;});return Object.keys(m).sort(function(a,b){return m[b]-m[a];}).slice(0,10).map(function(k){return k+'('+m[k]+')';}).join(',');})(),
+        signalNoVowelHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalNoVowel')!==-1;}).length,
+        signalConsonantClusterHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalConsonantCluster')!==-1;}).length,
+        signalShortAllCapsHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalShortAllCaps')!==-1;}).length,
+        signalFakeMashupHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalFakeMashup')!==-1;}).length,
+        signalAllCapsInventedHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalAllCapsInvented')!==-1;}).length
       });
     } catch(e){}
   }
@@ -1333,6 +1340,8 @@ const ITEM_UNITS = [
       maxPrice      = savedFilters.maxPrice      || '';
       sponsoredMode = savedFilters.sponsoredMode || 'show';
       selectedUnit  = savedFilters.selectedUnit  || null;
+      brandFilterActive = !!savedFilters.brandFilterActive;
+      brandFilterMode   = savedFilters.brandFilterMode || 'demote';
       // srcFilter restored after detectedRetailers is built below
     } else {
       // Fresh search — reset all filters
@@ -1344,6 +1353,8 @@ const ITEM_UNITS = [
       maxPrice      = '';
       sponsoredMode = 'show';
       selectedUnit  = null;
+      brandFilterActive = false;
+      brandFilterMode   = 'demote';
     }
 
     isLiquidDominant=inferLiquidDominant(allData);
@@ -1529,6 +1540,16 @@ const ITEM_UNITS = [
                 return '<span class="'+cls+'" data-src="'+k+'">'+label+'</span>';
               }).join('')+
             '</div>':'')+
+          '<div id="ppu-brand-filter-row">'+
+            '<label class="ppu-brand-filter-toggle">'+
+              '<input type="checkbox" id="ppu-brand-filter-on"'+(brandFilterActive?' checked':'')+'>'+
+              ' Filter unrecognized brands'+
+            '</label>'+
+            '<span id="ppu-brand-mode-pill" class="ppu-brand-mode-pill'+(brandFilterActive?'':' ppu-brand-mode-hidden')+'">'+
+              '<button class="ppu-brand-mode-btn'+(brandFilterMode==='demote'?' active':'')+'" data-mode="demote">Move to end</button>'+
+              '<button class="ppu-brand-mode-btn'+(brandFilterMode==='hide'?' active':'')+'" data-mode="hide">Hide</button>'+
+            '</span>'+
+          '</div>'+
         '</div>'+
       '<div id="ppu-dec-bar">'+
         '<span class="ppu-dc-none">No filters or custom sort applied</span>'+
@@ -1547,6 +1568,7 @@ const ITEM_UNITS = [
           '<span id="ppu-compare-hint"><span id="ppu-compare-main">Check items to compare</span><span id="ppu-compare-sub" style="display:block;font-size:10px;color:#9ca3af;margin-top:1px;font-weight:400;">Click for the full comparison table, more filters, and to save &amp; share your results</span></span>'+
           '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary" title="View side-by-side comparison table">Compare</button>'+
         '</div>'+
+        '<div id="ppu-high-noise-banner" style="display:none"></div>'+
         '<div id="ppu-list"></div>'+
         '<div id="ppu-load-more-row" style="'+(nextPageUrl?'':'display:none')+'">'+
           '<button id="ppu-btn-load-more">\u2193 Load page '+(loadedPages+1)+' results</button>'+
@@ -1802,7 +1824,7 @@ const ITEM_UNITS = [
       var anyFilterActive = keyword.trim().length>0 || minReviews>0 || minRating>0 ||
         minPrice!=='' || maxPrice!=='' ||
         Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; }) ||
-        sortVal!=='ppu-asc' || sponsoredMode!=='show';
+        sortVal!=='ppu-asc' || sponsoredMode!=='show' || brandFilterActive;
       resetFiltersBtn.classList.toggle('btn-danger',anyFilterActive);
 
       var unitDataAvail=allData.filter(function(r){return r.ppu!=null;}).length;
@@ -1872,6 +1894,7 @@ const ITEM_UNITS = [
         return (snapOnly&&!r.isSnap)||(fsaHsaOnly&&!r.isFsaHsa)||
                (climatePledgeOnly&&!r.isClimatePledge)||(smallBusinessOnly&&!r.isSmallBusiness);
       }).length:0;
+      var brandFlaggedCt=brandFilterActive?allData.filter(function(r){return !!r.brandFlagged&&r.brand!==null;}).length:0;
       var info=withData+'/'+allData.length+' have unit data';
       if(loadedPages>1){
         if(nextPageUrl) info+=' \u00b7 '+loadedPages+' pages';
@@ -1888,6 +1911,8 @@ const ITEM_UNITS = [
       if(ratingHiddenCt>0)         info+=' \u00b7 '+ratingHiddenCt+' below min rating';
       if(priceHiddenCt>0)          info+=' \u00b7 '+priceHiddenCt+' outside price range';
       if(badgeHiddenCt>0)          info+=' \u00b7 '+badgeHiddenCt+' hidden by badge filter';
+      if(brandFilterActive&&brandFilterMode==='hide'&&brandFlaggedCt>0)   info+=' \u00b7 '+brandFlaggedCt+' listings hidden';
+      if(brandFilterActive&&brandFilterMode==='demote'&&brandFlaggedCt>0) info+=' \u00b7 '+brandFlaggedCt+' listings moved to end';
       document.getElementById('ppu-info').textContent=info;
 
       var sortNoteEl=document.getElementById('ppu-sort-note');
@@ -1915,6 +1940,18 @@ const ITEM_UNITS = [
         }
       }
 
+      var highNoiseBanner=document.getElementById('ppu-high-noise-banner');
+      if(highNoiseBanner){
+        var noiseRatio=allData.length>0?allData.filter(function(r){return !!r.brandFlagged&&r.brand!==null;}).length/allData.length:0;
+        if(noiseRatio>=0.25){
+          highNoiseBanner.style.display='block';
+          highNoiseBanner.textContent='Over 25% of results have unrecognized brands. This category may have too much noise for the filter to fully help.';
+        } else {
+          highNoiseBanner.style.display='none';
+          highNoiseBanner.textContent='';
+        }
+      }
+
       var COUNT_PILL_UNITS = ['ct','count','each','pc','piece','pieces','pcs','unit','units','pad','pads','sheet','sheets','wipe','wipes','tablet','tablets','capsule','cap','roll','bag'];
       function getCompPPU(r) {
         if(r.ppu==null) return null;
@@ -1937,7 +1974,7 @@ const ITEM_UNITS = [
       }).map(function(r){return getCompPPU(r);});
       var bestPPU=ppuVals.length?Math.min.apply(null,ppuVals):null;
 
-      var html='',curPage=0;
+      var mainHtml='',demotedHtml='',curPage=0;
       displayData.forEach(function(r){
         var srcHid=(r.retailer&&!srcFilter[r.retailer.key]);
         var sponHid=sponsoredMode==='hide'&&r.isSponsored;
@@ -1949,6 +1986,8 @@ const ITEM_UNITS = [
         var fsaHid=fsaHsaOnly&&!r.isFsaHsa;
         var climateHid=climatePledgeOnly&&!r.isClimatePledge;
         var sbHid=smallBusinessOnly&&!r.isSmallBusiness;
+        var brandHid=brandFilterActive&&brandFilterMode==='hide'&&!!r.brandFlagged&&r.brand!==null;
+        var brandDem=brandFilterActive&&brandFilterMode==='demote'&&!!r.brandFlagged&&r.brand!==null;
         var priceStr=r.price!=null?'$'+r.price.toFixed(2):'\u2014';
         var countStr=r.count?r.count+' ct':'';
         var badge='',noteStr='',deliveryStr='',srcTag='';
@@ -2051,6 +2090,7 @@ const ITEM_UNITS = [
         var fsaC=fsaHid?' snap-hidden':'';
         var climateC=climateHid?' snap-hidden':'';
         var sbC=sbHid?' snap-hidden':'';
+        var brandC=brandHid?' brand-hidden':(brandDem?' brand-demoted':'');
         var chkC=isChecked?' checked':'';
         var wfC=(r.wfFreeFlag&&effectiveSort==='delivery-free')?' wf-excluded':'';
         var safeAsin=r.asin.replace(/"/g,'&quot;');
@@ -2066,8 +2106,8 @@ const ITEM_UNITS = [
             noteFieldHtml='<div class="ppu-note-widget"><span class="ppu-note-add-link" data-asin="'+safeAsin+'">＋ Add a note…</span></div>';
           }
         }
-        html+=
-          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+snapC+fsaC+climateC+sbC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
+        var rowHtml =
+          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+snapC+fsaC+climateC+sbC+brandC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
             '<div class="ppu-cb-wrap"><input type="checkbox" class="ppu-cb"'+(isChecked?' checked':'')+' title="Add to shortlist"></div>'+
             '<div class="ppu-thumb-wrap">'+thumbHtml+'</div>'+
             '<div class="ppu-row-content">'+
@@ -2078,7 +2118,18 @@ const ITEM_UNITS = [
               noteFieldHtml+
             '</div>'+
           '</div>';
+        if(brandDem){ demotedHtml+=rowHtml; } else { mainHtml+=rowHtml; }
       });
+
+      var brandDemCount=brandFilterActive&&brandFilterMode==='demote'?brandFlaggedCt:0;
+      var html=mainHtml;
+      if(demotedHtml){
+        html+=
+          '<div class="ppu-brand-divider">'+
+            '<span class="ppu-brand-divider-label">'+brandDemCount+' item'+(brandDemCount!==1?'s':'')+' with unrecognized brands</span>'+
+          '</div>'+
+          demotedHtml;
+      }
 
       if(hasKw&&matchCt===0){html='<div class="ppu-empty-kw">No results match your keyword(s)</div>'+html;}
       document.getElementById('ppu-list').innerHTML=html;
@@ -2212,6 +2263,8 @@ const ITEM_UNITS = [
       fsaHsaOnly=false;
       climatePledgeOnly=false;
       smallBusinessOnly=false;
+      brandFilterActive=false;
+      brandFilterMode='demote';
       sortVal='ppu-asc'; sortEl.value='ppu-asc';
       try{ localStorage.removeItem('au-banner-dismissed'); }catch(e){}
       try{ sessionStorage.removeItem(getFilterStorageKey(searchTerm)); }catch(e){}
@@ -2270,6 +2323,24 @@ const ITEM_UNITS = [
         render();
       });
     }
+
+    var brandFilterChk=document.getElementById('ppu-brand-filter-on');
+    if(brandFilterChk){
+      brandFilterChk.addEventListener('change',function(){
+        brandFilterActive=this.checked;
+        var pill=document.getElementById('ppu-brand-mode-pill');
+        if(pill) pill.classList.toggle('ppu-brand-mode-hidden',!brandFilterActive);
+        render();
+      });
+    }
+    document.querySelectorAll('.ppu-brand-mode-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        brandFilterMode=this.getAttribute('data-mode');
+        document.querySelectorAll('.ppu-brand-mode-btn').forEach(function(b){ b.classList.remove('active'); });
+        this.classList.add('active');
+        if(brandFilterActive) render();
+      });
+    });
 
 
     function applySelectAll(action){

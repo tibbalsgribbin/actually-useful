@@ -684,3 +684,54 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 }
 
 .ppu-empty-kw { padding:10px 12px;font-size:0.82rem;color:var(--au-text-muted);font-style:italic; }
+
+/* ── Brand filter UI ─────────────────────────────────────────────────── */
+#ppu-brand-filter-row {
+  display:flex;align-items:center;gap:8px;padding:5px 14px 8px;flex-wrap:wrap;
+}
+.ppu-brand-filter-toggle {
+  font-size:12px;color:var(--au-text);cursor:pointer;user-select:none;
+  display:inline-flex;align-items:center;gap:5px;font-weight:400;
+}
+.ppu-brand-filter-toggle input[type=checkbox] {
+  accent-color:var(--au-header);cursor:pointer;width:13px;height:13px;
+}
+.ppu-brand-mode-pill {
+  display:inline-flex;border:1px solid var(--au-border);border-radius:5px;overflow:hidden;
+  transition:opacity 0.15s;
+}
+.ppu-brand-mode-pill.ppu-brand-mode-hidden { opacity:0;pointer-events:none; }
+.ppu-brand-mode-btn {
+  font-size:11px;padding:3px 9px;border:none;background:var(--au-periwinkle);
+  color:var(--au-text);cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:400;
+  border-right:1px solid var(--au-border);transition:background 0.1s,color 0.1s;
+}
+.ppu-brand-mode-btn:last-child { border-right:none; }
+.ppu-brand-mode-btn:hover { background:var(--au-periwinkle-h); }
+.ppu-brand-mode-btn.active {
+  background:var(--au-header);color:#fff;font-weight:500;
+}
+
+/* Brand hide/demote row states */
+.ppu-row.brand-hidden  { display:none!important; }
+.ppu-row.brand-demoted { opacity:0.5; }
+
+/* Below-the-line divider for brand demote */
+.ppu-brand-divider {
+  display:flex;align-items:center;gap:0;margin:6px 0 2px;padding:0 14px;
+}
+.ppu-brand-divider::before,
+.ppu-brand-divider::after {
+  content:'';flex:1;height:1px;background:var(--au-border);
+}
+.ppu-brand-divider-label {
+  font-size:10.5px;color:#9ca3af;padding:0 8px;white-space:nowrap;
+}
+
+/* High-noise category banner */
+#ppu-high-noise-banner {
+  display:none;padding:7px 12px 7px 14px;
+  background:#fff7ed;border-left:3px solid #f59e0b;
+  font-size:11px;color:#92400e;line-height:1.5;
+  user-select:text;cursor:text;
+}
