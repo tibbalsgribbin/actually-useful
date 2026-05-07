@@ -252,6 +252,8 @@
     /* ── Table wrapper ───────────────────────────────────────── */
     .table-wrapper {
       overflow-x: auto;
+      overflow-y: auto;
+      max-height: 80vh;
       border: 1px solid var(--border);
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(26,16,53,0.08);
@@ -300,6 +302,9 @@
     td {
       padding: 0.75rem 1rem;
       vertical-align: top;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      max-width: 0;
     }
 
     /* ── Column-specific styles ──────────────────────────────── */
@@ -318,10 +323,10 @@
 
     .col-title a:hover { text-decoration: underline; }
 
-    .col-price { white-space: nowrap; font-weight: 400; }
+    .col-price { min-width: 80px; font-weight: 400; }
 
     .col-ppu {
-      white-space: nowrap;
+      min-width: 90px;
     }
 
     .best-value {
@@ -336,9 +341,9 @@
     }
 
     .col-delivery { min-width: 140px; }
-    .col-rating   { white-space: nowrap; }
-    .col-reviews  { white-space: nowrap; }
-    .col-brand    { white-space: nowrap; color: var(--muted); font-size: 0.85rem; }
+    .col-rating   { white-space: nowrap; min-width: 100px; }
+    .col-reviews  { min-width: 70px; }
+    .col-brand    { color: var(--muted); font-size: 0.85rem; min-width: 80px; }
     .col-note     { min-width: 160px; color: var(--muted); font-style: italic; }
 
     .pill {
@@ -742,6 +747,21 @@
     return amazonBrandSet.has(brand.trim().toUpperCase());
   }
 
+  // Reject brand strings that look like scraping noise rather than real brand names.
+  // These come from search.js fallback scraping (purchase metadata, list labels, etc.)
+  function isBrandNoise(brand) {
+    if (!brand) return true;
+    var b = brand.trim();
+    if (b.length > 40) return true;                          // too long to be a brand
+    if (/bought/i.test(b)) return true;                     // "50+ bought in past month"
+    if (/\bmonth\b/i.test(b)) return true;                  // same
+    if (/^list:/i.test(b)) return true;                     // "List:"
+    if (/^\d+[+k]?\s/i.test(b)) return true;               // starts with "50+ " or "1K "
+    if (/^visit the/i.test(b)) return true;                 // "Visit the X Store" leftover
+    if (b.split(/\s+/).length > 4) return true;             // 5+ words = not a brand
+    return false;
+  }
+
   // Convert a raw PPU value from one liquid unit to another
   function convertLiquidPPU(ppu, fromUnit, toUnit) {
     if (!ppu || !fromUnit || !toUnit) return null;
@@ -911,8 +931,9 @@
       if (filterExclude && excludeMatchesItem(item, filterExclude)) return false;
       if (filterMinPrice !== '' && !isNaN(filterMinPrice) && (parseFloat(item.price) || 0) < parseFloat(filterMinPrice)) return false;
       if (filterMaxPrice !== '' && !isNaN(filterMaxPrice) && (parseFloat(item.price) || 0) > parseFloat(filterMaxPrice)) return false;
-      if (filterHideUnrecognizedBrands && detectGibberishBrand(item.brand || null)) return false;
-      if (filterHideAmazonBrands && isAmazonBrand(item.brand || null)) return false;
+      var effectiveBrand = (item.brand && !isBrandNoise(item.brand)) ? item.brand : null;
+      if (filterHideUnrecognizedBrands && detectGibberishBrand(effectiveBrand)) return false;
+      if (filterHideAmazonBrands && isAmazonBrand(effectiveBrand)) return false;
       if (filterHideSlowShipping) {
         var ts = item.freeDateTs || item.fastDateTs;
         if (ts && ts > Date.now() + filterDeliveryDays * 86400000) return false;
@@ -1228,7 +1249,7 @@
         + '<td>' + primeCell + '</td>'
         + '<td>' + renderCouponCell(item) + '</td>'
         + '<td>' + sourceCell + '</td>'
-        + '<td class="col-brand">' + (item.brand ? esc(item.brand) : '<span class="na">—</span>') + '</td>'
+        + '<td class="col-brand">' + (item.brand && !isBrandNoise(item.brand) ? esc(item.brand) : '<span class="na">—</span>') + '</td>'
         + '<td class="col-note">' + noteCell + '</td>'
         + '</tr>';
     }).join('');
@@ -1669,7 +1690,7 @@
         + '<td>' + primeCell + '</td>'
         + '<td>' + renderCouponCell(item) + '</td>'
         + '<td>' + sourceCell + '</td>'
-        + '<td class="col-brand">' + (item.brand ? esc(item.brand) : '<span class="na">—</span>') + '</td>'
+        + '<td class="col-brand">' + (item.brand && !isBrandNoise(item.brand) ? esc(item.brand) : '<span class="na">—</span>') + '</td>'
         + '<td class="col-note">' + noteCell + '</td>'
         + '</tr>';
     }).join('');
