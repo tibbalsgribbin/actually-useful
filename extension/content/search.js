@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.57)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.59)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1979,7 +1979,7 @@ const ITEM_UNITS = [
       if(ratingHiddenCt>0)         info+=' \u00b7 '+ratingHiddenCt+' below min rating';
       if(priceHiddenCt>0)          info+=' \u00b7 '+priceHiddenCt+' outside price range';
       if(badgeHiddenCt>0)          info+=' \u00b7 '+badgeHiddenCt+' hidden by badge filter';
-      if(brandFilterActive&&brandFlaggedCt>0) info+=' · '+brandFlaggedCt+' listings moved to end';
+      if(brandFilterActive&&brandFlaggedCt>0) info+=' · '+brandFlaggedCt+' unrecognized brands moved to end';
       if(amazonBrandsDemoteActive&&amazonDemotedCt>0) info+=' · '+amazonDemotedCt+' Amazon brands moved to end';
       if(deliveryFilterActive&&deliveryHiddenCt>0) info+=' · '+deliveryHiddenCt+' slow-shipping hidden';
       document.getElementById('ppu-info').textContent=info;
@@ -2014,7 +2014,7 @@ const ITEM_UNITS = [
         var noiseRatio=allData.length>0?allData.filter(function(r){return !!r.brandFlagged&&r.brand!==null;}).length/allData.length:0;
         if(noiseRatio>=0.25){
           highNoiseBanner.style.display='block';
-          highNoiseBanner.textContent='A lot of noise in these results. Try Amazon\u2019s brand filters on the far left before loading more pages. Hiding sponsored listings (above) also helps in categories like this.';
+          highNoiseBanner.textContent='There is a lot of noise in these results. Try using Amazon\u2019s filters on the far left of the webpage first, and then Actually Useful\u2019s filters above.';
         } else {
           highNoiseBanner.style.display='none';
           highNoiseBanner.textContent='';
