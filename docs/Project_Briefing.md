@@ -1,7 +1,7 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.55 (overall) · v0.6.1 (manifest) · v0.6.1.55 (search.js) · v0.6.1.53 (core.js) · v0.6.1.30 (compare.html) · v0.6.1.16 (background.js)*
-*Updated May 7, 2026 (Chat 52 — Brand filter Session 4: delivery window filter)*
+*Current version: v0.6.1.62 (overall) · v0.6.1 (manifest) · v0.6.1.62 (search.js) · v0.6.1.53 (core.js) · v0.6.1.30 (compare.html) · v0.6.1.16 (background.js)*
+*Updated May 7, 2026 (Chat 54 — price slider, UI polish, Apps Script header fix)*
 
 ---
 
@@ -51,7 +51,7 @@ The four-pillar framework is retained as an **internal reference only**. Public-
 
 The **persistent shortlist** is the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-**Shortlist item object shape sent to compare.html (current — v0.6.1.55):**
+**Shortlist item object shape sent to compare.html (current — v0.6.1.62):**
 ```
 { asin, title, price (raw float), listPrice (raw float), ppu (raw float), ppuUnit,
   isPrime (bool), isSponsored (bool),
@@ -83,8 +83,8 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 5. Version Numbering
 
-- **Overall / canonical version:** v0.6.1.55 (search.js number — the main file)
-- **Per-file versions:** search.js v0.6.1.55 · core.js v0.6.1.53 · compare.html v0.6.1.30 · background.js v0.6.1.16 · manifest v0.6.1
+- **Overall / canonical version:** v0.6.1.62 (search.js number — the main file)
+- **Per-file versions:** search.js v0.6.1.62 · core.js v0.6.1.53 · compare.html v0.6.1.30 · background.js v0.6.1.16 · manifest v0.6.1
 - Per-file versions differ intentionally — files change at different rates
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
@@ -126,15 +126,16 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 | File | Purpose |
 |---|---|
-| `manifest.json` | Extension manifest (MV3) — host_permissions includes actuallyuseful.net for kill switch; web_accessible_resources includes data/brand_blocklist.txt |
+| `manifest.json` | Extension manifest (MV3) — host_permissions includes actuallyuseful.net for kill switch; web_accessible_resources includes data/brand_blocklist.txt and data/amazon_brands.txt |
 | `background.js` | Service worker — search context relay + usage logging (v0.6.1.16) |
 | `popup.html` | Extension popup — telemetry toggle + links |
 | `popup.js` | Popup logic |
-| `content/search.js` | Search results page panel (v0.6.1.55) — single file, all logic |
+| `content/search.js` | Search results page panel (v0.6.1.62) — single file, all logic |
 | `content/product.js` | Product page panel (disabled during alpha) |
 | `content/shared/core.js` | Shared: shortlist, nudge, shared constants, AU_VERSION (v0.6.1.53) |
-| `content/shared/styles.css` | Shared styles — blue palette; brand + delivery filter styles added |
+| `content/shared/styles.css` | Shared styles — blue palette; brand + delivery filter styles; pill dividers |
 | `data/brand_blocklist.txt` | Bundled list of known-bad brands (70 entries, Chat 48) — wired up Chat 50 |
+| `data/amazon_brands.txt` | Bundled list of Amazon house brands — wired up Chat 53 |
 
 **Repo root:**
 
@@ -183,19 +184,18 @@ The extension panel (styles.css) now uses a blue palette. The website (compare.h
 
 ## 9. Logging — Google Sheets
 
-**Background.js** fires a POST to the Apps Script endpoint on every panel load. Sheet has 61 columns actual as of v0.6.1.55. Apps Script header row update still pending (currently shows 56 columns).
+**Background.js** fires a POST to the Apps Script endpoint on every panel load. Sheet has 63 columns — header row updated Chat 54. Apps Script updated to Version 3 (Chat 54) to include all 63 fields.
 
 **Apps Script endpoint:** stored in background.js as LOG_URL constant.
 **Sheet:** "Actually Useful Usage Log" in butactuallyuseful Google account.
 
-**Pending columns (57–61), not yet added to sheet header row:**
-personalBlocklistSize · personalBlocklistHits · deliveryFilterActive · deliveryFilterMaxDays · deliveryCountFiltered
+**Column count: 63 (fully in sync as of Chat 54)**
 
 ---
 
-## 10. Brand Filter — architecture summary (v0.7, in progress)
+## 10. Brand Filter — architecture summary (v0.7, complete)
 
-Full design in Brand_Filter_Design.md. Sessions 1–4 complete.
+Full design in Brand_Filter_Design.md. Sessions 1–5 complete.
 
 **Detection layers (priority order):**
 1. Personal allowlist (`chrome.storage.local` → `auAllowlistBrands`) — user-curated, always passes. Implemented Chat 51.
@@ -204,21 +204,14 @@ Full design in Brand_Filter_Design.md. Sessions 1–4 complete.
 4. Heuristic detector (`detectGibberishBrand`) — 5 signals. signalFakeMashup and signalAllCapsInvented flag alone; others require score ≥ 2.
 5. Bundled allowlist — deferred until telemetry shows false positives worth addressing.
 
-**UI (as of v0.6.1.55):**
-- Checkbox toggle "Filter unrecognized brands" in Filters collapsible, off by default
-- "Move to end / Hide" pill — visible when filter is on
-- Demote: items pushed below thin gray divider "N items with unrecognized brands"
-- Hide: `.brand-hidden { display:none }`
-- Info bar: "N listings moved to end" / "N listings hidden"
-- High-noise banner (orange): fires at ≥25% flagged, always visible regardless of filter state
-- Banner text: "A lot of noise in these results. Try Amazon's brand filters on the far left before loading more pages. Hiding sponsored listings (above) also helps in categories like this."
+**UI (as of v0.6.1.62):**
+- "Move Amazon brands to end" checkbox — above unrecognized brands filter, off by default
+- "Move unrecognized brands to end" checkbox — off by default; demote-only (no hide option)
+- Demote dividers: amber pill for unrecognized brands, blue pill for Amazon brands
+- High-noise banner (orange): fires at ≥25% flagged
+- Banner text: "There is a lot of noise in these results. Try using Amazon's filters on the far left of the webpage first, and then Actually Useful's filters above."
 - Each card with a detected brand shows: "[BrandName]: [Always show] [Always hide]"
-  - Always show: adds to personal allowlist, removes from personal blocklist if present, re-detects, re-renders
-  - Always hide: adds to personal blocklist, removes from personal allowlist if present, forces filter on + hide mode, re-renders
-- "My brand rules (N)" footer link — N = combined allowlist + blocklist count
-  - Opens overlay (position:fixed, appended to body) with two sections: Always show / Always hide
-  - Remove buttons remove individual entries without closing the overlay
-  - Empty sections show "None yet."
+- "My brand rules (N)" footer link — management overlay with two sections
 
 **Console logging:** removed in v0.6.1.49.
 
@@ -233,7 +226,7 @@ Added Chat 52. Lives in search.js and styles.css.
 **Filter logic:** Uses `r.freeDate || r.fastDate` (Date objects on allData items). Items with neither date are exempt. Hides items whose earliest date exceeds `Date.now() + (deliveryFilterDays × 86400000)`.
 
 **UI:**
-- Checkbox "Hide slow shipping" in Filters collapsible, below brand filter row, off by default
+- Checkbox "Hide slow shipping" in Filters collapsible, below brand filter rows, off by default
 - When checked: row of preset buttons appears — 2 / 3 / 5 / 7 / 10 / 14 / 21 days; default 7
 - Label: "Arriving within N days" — updates when preset changes
 - Hide-only. No demote option.
@@ -246,7 +239,17 @@ Added Chat 52. Lives in search.js and styles.css.
 
 ---
 
-## 12. Working Rules (standing)
+## 12. Price Range Filter — dual-handle slider (v0.6.1.61)
+
+Replaced two input boxes with a dual-handle range slider.
+
+**Behavior:** Bounds set dynamically from cheapest/most expensive item in current results. Low handle sets minPrice floor, high handle sets maxPrice ceiling. Dragging past the other handle clamps. When full range selected (no filter), label is blank. When narrowed, label shows e.g. `$12–$45`. Items with no price are exempt.
+
+**Persistence:** minPrice/maxPrice stored as strings in sessionStorage alongside other filters. Empty string = no filter active.
+
+---
+
+## 13. Working Rules (standing)
 
 - **Single agent.** Claude only. No Replit, Gemini, Figma, or other tools touching code files directly.
 - **Confirm before coding.** Always align on scope before touching files.

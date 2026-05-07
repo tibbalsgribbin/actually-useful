@@ -703,26 +703,22 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 
 /* Below-the-line divider for brand demote */
 .ppu-brand-divider {
-  display:flex;align-items:center;gap:0;margin:6px 0 2px;padding:0 14px;
-}
-.ppu-brand-divider::before,
-.ppu-brand-divider::after {
-  content:'';flex:1;height:1px;background:var(--au-border);
+  display:flex;align-items:center;margin:8px 14px 4px;
 }
 .ppu-brand-divider-label {
-  font-size:10.5px;color:#9ca3af;padding:0 8px;white-space:nowrap;
+  display:inline-block;font-size:10.5px;font-weight:600;
+  color:#92400e;background:#fef3c7;
+  padding:2px 8px;border-radius:10px;white-space:nowrap;
 }
 
 /* Amazon brands demote divider — visually distinct from unrecognized-brands divider */
 .ppu-amazon-divider {
-  display:flex;align-items:center;gap:0;margin:6px 0 2px;padding:0 14px;
-}
-.ppu-amazon-divider::before,
-.ppu-amazon-divider::after {
-  content:'';flex:1;height:1px;background:#bfdbfe;
+  display:flex;align-items:center;margin:8px 14px 4px;
 }
 .ppu-amazon-divider-label {
-  font-size:10.5px;color:#2563eb;padding:0 8px;white-space:nowrap;
+  display:inline-block;font-size:10.5px;font-weight:600;
+  color:#1e40af;background:#dbeafe;
+  padding:2px 8px;border-radius:10px;white-space:nowrap;
 }
 
 /* High-noise category banner */

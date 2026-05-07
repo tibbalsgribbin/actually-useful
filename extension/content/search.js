@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.59)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.62)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1326,8 +1326,6 @@ const ITEM_UNITS = [
       pagesSlider.style.setProperty('--fill', pct + '%');
       pagesSlider.classList.toggle('active', loadedPages > 1);
       if (labelEl) labelEl.innerHTML = nextPageUrl ? 'Pages to load: <em>' + loadedPages + '</em>' : 'No more pages available';
-      var warnEl = document.getElementById('ppu-pages-warning');
-      if (warnEl) warnEl.style.display = loadedPages >= 7 ? 'block' : 'none';
     } else {
       if (labelEl) labelEl.innerHTML = nextPageUrl ? 'Pages to load: <em>1</em>' : 'No more pages available';
     }
@@ -1517,7 +1515,7 @@ const ITEM_UNITS = [
             '<span id="ppu-pages-status"></span>'+
             '<button id="ppu-btn-refresh" class="ppu-btn" style="margin-left:6px;flex-shrink:0;" title="Re-syncs with the Amazon page. Use this if you changed Amazon\u2019s filters or categories. Extra pages loaded will be lost.">\u21ba Re-sync</button>'+
           '</div>'+
-          '<div id="ppu-pages-warning" style="margin:0 14px 6px;display:none;">\u26a0\ufe0f Amazon sometimes limits results beyond 7 pages, and those results may be less relevant to your search.</div>'+
+
         '</div>'+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-filters-toggle" data-target="ppu-filters-collapsible">'+
           '<span>Filters <span id="ppu-filters-count" style="display:none"></span><span class="ppu-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></span>'+
@@ -1554,10 +1552,13 @@ const ITEM_UNITS = [
             '</div>'+
           '</div>'+
           '<div id="ppu-price-range-row">'+
-            '<span class="ppu-slider-label" title="Filter products by price range">Price: </span>'+
-            '<span class="ppu-price-prefix">$</span><input id="ppu-min-price" type="number" class="ppu-price-input" min="0" placeholder="min" value="'+(minPrice||'')+'">'+
-            '<span class="ppu-price-sep">\u2013</span>'+
-            '<span class="ppu-price-prefix">$</span><input id="ppu-max-price" type="number" class="ppu-price-input" min="0" placeholder="max" value="'+(maxPrice||'')+'">'+
+            '<span class="ppu-slider-label" title="Filter products by price range">Price</span>'+
+            '<div class="ppu-price-slider-wrap">'+
+              '<div class="ppu-price-track-bg"><div id="ppu-price-track-fill" class="ppu-price-track-fill"></div></div>'+
+              '<input id="ppu-price-lo" type="range" class="ppu-price-thumb" step="1" value="0" min="0" max="1000">'+
+              '<input id="ppu-price-hi" type="range" class="ppu-price-thumb" step="1" value="1000" min="0" max="1000">'+
+            '</div>'+
+            '<span id="ppu-price-label" class="ppu-price-label"></span>'+
           '</div>'+
           ((hasSnap||hasFsaHsa||hasClimatePledge||hasSmallBusiness)?
             '<div id="ppu-badge-filter-row">'+
@@ -1647,10 +1648,14 @@ const ITEM_UNITS = [
       styleEl.id = 'ppu-extra-styles';
       styleEl.textContent =
         '.price-hidden{display:none!important}' +
-        '#ppu-price-range-row{display:flex;align-items:center;gap:6px;padding:4px 14px 6px;flex-wrap:wrap;}' +
-        '.ppu-price-input{width:52px;padding:3px 6px;border:1px solid #c8c0e8;border-radius:4px;font-size:13px;background:#fff;color:#351E45;}' +
-        '.ppu-price-prefix{font-size:13px;color:#351E45;}' +
-        '.ppu-price-sep{font-size:13px;color:#877891;margin:0 2px;}' +
+        '#ppu-price-range-row{display:flex;align-items:center;gap:8px;padding:4px 14px 6px;}' +
+        '.ppu-price-slider-wrap{position:relative;flex:1;height:18px;}' +
+        '.ppu-price-track-bg{position:absolute;top:50%;left:0;right:0;height:4px;background:#d1d5db;border-radius:2px;transform:translateY(-50%);}' +
+        '.ppu-price-track-fill{position:absolute;top:0;height:4px;background:#4f46e5;border-radius:2px;}' +
+        '.ppu-price-thumb{position:absolute;top:50%;width:100%;height:18px;margin:0;padding:0;transform:translateY(-50%);background:transparent;-webkit-appearance:none;appearance:none;pointer-events:none;}' +
+        '.ppu-price-thumb::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#4f46e5;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);pointer-events:all;cursor:pointer;}' +
+        '.ppu-price-thumb::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#4f46e5;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);pointer-events:all;cursor:pointer;}' +
+        '.ppu-price-label{font-size:11px;color:#6b7280;white-space:nowrap;min-width:72px;text-align:right;}' +
         '.ppu-note-widget{margin-top:5px;}' +
         '.ppu-note-add-link{font-size:11px;color:#877891;cursor:pointer;text-decoration:none;user-select:none;}' +
         '.ppu-note-add-link:hover{color:#CF6DFC;}' +
@@ -2382,8 +2387,6 @@ const ITEM_UNITS = [
       if (!labelEl || !pagesSlider) return;
       var v = parseInt(pagesSlider.value, 10);
       labelEl.innerHTML = 'Pages: <b>' + v + '</b>';
-      var warnEl = document.getElementById('ppu-pages-warning');
-      if (warnEl) warnEl.style.display = v >= 7 ? 'block' : 'none';
     }
 
     // ── Events ────────────────────────────────────────────────────────────
@@ -2406,10 +2409,6 @@ const ITEM_UNITS = [
       var rtLabel=document.getElementById('ppu-min-rating-val');
       if(rtLabel) rtLabel.textContent='Any';
       minPrice=''; maxPrice='';
-      var minPriceEl=document.getElementById('ppu-min-price');
-      var maxPriceEl=document.getElementById('ppu-max-price');
-      if(minPriceEl) minPriceEl.value='';
-      if(maxPriceEl) maxPriceEl.value='';
       Object.keys(srcFilter).forEach(function(k){ srcFilter[k]=true; });
       panel.querySelectorAll('.ppu-source-toggle').forEach(function(btn){ btn.classList.remove('off'); });
       sponsoredMode='show';
@@ -2429,21 +2428,61 @@ const ITEM_UNITS = [
       buildPanel();
     });
 
-    // ── Price range inputs ────────────────────────────────────────────────
-    var minPriceInput=document.getElementById('ppu-min-price');
-    var maxPriceInput=document.getElementById('ppu-max-price');
-    if(minPriceInput){
-      minPriceInput.addEventListener('input',function(){
-        minPrice=this.value.trim();
+    // ── Price range slider ───────────────────────────────────────────────
+    (function() {
+      var loThumb = document.getElementById('ppu-price-lo');
+      var hiThumb = document.getElementById('ppu-price-hi');
+      var fill    = document.getElementById('ppu-price-track-fill');
+      var label   = document.getElementById('ppu-price-label');
+      if (!loThumb || !hiThumb) return;
+
+      // Set slider bounds from actual data
+      var prices = allData.map(function(r){ return r.price; }).filter(function(p){ return p!=null && p>0; });
+      var dataMin = prices.length ? Math.floor(Math.min.apply(null,prices)) : 0;
+      var dataMax = prices.length ? Math.ceil(Math.max.apply(null,prices))  : 1000;
+      if (dataMax <= dataMin) dataMax = dataMin + 1;
+
+      loThumb.min = dataMin; loThumb.max = dataMax;
+      hiThumb.min = dataMin; hiThumb.max = dataMax;
+
+      // Restore saved values or default to full range
+      var loVal = (minPrice !== '' && minPrice !== null) ? parseFloat(minPrice) : dataMin;
+      var hiVal = (maxPrice !== '' && maxPrice !== null) ? parseFloat(maxPrice) : dataMax;
+      loThumb.value = loVal;
+      hiThumb.value = hiVal;
+
+      function updateFillAndLabel() {
+        var lo = parseFloat(loThumb.value);
+        var hi = parseFloat(hiThumb.value);
+        var range = dataMax - dataMin;
+        var leftPct  = range > 0 ? ((lo - dataMin) / range * 100) : 0;
+        var rightPct = range > 0 ? ((hi - dataMin) / range * 100) : 100;
+        fill.style.left  = leftPct  + '%';
+        fill.style.width = (rightPct - leftPct) + '%';
+        var allRange = (lo <= dataMin && hi >= dataMax);
+        label.textContent = allRange ? '' : ('$' + Math.round(lo) + '–$' + Math.round(hi));
+      }
+
+      updateFillAndLabel();
+
+      loThumb.addEventListener('input', function() {
+        var lo = parseFloat(loThumb.value);
+        var hi = parseFloat(hiThumb.value);
+        if (lo > hi) { loThumb.value = hi; lo = hi; }
+        minPrice = (lo <= dataMin) ? '' : String(lo);
+        updateFillAndLabel();
         render();
       });
-    }
-    if(maxPriceInput){
-      maxPriceInput.addEventListener('input',function(){
-        maxPrice=this.value.trim();
+
+      hiThumb.addEventListener('input', function() {
+        var lo = parseFloat(loThumb.value);
+        var hi = parseFloat(hiThumb.value);
+        if (hi < lo) { hiThumb.value = lo; hi = lo; }
+        maxPrice = (hi >= dataMax) ? '' : String(hi);
+        updateFillAndLabel();
         render();
       });
-    }
+    })();
 
     // ── SNAP EBT filter ──────────────────────────────────────────────────
     var snapChk=document.getElementById('ppu-snap-only');
@@ -2734,11 +2773,17 @@ const ITEM_UNITS = [
           toggle.classList.add('collapsed');
         }
         if (toggleId === 'ppu-sort-toggle')    sortOpen    = openFlag;
-        if (toggleId === 'ppu-filters-toggle') filtersOpen = openFlag;
+        if (toggleId === 'ppu-filters-toggle') {
+          filtersOpen = openFlag;
+          var decBar = document.getElementById('ppu-dec-bar');
+          if (decBar) decBar.style.display = openFlag ? '' : 'none';
+        }
       });
     }
     setupCollapsible('ppu-sort-toggle',    'ppu-sort-collapsible',    sortOpen);
     setupCollapsible('ppu-filters-toggle', 'ppu-filters-collapsible', filtersOpen);
+    // Sync dec-bar visibility with initial filters open state
+    (function(){ var db=document.getElementById('ppu-dec-bar'); if(db) db.style.display=filtersOpen?'':'none'; })();
 
     document.getElementById('ppu-collapse').addEventListener('click',function(e){
       e.stopPropagation();

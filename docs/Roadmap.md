@@ -4,7 +4,7 @@
 
 ---
 
-## Current version: v0.6.1.55 (overall) · v0.6.1 (manifest) · v0.6.1.55 (search.js) · v0.6.1.53 (core.js) · v0.6.1.30 (compare.html) · v0.6.1.16 (background.js)
+## Current version: v0.6.1.62 (overall) · v0.6.1 (manifest) · v0.6.1.62 (search.js) · v0.6.1.53 (core.js) · v0.6.1.30 (compare.html) · v0.6.1.16 (background.js)
 
 ---
 
@@ -30,11 +30,10 @@
 - **Other discount types not captured** — buy-multiple deals, vague "save X%" promos; post-alpha
 - **compare.html logging** — no logging on compare page yet
 - **Brand filter mixed-case invented names** — Floerns, Verdusa, Wenrine etc. score 0 on heuristics; accepted gap, covered partially by bundled blocklist
-- **Apps Script header row** — needs updating from 56 to 61 columns (58 after Chat 50; +3 delivery fields Chat 52)
 - **Brand filter threshold tuning** — 25% high-noise threshold needs real-world calibration
 - **Duplicate "Pages slider" comment** — cosmetic only, around line 2808 in search.js; fix opportunistically
 - **Outlier PPU units sorting to top** — items with unusual units ($/lb for weighted heating pad, $/ft for a cord) sort to top as "best value" when their raw PPU is small. Needs design session before fix.
-- **compare.html out of sync with panel** — brand filter, delivery filter, and other recent features not reflected in compare.html. Needs a dedicated sync session.
+- **compare.html out of sync with panel** — brand filter, delivery filter, price slider, and other recent features not reflected in compare.html. Needs a dedicated sync session.
 
 ---
 
@@ -57,7 +56,7 @@
 **Template literal rule:** Never use Python heredoc string escaping for JavaScript template literals in compare.html. Use string concatenation (+).
 
 **Version numbering:**
-- Overall / canonical: v0.6.1.55 (search.js number)
+- Overall / canonical: v0.6.1.62 (search.js number)
 - Per-file versions differ intentionally — files change at different rates
 - v1.0 = Web Store public launch
 
@@ -86,13 +85,11 @@
 
 ## Next session priorities (in order)
 
-1. **Brand filter Session 5** — Amazon-brands demote toggle + polish. See Brand_Filter_Design.md Session 5 scope.
-2. **compare.html logging** — direct fetch to Google Sheets endpoint; deferred from Chat 46
-3. **compare.html sync** — bring compare.html up to date with recent panel features (brand filter, delivery filter, etc.)
-4. **Welcome page on install** — chrome.runtime.onInstalled opens onboarding tab
-5. **Fix extractCount "1 Pack (250 Sheets)"** — pack/count ordering fix
-6. **Verify auto-resort fires on Re-sync page-add**
-7. **Apps Script header row** — update to 61 columns
+1. **compare.html logging** — direct fetch to Google Sheets endpoint
+2. **compare.html sync** — bring compare.html up to date with recent panel features (brand filter, delivery filter, price slider, etc.)
+3. **Welcome page on install** — chrome.runtime.onInstalled opens onboarding tab
+4. **Fix extractCount "1 Pack (250 Sheets)"** — pack/count ordering fix
+5. **Verify auto-resort fires on Re-sync page-add**
 
 ---
 
@@ -164,7 +161,17 @@
 - [x] Delivery filter: "Hide slow shipping" checkbox + day presets (2/3/5/7/10/14/21), hide-only, exempt items with no date (Chat 52)
 - [x] 3 delivery filter fields added to doLog(); sheet goes to 61 columns actual (Chat 52)
 - [x] Brand row copy: shows "[BrandName]: [Always show] [Always hide]" (Chat 52)
-- [ ] Apps Script header row updated to 61 columns
+- [x] Brand filter Session 5 — Amazon-brands demote toggle + filter UI polish + copy fixes (Chat 53)
+- [x] amazon_brands.txt created, wired up (Chat 53)
+- [x] Both brand filters now demote-only; pill toggle removed (Chat 53)
+- [x] Divider labels updated: amber pill for unrecognized brands, blue pill for Amazon brands (Chat 53 design, Chat 54 CSS)
+- [x] 2 Amazon brands fields added to doLog(); sheet goes to 63 columns actual (Chat 53)
+- [x] manifest.json web_accessible_resources — data/amazon_brands.txt (Chat 53)
+- [x] Price range filter replaced with dual-handle slider — bounds from live data (Chat 54)
+- [x] 7-page warning removed (Chat 54)
+- [x] Active-filters dec-bar hides when Filters section is collapsed (Chat 54)
+- [x] Apps Script updated to Version 3 — all 63 fields (Chat 54)
+- [x] Google Sheet header row updated to 63 columns (Chat 54)
 - [ ] compare.html logging
 - [ ] compare.html sync with recent panel features
 - [ ] Fix extractCount "1 Pack (250 Sheets)" ordering issue
@@ -186,7 +193,7 @@
 - [x] Kill switch active ✅
 - [x] Supabase account + comparisons table
 - [x] Chrome Web Store — published unlisted
-- [x] Usage log — Google Sheet, 61 columns actual (header row update pending) ✅
+- [x] Usage log — Google Sheet, 63 columns, fully in sync ✅
 - [ ] Create Amazon account (prerequisite for Associates)
 - [ ] Apply for Amazon Associates (after real user base)
 
@@ -204,7 +211,7 @@
 - [x] index.html copy and CTA overhauled ✅
 - [x] Kill switch in place ✅
 - [x] Logging audit session ✅ (Chat 46)
-- [ ] Brand filter feature suite (Sessions 1–4 complete — see v0.7 section)
+- [x] Brand filter feature suite (Sessions 1–5 complete) ✅
 - [ ] Welcome page on install
 - [ ] Selector resilience refactor
 - [ ] Self-test mode
@@ -225,7 +232,7 @@ Full design in Brand_Filter_Design.md.
 - [x] Session 3: bundled blocklist wire-up + personal blocklist + [•••] menu + management view ✅ Chat 50
 - [x] Session 3 retrofit: brand row UI rework + personal allowlist + bug fixes ✅ Chat 51
 - [x] Session 4: delivery window filter ✅ Chat 52
-- [ ] Session 5: Amazon-brands demote toggle + polish
+- [x] Session 5: Amazon-brands demote toggle + polish ✅ Chat 53
 - [ ] Session 6 (optional): compare.html integration
 
 ---
