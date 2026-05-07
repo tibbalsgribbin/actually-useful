@@ -338,6 +338,7 @@
     .col-delivery { min-width: 140px; }
     .col-rating   { white-space: nowrap; }
     .col-reviews  { white-space: nowrap; }
+    .col-brand    { white-space: nowrap; color: var(--muted); font-size: 0.85rem; }
     .col-note     { min-width: 160px; color: var(--muted); font-style: italic; }
 
     .pill {
@@ -625,6 +626,87 @@
 
   function isLiquidUnit(u) { return u && LIQUID_UNITS_SET.has(u.toLowerCase().trim()); }
 
+  // ── Brand detection ───────────────────────────────────────────
+  // Lists fetched at init from actuallyuseful.net/data/
+  // NOTE: brand_blocklist.txt and amazon_brands.txt must be updated
+  // concurrently in both extension/data/ and the website data/ folder.
+  var brandBlocklist  = new Set(); // known-bad brands (from brand_blocklist.txt)
+  var amazonBrandSet  = new Set(); // Amazon house brands (from amazon_brands.txt)
+
+  async function fetchBrandList(url) {
+    try {
+      var res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) return new Set();
+      var text = await res.text();
+      var lines = text.split('\n').map(function(l) { return l.trim(); })
+        .filter(function(l) { return l && !l.startsWith('#'); })
+        .map(function(l) { return l.toUpperCase(); });
+      return new Set(lines);
+    } catch(e) { return new Set(); }
+  }
+
+  // Heuristic gibberish detector — mirrors search.js detectGibberishBrand()
+  var FAKE_MASHUP_FRAGMENTS = [
+    'pretty','garden','summer','style','love','rose','blue','sun','moon','star',
+    'sweet','soft','warm','cool','fresh','bright','light','cloud','flow','grace',
+    'soul','new','show','seek','wear','dress','lady','girl','women','casual','wave',
+    'spring','autumn','winter','night','day','wild','free','pure','slim','chic',
+    'cozy','erin','vivid','color','ultra','prime','smart','basic','elite','vida'
+  ];
+
+  function detectGibberishBrand(brand) {
+    if (!brand || brand.length < 3) return false;
+    var b = brand.trim();
+    var bUp = b.toUpperCase();
+
+    // Blocklist check first
+    if (brandBlocklist.has(bUp)) return true;
+
+    var letters = b.replace(/[^a-zA-Z]/g, '');
+    if (!letters.length) return false;
+    var vowels = (letters.match(/[aeiouAEIOU]/g) || []).length;
+    var consonants = letters.length - vowels;
+
+    // Signal 1: very low vowel ratio, long enough word
+    var signalNoVowel = letters.length >= 5 && (vowels / consonants) < 0.25;
+
+    // Signal 2: rare consonant cluster or 4+ consecutive consonants
+    var signalConsonantCluster = /[^aeiou\s]{4,}/i.test(b) ||
+      /[bcdfghjklmnpqrstvwxyz]{2,}/i.test(b.replace(/qu/gi,''));
+
+    // Signal 3: short all-caps, ≤1 vowel
+    var signalShortAllCaps = /^[A-Z]{5,8}$/.test(b) && vowels <= 1;
+
+    // Signal 4: fake mashup — no spaces, 5+ chars, 2+ fragments
+    var signalFakeMashup = false;
+    if (!b.includes(' ') && b.length >= 5) {
+      var bLow = b.toLowerCase();
+      var parts = b.replace(/([A-Z])/g, ' $1').trim().toLowerCase().split(/\s+/);
+      var targets = parts.length > 1 ? parts : [bLow];
+      var hits = 0;
+      FAKE_MASHUP_FRAGMENTS.forEach(function(f) {
+        if (targets.some(function(t) { return t === f || t.startsWith(f) || t.endsWith(f); })) hits++;
+      });
+      if (hits >= 2) signalFakeMashup = true;
+    }
+
+    // Signal 5: all-caps, no spaces, 5+ letters
+    var signalAllCapsInvented = /^[A-Z]{5,}$/.test(b) && !b.includes(' ');
+
+    // Solo-signal flags
+    if (signalFakeMashup) return true;
+    if (signalAllCapsInvented) return true;
+
+    // Other signals require score ≥ 2
+    var score = (signalNoVowel ? 1 : 0) + (signalConsonantCluster ? 1 : 0) + (signalShortAllCaps ? 1 : 0);
+    return score >= 2;
+  }
+
+  function isAmazonBrand(brand) {
+    if (!brand) return false;
+    return amazonBrandSet.has(brand.trim().toUpperCase());
+  }
+
   // Convert a raw PPU value from one liquid unit to another
   function convertLiquidPPU(ppu, fromUnit, toUnit) {
     if (!ppu || !fromUnit || !toUnit) return null;
@@ -655,6 +737,10 @@
   let filterRequireFsaHsa = false;
   let filterRequireClimatePledge = false;
   let filterRequireSmallBusiness = false;
+  let filterHideUnrecognizedBrands = false;
+  let filterHideAmazonBrands = false;
+  let filterHideSlowShipping = false;
+  let filterDeliveryDays = 7;
 
   let currentSearchUrl = '';
 
@@ -669,6 +755,7 @@
     isPrime:     true,
     coupon:      true,
     retailerKey: true,
+    brand:       true,
     note:        true
   };
 
@@ -681,6 +768,7 @@
     isPrime:     'Prime',
     coupon:      'Coupon / promo',
     retailerKey: 'Source',
+    brand:       'Brand',
     note:        'Notes'
   };
 
@@ -788,6 +876,12 @@
       if (filterExclude && excludeMatchesItem(item, filterExclude)) return false;
       if (filterMinPrice !== '' && !isNaN(filterMinPrice) && (parseFloat(item.price) || 0) < parseFloat(filterMinPrice)) return false;
       if (filterMaxPrice !== '' && !isNaN(filterMaxPrice) && (parseFloat(item.price) || 0) > parseFloat(filterMaxPrice)) return false;
+      if (filterHideUnrecognizedBrands && detectGibberishBrand(item.brand || null)) return false;
+      if (filterHideAmazonBrands && isAmazonBrand(item.brand || null)) return false;
+      if (filterHideSlowShipping) {
+        var ts = item.freeDateTs || item.fastDateTs;
+        if (ts && ts > Date.now() + filterDeliveryDays * 86400000) return false;
+      }
       return true;
     });
   }
@@ -844,6 +938,27 @@
     var minPriceVal = filterMinPrice !== '' ? esc(String(filterMinPrice)) : '';
     var maxPriceVal = filterMaxPrice !== '' ? esc(String(filterMaxPrice)) : '';
 
+    var unrecoChk = filterHideUnrecognizedBrands ? ' checked' : '';
+    var unrecoToggle = '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-hide-unreco-brands"' + unrecoChk + '> Hide unrecognized brands</label>';
+
+    var amazonBrandChk = filterHideAmazonBrands ? ' checked' : '';
+    var amazonBrandToggle = '<label class="fb-label fb-checkbox"><input type="checkbox" id="fb-hide-amazon-brands"' + amazonBrandChk + '> Hide Amazon brands</label>';
+
+    var slowShipChk = filterHideSlowShipping ? ' checked' : '';
+    var deliveryPresets = [2, 3, 5, 7, 10, 14, 21];
+    var deliveryPresetBtns = deliveryPresets.map(function(d) {
+      var active = filterDeliveryDays === d && filterHideSlowShipping;
+      var style = active ? 'background:#512bd3;color:#fff;border:1px solid #512bd3;' : 'background:#fff;color:#1A1035;border:1px solid #afb2f4;';
+      return '<button class="delivery-preset-btn" data-days="' + d + '" style="' + style + 'padding:0.15rem 0.5rem;border-radius:4px;font-size:0.78rem;cursor:pointer;font-family:inherit;">' + d + 'd</button>';
+    }).join('');
+    var deliveryRow = filterHideSlowShipping
+      ? '<div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem;">'
+        + '<span style="font-size:0.78rem;color:#1A1035;">Arriving within:</span>'
+        + deliveryPresetBtns
+        + '</div>'
+      : '';
+    var slowShipToggle = '<div><label class="fb-label fb-checkbox"><input type="checkbox" id="fb-hide-slow-shipping"' + slowShipChk + '> Hide slow shipping</label>' + deliveryRow + '</div>';
+
     return '<div id="filter-bar">'
       + '<div id="filter-bar-header">'
       + '<span id="filter-bar-title">Filters</span>'
@@ -864,6 +979,9 @@
       + fsaToggle
       + climateToggle
       + sbToggle
+      + unrecoToggle
+      + amazonBrandToggle
+      + slowShipToggle
       + '<button id="fb-clear" class="btn btn-ghost">Clear filters</button>'
       + '</div>'
       + '</div>'
@@ -957,6 +1075,7 @@
       { key: 'isPrime',     label: 'Prime' },
       { key: 'coupon',      label: 'Coupon / promo' },
       { key: 'retailerKey', label: 'Source' },
+      { key: 'brand',       label: 'Brand' },
       { key: 'note',        label: 'Notes' },
     ];
 
@@ -996,7 +1115,7 @@
 
       var primeCell = item.isPrime
         ? '<span class="pill pill-prime">Prime</span>'
-        : '<span class="na">\u2014</span>';
+        : '<span class="na">—</span>';
 
       // Coupon/promo column — label only, no prices
       var couponParts = [];
@@ -1074,6 +1193,7 @@
         + '<td>' + primeCell + '</td>'
         + '<td>' + renderCouponCell(item) + '</td>'
         + '<td>' + sourceCell + '</td>'
+        + '<td class="col-brand">' + (item.brand ? esc(item.brand) : '<span class="na">—</span>') + '</td>'
         + '<td class="col-note">' + noteCell + '</td>'
         + '</tr>';
     }).join('');
@@ -1396,6 +1516,7 @@
       { key: 'isPrime',     label: 'Prime' },
       { key: 'coupon',      label: 'Coupon / promo' },
       { key: 'retailerKey', label: 'Source' },
+      { key: 'brand',       label: 'Brand' },
       { key: 'note',        label: 'Notes' },
     ];
 
@@ -1432,7 +1553,7 @@
           : ppuFormatted + ppuNote;
       }
 
-      var primeCell = item.isPrime ? '<span class="pill pill-prime">Prime</span>' : '<span class="na">\u2014</span>';
+      var primeCell = item.isPrime ? '<span class="pill pill-prime">Prime</span>' : '<span class="na">—</span>';
 
       // Coupon/promo column — label only
       var couponParts = [];
@@ -1510,6 +1631,7 @@
         + '<td>' + primeCell + '</td>'
         + '<td>' + renderCouponCell(item) + '</td>'
         + '<td>' + sourceCell + '</td>'
+        + '<td class="col-brand">' + (item.brand ? esc(item.brand) : '<span class="na">—</span>') + '</td>'
         + '<td class="col-note">' + noteCell + '</td>'
         + '</tr>';
     }).join('');
@@ -1715,6 +1837,41 @@
         rerender();
       });
     }
+    // Hide unrecognized brands
+    const unrecoChkEl = document.getElementById('fb-hide-unreco-brands');
+    if (unrecoChkEl) {
+      unrecoChkEl.addEventListener('change', () => {
+        filterHideUnrecognizedBrands = unrecoChkEl.checked;
+        rerender();
+      });
+    }
+
+    // Hide Amazon brands
+    const amazonBrandChkEl = document.getElementById('fb-hide-amazon-brands');
+    if (amazonBrandChkEl) {
+      amazonBrandChkEl.addEventListener('change', () => {
+        filterHideAmazonBrands = amazonBrandChkEl.checked;
+        rerender();
+      });
+    }
+
+    // Hide slow shipping
+    const slowShipChkEl = document.getElementById('fb-hide-slow-shipping');
+    if (slowShipChkEl) {
+      slowShipChkEl.addEventListener('change', () => {
+        filterHideSlowShipping = slowShipChkEl.checked;
+        rerender();
+      });
+    }
+
+    // Delivery day presets
+    document.querySelectorAll('.delivery-preset-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        filterDeliveryDays = parseInt(this.getAttribute('data-days'), 10);
+        rerender();
+      });
+    });
+
     const clearBtn = document.getElementById('fb-clear');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
@@ -1731,6 +1888,10 @@
         filterRequireFsaHsa = false;
         filterRequireClimatePledge = false;
         filterRequireSmallBusiness = false;
+        filterHideUnrecognizedBrands = false;
+        filterHideAmazonBrands = false;
+        filterHideSlowShipping = false;
+        filterDeliveryDays = 7;
         sortCol = 'ppu';
         sortDir = 'asc';
         rerender();
@@ -1819,6 +1980,14 @@
     const params = new URLSearchParams(window.location.search);
     const shareId = params.get('id');
     const raw = params.get('data');
+
+    // Fetch brand lists in parallel — proceed regardless of success
+    const [blocklist, amazonlist] = await Promise.all([
+      fetchBrandList('https://actuallyuseful.net/data/brand_blocklist.txt'),
+      fetchBrandList('https://actuallyuseful.net/data/amazon_brands.txt')
+    ]);
+    brandBlocklist = blocklist;
+    amazonBrandSet = amazonlist;
 
     // Load from Supabase if ?id= is present
     if (shareId) {
