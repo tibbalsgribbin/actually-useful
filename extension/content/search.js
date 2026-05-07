@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.56)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.57)
 'use strict';
 
 function auFeedbackUrl() {
@@ -94,7 +94,6 @@ const ITEM_UNITS = [
         selectedUnit:  selectedUnit,
         srcFilter:     srcFilter,
         brandFilterActive: brandFilterActive,
-        brandFilterMode:   brandFilterMode,
         amazonBrandsDemoteActive: amazonBrandsDemoteActive,
         deliveryFilterActive: deliveryFilterActive,
         deliveryFilterDays:   deliveryFilterDays
@@ -1375,7 +1374,6 @@ const ITEM_UNITS = [
       sponsoredMode = savedFilters.sponsoredMode || 'show';
       selectedUnit  = savedFilters.selectedUnit  || null;
       brandFilterActive = !!savedFilters.brandFilterActive;
-      brandFilterMode   = savedFilters.brandFilterMode || 'demote';
       amazonBrandsDemoteActive = !!savedFilters.amazonBrandsDemoteActive;
       deliveryFilterActive = !!savedFilters.deliveryFilterActive;
       deliveryFilterDays   = savedFilters.deliveryFilterDays || 7;
@@ -1391,7 +1389,6 @@ const ITEM_UNITS = [
       sponsoredMode = 'show';
       selectedUnit  = null;
       brandFilterActive = false;
-      brandFilterMode   = 'demote';
       amazonBrandsDemoteActive = false;
       deliveryFilterActive = false;
       deliveryFilterDays   = 7;
@@ -1581,23 +1578,19 @@ const ITEM_UNITS = [
               }).join('')+
             '</div>':'')+
           '<div id="ppu-amazon-brands-row">'+
-            '<label class="ppu-brand-filter-toggle">'+
+            '<label class="ppu-filter-toggle-label">'+
               '<input type="checkbox" id="ppu-amazon-brands-on"'+(amazonBrandsDemoteActive?' checked':'')+'>'+
-              ' Demote Amazon brands'+
+              ' Move Amazon brands to end'+
             '</label>'+
           '</div>'+
           '<div id="ppu-brand-filter-row">'+
-            '<label class="ppu-brand-filter-toggle">'+
+            '<label class="ppu-filter-toggle-label">'+
               '<input type="checkbox" id="ppu-brand-filter-on"'+(brandFilterActive?' checked':'')+'>'+
-              ' Filter unrecognized brands'+
+              ' Move unrecognized brands to end'+
             '</label>'+
-            '<span id="ppu-brand-mode-pill" class="ppu-brand-mode-pill'+(brandFilterActive?'':' ppu-brand-mode-hidden')+'">'+
-              '<button class="ppu-brand-mode-btn'+(brandFilterMode==='demote'?' active':'')+'" data-mode="demote">Move to end</button>'+
-              '<button class="ppu-brand-mode-btn'+(brandFilterMode==='hide'?' active':'')+'" data-mode="hide">Hide</button>'+
-            '</span>'+
           '</div>'+
           '<div id="ppu-delivery-filter-row">'+
-            '<label class="ppu-brand-filter-toggle">'+
+            '<label class="ppu-filter-toggle-label">'+
               '<input type="checkbox" id="ppu-delivery-filter-on"'+(deliveryFilterActive?' checked':'')+'>'+
               ' Hide slow shipping'+
             '</label>'+
@@ -1655,7 +1648,7 @@ const ITEM_UNITS = [
       styleEl.textContent =
         '.price-hidden{display:none!important}' +
         '#ppu-price-range-row{display:flex;align-items:center;gap:6px;padding:4px 14px 6px;flex-wrap:wrap;}' +
-        '.ppu-price-input{width:72px;padding:3px 6px;border:1px solid #c8c0e8;border-radius:4px;font-size:13px;background:#fff;color:#351E45;}' +
+        '.ppu-price-input{width:52px;padding:3px 6px;border:1px solid #c8c0e8;border-radius:4px;font-size:13px;background:#fff;color:#351E45;}' +
         '.ppu-price-prefix{font-size:13px;color:#351E45;}' +
         '.ppu-price-sep{font-size:13px;color:#877891;margin:0 2px;}' +
         '.ppu-note-widget{margin-top:5px;}' +
@@ -1986,8 +1979,7 @@ const ITEM_UNITS = [
       if(ratingHiddenCt>0)         info+=' \u00b7 '+ratingHiddenCt+' below min rating';
       if(priceHiddenCt>0)          info+=' \u00b7 '+priceHiddenCt+' outside price range';
       if(badgeHiddenCt>0)          info+=' \u00b7 '+badgeHiddenCt+' hidden by badge filter';
-      if(brandFilterActive&&brandFilterMode==='hide'&&brandFlaggedCt>0)   info+=' · '+brandFlaggedCt+' listings hidden';
-      if(brandFilterActive&&brandFilterMode==='demote'&&brandFlaggedCt>0) info+=' · '+brandFlaggedCt+' listings moved to end';
+      if(brandFilterActive&&brandFlaggedCt>0) info+=' · '+brandFlaggedCt+' listings moved to end';
       if(amazonBrandsDemoteActive&&amazonDemotedCt>0) info+=' · '+amazonDemotedCt+' Amazon brands moved to end';
       if(deliveryFilterActive&&deliveryHiddenCt>0) info+=' · '+deliveryHiddenCt+' slow-shipping hidden';
       document.getElementById('ppu-info').textContent=info;
@@ -2063,8 +2055,7 @@ const ITEM_UNITS = [
         var fsaHid=fsaHsaOnly&&!r.isFsaHsa;
         var climateHid=climatePledgeOnly&&!r.isClimatePledge;
         var sbHid=smallBusinessOnly&&!r.isSmallBusiness;
-        var brandHid=brandFilterActive&&brandFilterMode==='hide'&&!!r.brandFlagged&&r.brand!==null;
-        var brandDem=brandFilterActive&&brandFilterMode==='demote'&&!!r.brandFlagged&&r.brand!==null;
+        var brandDem=brandFilterActive&&!!r.brandFlagged&&r.brand!==null;
         var amazonDem=amazonBrandsDemoteActive&&!!r.isAmazonBrand;
         var deliveryHid=false;
         if(deliveryFilterActive){
@@ -2175,7 +2166,7 @@ const ITEM_UNITS = [
         var fsaC=fsaHid?' snap-hidden':'';
         var climateC=climateHid?' snap-hidden':'';
         var sbC=sbHid?' snap-hidden':'';
-        var brandC=brandHid?' brand-hidden':(brandDem?' brand-demoted':'');
+        var brandC=brandDem?' brand-demoted':'';
         var deliveryC=deliveryHid?' delivery-hidden':'';
         var chkC=isChecked?' checked':'';
         var wfC=(r.wfFreeFlag&&effectiveSort==='delivery-free')?' wf-excluded':'';
@@ -2210,10 +2201,10 @@ const ITEM_UNITS = [
               noteFieldHtml+
             '</div>'+
           '</div>';
-        if(amazonDem&&!brandDem&&!brandHid){ amazonDemotedHtml+=rowHtml; } else if(brandDem){ demotedHtml+=rowHtml; } else { mainHtml+=rowHtml; }
+        if(amazonDem&&!brandDem){ amazonDemotedHtml+=rowHtml; } else if(brandDem){ demotedHtml+=rowHtml; } else { mainHtml+=rowHtml; }
       });
 
-      var brandDemCount=brandFilterActive&&brandFilterMode==='demote'?brandFlaggedCt:0;
+      var brandDemCount=brandFilterActive?brandFlaggedCt:0;
       var html=mainHtml;
       if(amazonDemotedHtml){
         html+=
@@ -2318,16 +2309,10 @@ const ITEM_UNITS = [
               r.brandDetection={signals:['personalBlocklist'],score:1,flagged:true};
             }
           });
-          // Force filter on + hide mode so the change is immediately visible
+          // Force filter on so the change is immediately visible
           brandFilterActive=true;
-          brandFilterMode='hide';
           var chk=document.getElementById('ppu-brand-filter-on');
           if(chk) chk.checked=true;
-          var pill=document.getElementById('ppu-brand-mode-pill');
-          if(pill) pill.classList.remove('ppu-brand-mode-hidden');
-          document.querySelectorAll('.ppu-brand-mode-btn').forEach(function(b){
-            b.classList.toggle('active',b.getAttribute('data-mode')==='hide');
-          });
           render();
         });
       });
@@ -2434,7 +2419,6 @@ const ITEM_UNITS = [
       climatePledgeOnly=false;
       smallBusinessOnly=false;
       brandFilterActive=false;
-      brandFilterMode='demote';
       amazonBrandsDemoteActive=false;
       deliveryFilterActive=false;
       deliveryFilterDays=7;
@@ -2510,19 +2494,10 @@ const ITEM_UNITS = [
     if(brandFilterChk){
       brandFilterChk.addEventListener('change',function(){
         brandFilterActive=this.checked;
-        var pill=document.getElementById('ppu-brand-mode-pill');
-        if(pill) pill.classList.toggle('ppu-brand-mode-hidden',!brandFilterActive);
+        persistFilters();
         render();
       });
     }
-    document.querySelectorAll('.ppu-brand-mode-btn').forEach(function(btn){
-      btn.addEventListener('click',function(){
-        brandFilterMode=this.getAttribute('data-mode');
-        document.querySelectorAll('.ppu-brand-mode-btn').forEach(function(b){ b.classList.remove('active'); });
-        this.classList.add('active');
-        if(brandFilterActive) render();
-      });
-    });
 
     // ── Delivery filter ───────────────────────────────────────────────────
     var deliveryChk=document.getElementById('ppu-delivery-filter-on');

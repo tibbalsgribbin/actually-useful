@@ -685,35 +685,20 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 
 .ppu-empty-kw { padding:10px 12px;font-size:0.82rem;color:var(--au-text-muted);font-style:italic; }
 
-/* ── Brand filter UI ─────────────────────────────────────────────────── */
+/* ── Filter toggle rows (brand + delivery) ───────────────────────────── */
+#ppu-amazon-brands-row,
 #ppu-brand-filter-row {
-  display:flex;align-items:center;gap:8px;padding:5px 14px 8px;flex-wrap:wrap;
+  display:flex;align-items:center;padding:2px 14px 4px;
 }
-.ppu-brand-filter-toggle {
+.ppu-filter-toggle-label {
   font-size:12px;color:var(--au-text);cursor:pointer;user-select:none;
   display:inline-flex;align-items:center;gap:5px;font-weight:400;
 }
-.ppu-brand-filter-toggle input[type=checkbox] {
-  accent-color:var(--au-header);cursor:pointer;width:13px;height:13px;
-}
-.ppu-brand-mode-pill {
-  display:inline-flex;border:1px solid var(--au-border);border-radius:5px;overflow:hidden;
-  transition:opacity 0.15s;
-}
-.ppu-brand-mode-pill.ppu-brand-mode-hidden { opacity:0;pointer-events:none; }
-.ppu-brand-mode-btn {
-  font-size:11px;padding:3px 9px;border:none;background:var(--au-periwinkle);
-  color:var(--au-text);cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:400;
-  border-right:1px solid var(--au-border);transition:background 0.1s,color 0.1s;
-}
-.ppu-brand-mode-btn:last-child { border-right:none; }
-.ppu-brand-mode-btn:hover { background:var(--au-periwinkle-h); }
-.ppu-brand-mode-btn.active {
-  background:var(--au-header);color:#fff;font-weight:500;
+.ppu-filter-toggle-label input[type=checkbox] {
+  accent-color:var(--au-header);cursor:pointer;width:13px;height:13px;flex-shrink:0;
 }
 
-/* Brand hide/demote row states */
-.ppu-row.brand-hidden  { display:none!important; }
+/* Brand demote row state */
 .ppu-row.brand-demoted { opacity:0.5; }
 
 /* Below-the-line divider for brand demote */
@@ -750,7 +735,7 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 
 /* Delivery window filter */
 #ppu-delivery-filter-row {
-  display:flex;align-items:flex-start;gap:8px;padding:2px 14px 8px;flex-wrap:wrap;flex-direction:column;
+  display:flex;align-items:flex-start;gap:4px;padding:2px 14px 8px;flex-wrap:wrap;flex-direction:column;
 }
 #ppu-delivery-slider-wrap {
   display:flex;flex-direction:column;gap:5px;padding-left:18px;
