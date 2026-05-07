@@ -86,9 +86,9 @@
 
     /* ── Main content ────────────────────────────────────────── */
     main {
-      max-width: 1400px;
+      max-width: 1600px;
       margin: 0 auto;
-      padding: 2rem 1.5rem 4rem;
+      padding: 1.25rem 0.5rem 4rem;
     }
 
     /* ── Meta bar ────────────────────────────────────────────── */
@@ -370,7 +370,42 @@
 
     .na { color: #877891; font-size: 0.8rem; }
 
-    /* ── Empty / error state ─────────────────────────────────── */
+    /* ── Resizable columns ───────────────────────────────────── */
+    thead th {
+      position: relative;
+    }
+
+    .col-resizer {
+      position: absolute;
+      right: 0;
+      top: 0;
+      height: 100%;
+      width: 6px;
+      cursor: col-resize;
+      user-select: none;
+      z-index: 1;
+    }
+
+    .col-resizer:hover,
+    .col-resizer.resizing {
+      background: rgba(255,255,255,0.35);
+    }
+
+    /* ── Sticky horizontal scrollbar ─────────────────────────── */
+    #scroll-mirror-wrapper {
+      position: sticky;
+      bottom: 0;
+      z-index: 20;
+      overflow-x: auto;
+      overflow-y: hidden;
+      background: #fff;
+      border-top: 1px solid var(--border);
+      height: 14px;
+    }
+
+    #scroll-mirror-inner {
+      height: 1px;
+    }
     .state-box {
       text-align: center;
       padding: 4rem 2rem;
@@ -1242,12 +1277,13 @@
       + liquidToggle
       + renderActionBar()
       + renderColumnToggleBar()
-      + '<div class="table-wrapper">'
+      + '<div id="table-scroll-container" class="table-wrapper">'
       + '<table id="compare-table">'
       + '<thead><tr>' + theadCells + '</tr></thead>'
       + '<tbody>' + rows + '</tbody>'
       + '</table>'
       + '</div>'
+      + '<div id="scroll-mirror-wrapper"><div id="scroll-mirror-inner"></div></div>'
       + '<div style="text-align:center;margin-top:1rem;">' + renderShareButton('bottom') + '</div>'
       + '<p class="affiliate-note">This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you.</p>'
       + '</div>';
@@ -1343,6 +1379,8 @@
     attachActionBarButtons();
     attachShareHandler('top-share-btn');
     attachShareHandler('bottom-share-btn');
+    attachResizableColumns();
+    attachScrollMirror();
   }
 
   function attachLiquidToggleHandlers() {
@@ -1681,12 +1719,13 @@
         + liquidToggle
         + renderActionBar()
         + renderColumnToggleBar()
-        + '<div class="table-wrapper">'
+        + '<div id="table-scroll-container" class="table-wrapper">'
         + '<table id="compare-table">'
         + '<thead><tr>' + theadCells + '</tr></thead>'
         + '<tbody>' + rows + '</tbody>'
         + '</table>'
         + '</div>'
+        + '<div id="scroll-mirror-wrapper"><div id="scroll-mirror-inner"></div></div>'
         + '<div style="text-align:center;margin-top:1rem;">' + renderShareButton('bottom') + '</div>'
         + '<p class="affiliate-note">This post contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you.</p>';
       attachSortHandlers();
@@ -1697,6 +1736,8 @@
       attachActionBarButtons();
       attachShareHandler('top-share-btn');
       attachShareHandler('bottom-share-btn');
+      attachResizableColumns();
+      attachScrollMirror();
     } else {
       // Fallback: full rerender if structure isn't in place yet
       rerender();
@@ -1971,6 +2012,75 @@
         btn.disabled = false;
         setTimeout(() => { btn.textContent = 'Share this comparison'; }, 2500);
       }
+    });
+  }
+
+  // ── Resizable columns ─────────────────────────────────────────
+  function attachResizableColumns() {
+    var table = document.getElementById('compare-table');
+    if (!table) return;
+    var ths = table.querySelectorAll('thead th');
+    ths.forEach(function(th) {
+      // Don't add a second resizer if one already exists
+      if (th.querySelector('.col-resizer')) return;
+      var resizer = document.createElement('div');
+      resizer.className = 'col-resizer';
+      th.appendChild(resizer);
+
+      var startX, startW;
+      resizer.addEventListener('mousedown', function(e) {
+        startX = e.pageX;
+        startW = th.offsetWidth;
+        resizer.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        function onMove(e) {
+          var w = Math.max(40, startW + (e.pageX - startX));
+          th.style.width = w + 'px';
+          th.style.minWidth = w + 'px';
+        }
+        function onUp() {
+          resizer.classList.remove('resizing');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          syncScrollMirror();
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        e.preventDefault();
+      });
+    });
+  }
+
+  // ── Sticky scrollbar sync ──────────────────────────────────────
+  function syncScrollMirror() {
+    var container = document.getElementById('table-scroll-container');
+    var mirror = document.getElementById('scroll-mirror-wrapper');
+    var inner  = document.getElementById('scroll-mirror-inner');
+    if (!container || !mirror || !inner) return;
+    inner.style.width = container.scrollWidth + 'px';
+  }
+
+  function attachScrollMirror() {
+    var container = document.getElementById('table-scroll-container');
+    var mirror    = document.getElementById('scroll-mirror-wrapper');
+    if (!container || !mirror) return;
+    syncScrollMirror();
+    var syncing = false;
+    container.addEventListener('scroll', function() {
+      if (syncing) return;
+      syncing = true;
+      mirror.scrollLeft = container.scrollLeft;
+      syncing = false;
+    });
+    mirror.addEventListener('scroll', function() {
+      if (syncing) return;
+      syncing = true;
+      container.scrollLeft = mirror.scrollLeft;
+      syncing = false;
     });
   }
 
