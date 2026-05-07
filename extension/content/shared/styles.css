@@ -735,3 +735,30 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
   font-size:11px;color:#92400e;line-height:1.5;
   user-select:text;cursor:text;
 }
+
+/* Delivery window filter */
+#ppu-delivery-filter-row {
+  display:flex;align-items:flex-start;gap:8px;padding:2px 14px 8px;flex-wrap:wrap;flex-direction:column;
+}
+#ppu-delivery-slider-wrap {
+  display:flex;flex-direction:column;gap:5px;padding-left:18px;
+}
+#ppu-delivery-slider-wrap.ppu-delivery-slider-hidden { display:none; }
+.ppu-delivery-slider-label {
+  font-size:11.5px;color:var(--au-text);
+}
+.ppu-delivery-presets {
+  display:flex;gap:4px;flex-wrap:wrap;
+}
+.ppu-delivery-preset-btn {
+  font-size:11px;padding:3px 9px;border:1px solid var(--au-border);border-radius:5px;
+  background:var(--au-periwinkle);color:var(--au-text);cursor:pointer;
+  font-family:inherit;font-weight:400;transition:background 0.1s,color 0.1s,border-color 0.1s;
+}
+.ppu-delivery-preset-btn:hover { background:var(--au-periwinkle-h); }
+.ppu-delivery-preset-btn.active {
+  background:var(--au-header);color:#fff;border-color:var(--au-header);font-weight:500;
+}
+
+/* Delivery hide row state */
+.ppu-row.delivery-hidden { display:none!important; }

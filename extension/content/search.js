@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.50)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.54)
 'use strict';
 
 function auFeedbackUrl() {
@@ -94,7 +94,9 @@ const ITEM_UNITS = [
         selectedUnit:  selectedUnit,
         srcFilter:     srcFilter,
         brandFilterActive: brandFilterActive,
-        brandFilterMode:   brandFilterMode
+        brandFilterMode:   brandFilterMode,
+        deliveryFilterActive: deliveryFilterActive,
+        deliveryFilterDays:   deliveryFilterDays
       };
       sessionStorage.setItem(key, JSON.stringify(state));
     } catch(e) {}
@@ -870,6 +872,11 @@ const ITEM_UNITS = [
     var b = brand.trim();
     var bUp = b.toUpperCase();
 
+    // Personal allowlist — always pass, checked before everything
+    if (personalAllowlist.length && personalAllowlist.indexOf(bUp) !== -1) {
+      return { signals: ['personalAllowlist'], score: 0, flagged: false };
+    }
+
     // Bundled blocklist — always flag, checked before heuristics
     if (bundledBlocklist.length && bundledBlocklist.indexOf(bUp) !== -1) {
       return { signals: ['bundledBlocklist'], score: 1, flagged: true };
@@ -1211,6 +1218,9 @@ const ITEM_UNITS = [
   var brandFilterMode  = 'demote';
   var bundledBlocklist = [];   // loaded from brand_blocklist.txt at startup
   var personalBlocklist= [];   // loaded from chrome.storage.local (auBlocklistBrands)
+  var personalAllowlist= [];   // loaded from chrome.storage.local (auAllowlistBrands)
+  var deliveryFilterActive = false;
+  var deliveryFilterDays   = 7;   // default 7 days; presets: 2/3/5/7/10/14/21
   var isLiquidDominant = false;
   var isWeightDominant = false;
   var unitPills        = [];
@@ -1277,7 +1287,10 @@ const ITEM_UNITS = [
         signalFakeMashupHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalFakeMashup')!==-1;}).length,
         signalAllCapsInventedHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalAllCapsInvented')!==-1;}).length,
         personalBlocklistSize:personalBlocklist.length,
-        personalBlocklistHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('personalBlocklist')!==-1;}).length
+        personalBlocklistHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('personalBlocklist')!==-1;}).length,
+        deliveryFilterActive:deliveryFilterActive,
+        deliveryFilterMaxDays:deliveryFilterActive?deliveryFilterDays:0,
+        deliveryCountFiltered:deliveryFilterActive?(function(){var n=Date.now();var mx=n+(deliveryFilterDays*24*60*60*1000);return allData.filter(function(r){var ts=r.freeDateTs!=null?r.freeDateTs:(r.fastDateTs!=null?r.fastDateTs:null);if(ts==null)return false;return ts>mx;}).length;}()):0
       });
     } catch(e){}
   }
@@ -1357,6 +1370,8 @@ const ITEM_UNITS = [
       selectedUnit  = savedFilters.selectedUnit  || null;
       brandFilterActive = !!savedFilters.brandFilterActive;
       brandFilterMode   = savedFilters.brandFilterMode || 'demote';
+      deliveryFilterActive = !!savedFilters.deliveryFilterActive;
+      deliveryFilterDays   = savedFilters.deliveryFilterDays || 7;
       // srcFilter restored after detectedRetailers is built below
     } else {
       // Fresh search — reset all filters
@@ -1370,6 +1385,8 @@ const ITEM_UNITS = [
       selectedUnit  = null;
       brandFilterActive = false;
       brandFilterMode   = 'demote';
+      deliveryFilterActive = false;
+      deliveryFilterDays   = 7;
     }
 
     isLiquidDominant=inferLiquidDominant(allData);
@@ -1565,6 +1582,19 @@ const ITEM_UNITS = [
               '<button class="ppu-brand-mode-btn'+(brandFilterMode==='hide'?' active':'')+'" data-mode="hide">Hide</button>'+
             '</span>'+
           '</div>'+
+          '<div id="ppu-delivery-filter-row">'+
+            '<label class="ppu-brand-filter-toggle">'+
+              '<input type="checkbox" id="ppu-delivery-filter-on"'+(deliveryFilterActive?' checked':'')+'>'+
+              ' Hide slow shipping'+
+            '</label>'+
+            '<div id="ppu-delivery-slider-wrap" class="'+(deliveryFilterActive?'':'ppu-delivery-slider-hidden')+'">'+
+              '<span class="ppu-delivery-slider-label" id="ppu-delivery-days-label">Arriving within '+deliveryFilterDays+' days</span>'+
+              '<div class="ppu-delivery-presets">'+
+                [2,3,5,7,10,14,21].map(function(d){return '<button class="ppu-delivery-preset-btn'+(deliveryFilterDays===d?' active':'')+'" data-days="'+d+'">'+d+'</button>';}).join('')+
+              '</div>'+
+            '</div>'+
+          '</div>'+
+          '</div>'+
         '</div>'+
       '<div id="ppu-dec-bar">'+
         '<span class="ppu-dc-none">No filters or custom sort applied</span>'+
@@ -1597,7 +1627,7 @@ const ITEM_UNITS = [
         '<div id="ppu-footer-links">'+
           '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">Give feedback</a>'+
           '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">Buy me a coffee</a>'+
-          '<span id="ppu-blocklist-link" style="cursor:pointer;text-decoration:underline;color:#4338ca;font-size:11px;">My blocklist (0)</span>'+
+          '<span id="ppu-blocklist-link" style="cursor:pointer;text-decoration:underline;color:#4338ca;font-size:11px;">My brand rules (0)</span>'+
         '</div>'+
       '</div>';
 
@@ -1635,13 +1665,10 @@ const ITEM_UNITS = [
         '#ppu-mixed-units-banner{display:none;padding:7px 12px 7px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;line-height:1.5;display:flex;align-items:flex-start;gap:8px;}' +
         '.ppu-mixed-msg{flex:1;user-select:text;cursor:text;}' +
         '.ppu-mixed-dismiss{flex-shrink:0;background:none;border:none;font-size:14px;color:#877891;cursor:pointer;padding:0;line-height:1;}' +
-        '.ppu-brand-row{font-size:11px;color:#6b7280;margin-top:2px;display:flex;align-items:center;gap:4px;user-select:text;cursor:text;}' +
-        '.ppu-brand-name{color:#6b7280;}' +
-        '.ppu-brand-menu{cursor:pointer;color:#9ca3af;letter-spacing:1px;user-select:none;padding:0 2px;border-radius:3px;}' +
-        '.ppu-brand-menu:hover{color:#4338ca;background:#eef2ff;}' +
-        '.ppu-brand-menu-dropdown{position:absolute;z-index:200;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);padding:4px 0;min-width:180px;}' +
-        '.ppu-brand-block-btn{display:block;width:100%;text-align:left;background:none;border:none;padding:7px 12px;font-size:12px;color:#111827;cursor:pointer;white-space:nowrap;}' +
-        '.ppu-brand-block-btn:hover{background:#f3f4f6;}';
+        '.ppu-brand-row{font-size:12px;color:#6b7280;margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;user-select:text;}' +
+        '.ppu-brand-allow-btn,.ppu-brand-block-btn{font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid #d1d5db;background:#f9f9fc;color:#4338ca;cursor:pointer;white-space:nowrap;}' +
+        '.ppu-brand-allow-btn:hover{background:#eef2ff;border-color:#c7d2fe;}' +
+        '.ppu-brand-block-btn:hover{background:#fff1f2;border-color:#fecdd3;color:#be123c;}';
       document.head.appendChild(styleEl);
     }
 
@@ -1847,7 +1874,7 @@ const ITEM_UNITS = [
       var anyFilterActive = keyword.trim().length>0 || minReviews>0 || minRating>0 ||
         minPrice!=='' || maxPrice!=='' ||
         Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; }) ||
-        sortVal!=='ppu-asc' || sponsoredMode!=='show' || brandFilterActive;
+        sortVal!=='ppu-asc' || sponsoredMode!=='show' || brandFilterActive || deliveryFilterActive;
       resetFiltersBtn.classList.toggle('btn-danger',anyFilterActive);
 
       var unitDataAvail=allData.filter(function(r){return r.ppu!=null;}).length;
@@ -1918,6 +1945,16 @@ const ITEM_UNITS = [
                (climatePledgeOnly&&!r.isClimatePledge)||(smallBusinessOnly&&!r.isSmallBusiness);
       }).length:0;
       var brandFlaggedCt=brandFilterActive?allData.filter(function(r){return !!r.brandFlagged&&r.brand!==null;}).length:0;
+      var deliveryHiddenCt=0;
+      if(deliveryFilterActive){
+        var nowMs=Date.now();
+        var maxMs=nowMs+(deliveryFilterDays*24*60*60*1000);
+        deliveryHiddenCt=allData.filter(function(r){
+          var ts=r.freeDateTs!=null?r.freeDateTs:(r.fastDateTs!=null?r.fastDateTs:null);
+          if(ts==null) return false; // null = exempt
+          return ts>maxMs;
+        }).length;
+      }
       var info=withData+'/'+allData.length+' have unit data';
       if(loadedPages>1){
         if(nextPageUrl) info+=' \u00b7 '+loadedPages+' pages';
@@ -1936,6 +1973,7 @@ const ITEM_UNITS = [
       if(badgeHiddenCt>0)          info+=' \u00b7 '+badgeHiddenCt+' hidden by badge filter';
       if(brandFilterActive&&brandFilterMode==='hide'&&brandFlaggedCt>0)   info+=' \u00b7 '+brandFlaggedCt+' listings hidden';
       if(brandFilterActive&&brandFilterMode==='demote'&&brandFlaggedCt>0) info+=' \u00b7 '+brandFlaggedCt+' listings moved to end';
+      if(deliveryFilterActive&&deliveryHiddenCt>0) info+=' \u00b7 '+deliveryHiddenCt+' slow-shipping hidden';
       document.getElementById('ppu-info').textContent=info;
 
       var sortNoteEl=document.getElementById('ppu-sort-note');
@@ -2011,6 +2049,13 @@ const ITEM_UNITS = [
         var sbHid=smallBusinessOnly&&!r.isSmallBusiness;
         var brandHid=brandFilterActive&&brandFilterMode==='hide'&&!!r.brandFlagged&&r.brand!==null;
         var brandDem=brandFilterActive&&brandFilterMode==='demote'&&!!r.brandFlagged&&r.brand!==null;
+        var deliveryHid=false;
+        if(deliveryFilterActive){
+          var _nowMs=Date.now();
+          var _maxMs=_nowMs+(deliveryFilterDays*24*60*60*1000);
+          var _ts=r.freeDateTs!=null?r.freeDateTs:(r.fastDateTs!=null?r.fastDateTs:null);
+          if(_ts!=null) deliveryHid=(_ts>_maxMs);
+        }
         var priceStr=r.price!=null?'$'+r.price.toFixed(2):'\u2014';
         var countStr=r.count?r.count+' ct':'';
         var badge='',noteStr='',deliveryStr='',srcTag='';
@@ -2028,7 +2073,7 @@ const ITEM_UNITS = [
         if(r.ppu!=null){
           var compPPU=getCompPPU(r);
           var isBest=bestPPU!=null&&r.kwMatch&&r.source!=='amazon-container'&&
-            srcFilter[r.retailer?r.retailer.key:'standard']&&!sponHid&&!revHid&&!ratingHid&&!priceHid&&!snapHid&&!fsaHid&&!climateHid&&!sbHid&&
+            srcFilter[r.retailer?r.retailer.key:'standard']&&!sponHid&&!revHid&&!ratingHid&&!priceHid&&!snapHid&&!fsaHid&&!climateHid&&!sbHid&&!deliveryHid&&
             compPPU!=null&&Math.abs(compPPU-bestPPU)<0.000001;
           var isCont=r.source==='amazon-container';
           var warn=isCont?' <span style="font-size:10px;color:#aaa;" title="Amazon is reporting the price per container (box/pack), not per item \u2014 actual per-item cost may differ">\u26a0\ufe0f price is per pack, not per item</span>':'';
@@ -2114,6 +2159,7 @@ const ITEM_UNITS = [
         var climateC=climateHid?' snap-hidden':'';
         var sbC=sbHid?' snap-hidden':'';
         var brandC=brandHid?' brand-hidden':(brandDem?' brand-demoted':'');
+        var deliveryC=deliveryHid?' delivery-hidden':'';
         var chkC=isChecked?' checked':'';
         var wfC=(r.wfFreeFlag&&effectiveSort==='delivery-free')?' wf-excluded':'';
         var safeAsin=r.asin.replace(/"/g,'&quot;');
@@ -2131,13 +2177,12 @@ const ITEM_UNITS = [
         }
         var safeBrand=r.brand?r.brand.replace(/"/g,'&quot;').replace(/'/g,'&#39;'):'';
         var brandMenuHtml=r.brand?
-          '<div class="ppu-brand-row"><span class="ppu-brand-name">'+escapeHtml(r.brand)+'</span>'+
-          ' <span class="ppu-brand-menu" data-brand="'+safeBrand+'" title="Brand options">···</span>'+
-          '<span class="ppu-brand-menu-dropdown" style="display:none;">'+
-            '<button class="ppu-brand-block-btn" data-brand="'+safeBrand+'">'+'Hide all “'+escapeHtml(r.brand)+'” forever</button>'+
-          '</span></div>':'';
+          '<div class="ppu-brand-row">Always show or hide listings from this brand:'+
+          ' <button class="ppu-brand-allow-btn" data-brand="'+safeBrand+'">Always show</button>'+
+          ' <button class="ppu-brand-block-btn" data-brand="'+safeBrand+'">Always hide</button>'+
+          '</div>':'';
         var rowHtml =
-          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+snapC+fsaC+climateC+sbC+brandC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
+          '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+snapC+fsaC+climateC+sbC+brandC+deliveryC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
             '<div class="ppu-cb-wrap"><input type="checkbox" class="ppu-cb"'+(isChecked?' checked':'')+' title="Add to shortlist"></div>'+
             '<div class="ppu-thumb-wrap">'+thumbHtml+'</div>'+
             '<div class="ppu-row-content">'+
@@ -2193,14 +2238,34 @@ const ITEM_UNITS = [
         });
       });
 
-      // ── Brand [•••] menu ─────────────────────────────────────────────
-      document.querySelectorAll('.ppu-brand-menu').forEach(function(btn){
+      // ── Brand always-show / always-hide buttons ───────────────────────
+      document.querySelectorAll('.ppu-brand-allow-btn').forEach(function(btn){
         btn.addEventListener('click',function(e){
           e.stopPropagation();
-          // Close any open dropdowns first
-          document.querySelectorAll('.ppu-brand-menu-dropdown').forEach(function(d){ d.style.display='none'; });
-          var dd=this.nextElementSibling;
-          if(dd) dd.style.display=(dd.style.display==='none'?'block':'none');
+          var brand=this.getAttribute('data-brand');
+          if(!brand) return;
+          var bUp=brand.toUpperCase();
+          // Add to allowlist; remove from personal blocklist if present
+          if(personalAllowlist.indexOf(bUp)===-1) personalAllowlist.push(bUp);
+          personalBlocklist=personalBlocklist.filter(function(x){return x.toUpperCase()!==bUp;});
+          try{
+            chrome.storage.local.get(['auAllowlistBrands','auBlocklistBrands'],function(res){
+              var allow=(res&&res.auAllowlistBrands&&Array.isArray(res.auAllowlistBrands))?res.auAllowlistBrands:[];
+              var block=(res&&res.auBlocklistBrands&&Array.isArray(res.auBlocklistBrands))?res.auBlocklistBrands:[];
+              if(allow.map(function(b){return b.toUpperCase();}).indexOf(bUp)===-1) allow.push(brand);
+              block=block.filter(function(x){return x.toUpperCase()!==bUp;});
+              chrome.storage.local.set({auAllowlistBrands:allow,auBlocklistBrands:block});
+            });
+          }catch(ex){}
+          // Re-detect all items with this brand and re-render
+          allData.forEach(function(r){
+            if(r.brand&&r.brand.toUpperCase()===bUp){
+              var fresh=detectGibberishBrand(r.brand);
+              r.brandFlagged=fresh.flagged;
+              r.brandDetection=fresh;
+            }
+          });
+          render();
         });
       });
       document.querySelectorAll('.ppu-brand-block-btn').forEach(function(btn){
@@ -2209,30 +2274,39 @@ const ITEM_UNITS = [
           var brand=this.getAttribute('data-brand');
           if(!brand) return;
           var bUp=brand.toUpperCase();
+          // Add to blocklist; remove from allowlist if present
           if(personalBlocklist.indexOf(bUp)===-1) personalBlocklist.push(bUp);
-          // Persist to chrome.storage.local
+          personalAllowlist=personalAllowlist.filter(function(x){return x.toUpperCase()!==bUp;});
           try{
-            chrome.storage.local.get('auBlocklistBrands',function(res){
-              var arr=(res&&res.auBlocklistBrands&&Array.isArray(res.auBlocklistBrands))?res.auBlocklistBrands:[];
-              var arrUp=arr.map(function(b){return b.toUpperCase();});
-              if(arrUp.indexOf(bUp)===-1) arr.push(brand);
-              chrome.storage.local.set({auBlocklistBrands:arr});
+            chrome.storage.local.get(['auBlocklistBrands','auAllowlistBrands'],function(res){
+              var block=(res&&res.auBlocklistBrands&&Array.isArray(res.auBlocklistBrands))?res.auBlocklistBrands:[];
+              var allow=(res&&res.auAllowlistBrands&&Array.isArray(res.auAllowlistBrands))?res.auAllowlistBrands:[];
+              var blockUp=block.map(function(b){return b.toUpperCase();});
+              if(blockUp.indexOf(bUp)===-1) block.push(brand);
+              allow=allow.filter(function(x){return x.toUpperCase()!==bUp;});
+              chrome.storage.local.set({auBlocklistBrands:block,auAllowlistBrands:allow});
             });
           }catch(ex){}
-          // Re-flag all items with this brand and re-render
+          // Re-flag all items with this brand
           allData.forEach(function(r){
             if(r.brand&&r.brand.toUpperCase()===bUp){
               r.brandFlagged=true;
               r.brandDetection={signals:['personalBlocklist'],score:1,flagged:true};
             }
           });
+          // Force filter on + hide mode so the change is immediately visible
+          brandFilterActive=true;
+          brandFilterMode='hide';
+          var chk=document.getElementById('ppu-brand-filter-on');
+          if(chk) chk.checked=true;
+          var pill=document.getElementById('ppu-brand-mode-pill');
+          if(pill) pill.classList.remove('ppu-brand-mode-hidden');
+          document.querySelectorAll('.ppu-brand-mode-btn').forEach(function(b){
+            b.classList.toggle('active',b.getAttribute('data-mode')==='hide');
+          });
           render();
         });
       });
-      // Close dropdowns on outside click
-      document.addEventListener('click',function(){
-        document.querySelectorAll('.ppu-brand-menu-dropdown').forEach(function(d){ d.style.display='none'; });
-      },{once:false,capture:false});
 
             scheduleLog();
       persistFilters();
@@ -2337,6 +2411,8 @@ const ITEM_UNITS = [
       smallBusinessOnly=false;
       brandFilterActive=false;
       brandFilterMode='demote';
+      deliveryFilterActive=false;
+      deliveryFilterDays=7;
       sortVal='ppu-asc'; sortEl.value='ppu-asc';
       try{ localStorage.removeItem('au-banner-dismissed'); }catch(e){}
       try{ sessionStorage.removeItem(getFilterStorageKey(searchTerm)); }catch(e){}
@@ -2411,6 +2487,29 @@ const ITEM_UNITS = [
         document.querySelectorAll('.ppu-brand-mode-btn').forEach(function(b){ b.classList.remove('active'); });
         this.classList.add('active');
         if(brandFilterActive) render();
+      });
+    });
+
+    // ── Delivery filter ───────────────────────────────────────────────────
+    var deliveryChk=document.getElementById('ppu-delivery-filter-on');
+    if(deliveryChk){
+      deliveryChk.addEventListener('change',function(){
+        deliveryFilterActive=this.checked;
+        var wrap=document.getElementById('ppu-delivery-slider-wrap');
+        if(wrap) wrap.classList.toggle('ppu-delivery-slider-hidden',!deliveryFilterActive);
+        persistFilters();
+        render();
+      });
+    }
+    document.querySelectorAll('.ppu-delivery-preset-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        deliveryFilterDays=parseInt(this.getAttribute('data-days'),10);
+        document.querySelectorAll('.ppu-delivery-preset-btn').forEach(function(b){ b.classList.remove('active'); });
+        this.classList.add('active');
+        var lbl=document.getElementById('ppu-delivery-days-label');
+        if(lbl) lbl.textContent='Arriving within '+deliveryFilterDays+' days';
+        persistFilters();
+        if(deliveryFilterActive) render();
       });
     });
 
@@ -2676,10 +2775,11 @@ const ITEM_UNITS = [
     var coffeeLink=document.getElementById('ppu-coffee');
     if(coffeeLink) coffeeLink.addEventListener('click',function(){sendLog({event:'kofi_click'});});
 
-    // ── Blocklist link — update count + open management view ─────────────
+    // ── Brand rules link — update count + open management view ─────────────
     function updateBlocklistLinkCount(){
       var el=document.getElementById('ppu-blocklist-link');
-      if(el) el.textContent='My blocklist ('+personalBlocklist.length+')';
+      var total=personalBlocklist.length+personalAllowlist.length;
+      if(el) el.textContent='My brand rules ('+total+')';
     }
     updateBlocklistLinkCount();
 
@@ -2688,62 +2788,126 @@ const ITEM_UNITS = [
       if(existing){existing.remove();return;}
       var view=document.createElement('div');
       view.id='ppu-blocklist-view';
-      view.style.cssText='position:absolute;bottom:36px;right:8px;width:260px;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:100;padding:10px 12px;font-size:12px;';
+      view.style.cssText='position:fixed;width:280px;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:2147483647;padding:10px 12px;font-size:12px;max-height:320px;overflow-y:auto;';
       var title=document.createElement('div');
       title.style.cssText='font-weight:600;color:#111827;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;';
-      title.innerHTML='My blocked brands <span id="ppu-blocklist-close" style="cursor:pointer;color:#6b7280;font-weight:400;">×</span>';
+      title.innerHTML='My brand rules <span id="ppu-blocklist-close" style="cursor:pointer;color:#6b7280;font-weight:400;">\u00d7</span>';
       view.appendChild(title);
-      if(personalBlocklist.length===0){
+
+      function makeSection(heading,brands,isAllowlist){
+        var sec=document.createElement('div');
+        sec.style.cssText='margin-bottom:8px;';
+        var hdr=document.createElement('div');
+        hdr.style.cssText='font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;';
+        hdr.textContent=heading;
+        sec.appendChild(hdr);
+        if(brands.length===0){
+          var empty=document.createElement('div');
+          empty.style.cssText='color:#9ca3af;font-style:italic;font-size:11px;padding:2px 0;';
+          empty.textContent='None yet.';
+          sec.appendChild(empty);
+        } else {
+          brands.forEach(function(brand){
+            var row=document.createElement('div');
+            row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #f3f4f6;';
+            var nameEl=document.createElement('span');
+            nameEl.textContent=brand;
+            nameEl.style.cssText='color:#111827;user-select:text;cursor:text;';
+            var removeBtn=document.createElement('button');
+            removeBtn.textContent='Remove';
+            removeBtn.style.cssText='font-size:11px;color:#6b7280;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;';
+            removeBtn.setAttribute('data-brand',brand);
+            removeBtn.addEventListener('click',function(){
+              var b=this.getAttribute('data-brand').toUpperCase();
+              if(isAllowlist){
+                personalAllowlist=personalAllowlist.filter(function(x){return x.toUpperCase()!==b;});
+                allData.forEach(function(r){
+                  if(r.brand&&r.brand.toUpperCase()===b){
+                    var fresh=detectGibberishBrand(r.brand);
+                    r.brandFlagged=fresh.flagged;
+                    r.brandDetection=fresh;
+                  }
+                });
+                try{
+                  chrome.storage.local.get('auAllowlistBrands',function(res){
+                    var arr=(res&&res.auAllowlistBrands)?res.auAllowlistBrands:[];
+                    arr=arr.filter(function(x){return x.toUpperCase()!==b;});
+                    chrome.storage.local.set({auAllowlistBrands:arr});
+                  });
+                }catch(ex){}
+              } else {
+                personalBlocklist=personalBlocklist.filter(function(x){return x.toUpperCase()!==b;});
+                allData.forEach(function(r){
+                  if(r.brand&&r.brand.toUpperCase()===b&&r.brandDetection&&r.brandDetection.signals.indexOf('personalBlocklist')!==-1){
+                    var fresh=detectGibberishBrand(r.brand);
+                    r.brandFlagged=fresh.flagged;
+                    r.brandDetection=fresh;
+                  }
+                });
+                try{
+                  chrome.storage.local.get('auBlocklistBrands',function(res){
+                    var arr=(res&&res.auBlocklistBrands)?res.auBlocklistBrands:[];
+                    arr=arr.filter(function(x){return x.toUpperCase()!==b;});
+                    chrome.storage.local.set({auBlocklistBrands:arr});
+                  });
+                }catch(ex){}
+              }
+              // Remove just this row from the overlay, leave it open
+              row.remove();
+              // If the section is now empty, swap its content for "None yet."
+              var remaining=sec.querySelectorAll('[data-brand]');
+              if(remaining.length===0){
+                var emptyMsg=sec.querySelector('div');
+                if(!emptyMsg){
+                  emptyMsg=document.createElement('div');
+                  emptyMsg.style.cssText='color:#9ca3af;font-style:italic;font-size:11px;padding:2px 0;';
+                  sec.appendChild(emptyMsg);
+                }
+                emptyMsg.textContent='None yet.';
+              }
+              updateBlocklistLinkCount();
+              render();
+            });
+            row.appendChild(nameEl);
+            row.appendChild(removeBtn);
+            sec.appendChild(row);
+          });
+        }
+        return sec;
+      }
+
+      if(personalAllowlist.length===0&&personalBlocklist.length===0){
         var empty=document.createElement('div');
         empty.style.cssText='color:#6b7280;font-style:italic;';
-        empty.textContent='No brands blocked yet.';
+        empty.textContent='No brand rules set yet.';
         view.appendChild(empty);
       } else {
-        personalBlocklist.forEach(function(brand){
-          var row=document.createElement('div');
-          row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #f3f4f6;';
-          var nameEl=document.createElement('span');
-          nameEl.textContent=brand;
-          nameEl.style.cssText='color:#111827;user-select:text;cursor:text;';
-          var removeBtn=document.createElement('button');
-          removeBtn.textContent='Remove';
-          removeBtn.style.cssText='font-size:11px;color:#6b7280;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;';
-          removeBtn.setAttribute('data-brand',brand);
-          removeBtn.addEventListener('click',function(){
-            var b=this.getAttribute('data-brand').toUpperCase();
-            personalBlocklist=personalBlocklist.filter(function(x){return x.toUpperCase()!==b;});
-            // Un-flag items that were only flagged by personal blocklist
-            allData.forEach(function(r){
-              if(r.brand&&r.brand.toUpperCase()===b&&r.brandDetection&&r.brandDetection.signals.indexOf('personalBlocklist')!==-1){
-                var fresh=detectGibberishBrand(r.brand);
-                r.brandFlagged=fresh.flagged;
-                r.brandDetection=fresh;
-              }
-            });
-            try{
-              chrome.storage.local.get('auBlocklistBrands',function(res){
-                var arr=(res&&res.auBlocklistBrands)?res.auBlocklistBrands:[];
-                arr=arr.filter(function(x){return x.toUpperCase()!==b;});
-                chrome.storage.local.set({auBlocklistBrands:arr});
-              });
-            }catch(ex){}
-            view.remove();
-            updateBlocklistLinkCount();
-            render();
-          });
-          row.appendChild(nameEl);
-          row.appendChild(removeBtn);
-          view.appendChild(row);
-        });
+        view.appendChild(makeSection('Always show',personalAllowlist,true));
+        view.appendChild(makeSection('Always hide',personalBlocklist,false));
       }
-      var panel=document.getElementById('ppu-sorter-panel');
-      if(panel) panel.appendChild(view);
+
+      view.style.top='-9999px';
+      view.style.left='-9999px';
+      document.body.appendChild(view);
+      // Position near the footer link after browser lays out the view
+      setTimeout(function(){
+        var link=document.getElementById('ppu-blocklist-link');
+        if(link){
+          var r=link.getBoundingClientRect();
+          var h=view.offsetHeight;
+          var top=r.top-h-8;
+          if(top<4) top=r.bottom+4;
+          view.style.top=top+'px';
+          view.style.left=Math.max(4,r.right-280)+'px';
+        }
+      },0);
       document.getElementById('ppu-blocklist-close').addEventListener('click',function(){view.remove();});
     }
 
     var blocklistLink=document.getElementById('ppu-blocklist-link');
     if(blocklistLink) blocklistLink.addEventListener('click',function(e){e.stopPropagation();showBlocklistView();});
 
+    // ── Pages slider ─────────────────────────────────────────────────────
     // ── Pages slider ─────────────────────────────────────────────────────
     if(pagesSlider){
       updatePagesSliderFill(pagesSlider);
@@ -2857,6 +3021,17 @@ const ITEM_UNITS = [
     }catch(e){cb();}
   }
 
+  function loadPersonalAllowlist(cb){
+    try{
+      chrome.storage.local.get('auAllowlistBrands',function(res){
+        if(res&&res.auAllowlistBrands&&Array.isArray(res.auAllowlistBrands)){
+          personalAllowlist=res.auAllowlistBrands.map(function(b){return b.toUpperCase();});
+        }
+        cb();
+      });
+    }catch(e){cb();}
+  }
+
   function tryBuild(n){
     var cards=document.querySelectorAll('[data-component-type="s-search-result"]');
     if(cards.length>0) buildPanel();
@@ -2872,7 +3047,9 @@ const ITEM_UNITS = [
       proceeded=true;
       loadBundledBlocklist(function(){
         loadPersonalBlocklist(function(){
-          setTimeout(function(){tryBuild(15);},1500);
+          loadPersonalAllowlist(function(){
+            setTimeout(function(){tryBuild(15);},1500);
+          });
         });
       });
     }
