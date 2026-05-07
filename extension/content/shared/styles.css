@@ -728,6 +728,18 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
   font-size:10.5px;color:#9ca3af;padding:0 8px;white-space:nowrap;
 }
 
+/* Amazon brands demote divider — visually distinct from unrecognized-brands divider */
+.ppu-amazon-divider {
+  display:flex;align-items:center;gap:0;margin:6px 0 2px;padding:0 14px;
+}
+.ppu-amazon-divider::before,
+.ppu-amazon-divider::after {
+  content:'';flex:1;height:1px;background:#bfdbfe;
+}
+.ppu-amazon-divider-label {
+  font-size:10.5px;color:#2563eb;padding:0 8px;white-space:nowrap;
+}
+
 /* High-noise category banner */
 #ppu-high-noise-banner {
   display:none;padding:7px 12px 7px 14px;

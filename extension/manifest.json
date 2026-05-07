@@ -29,7 +29,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["data/brand_blocklist.txt"],
+      "resources": ["data/brand_blocklist.txt", "data/amazon_brands.txt"],
       "matches": ["https://www.amazon.com/*"]
     }
   ],

@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.55)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.56)
 'use strict';
 
 function auFeedbackUrl() {
@@ -95,6 +95,7 @@ const ITEM_UNITS = [
         srcFilter:     srcFilter,
         brandFilterActive: brandFilterActive,
         brandFilterMode:   brandFilterMode,
+        amazonBrandsDemoteActive: amazonBrandsDemoteActive,
         deliveryFilterActive: deliveryFilterActive,
         deliveryFilterDays:   deliveryFilterDays
       };
@@ -1039,6 +1040,7 @@ const ITEM_UNITS = [
     var brand=scrapeBrand(el);
     var brandDetection=detectGibberishBrand(brand);
     var brandFlagged=brandDetection.flagged;
+    var isAmazonBrand=brand?amazonBrandsList.indexOf(brand.toUpperCase())!==-1:false;
     var base={title,href,asin,price,listPrice,count,page,retailer,wfFreeFlag,isSponsored,hasCoupon,
               couponPillOnly,sns,savings,cardText,reviewCount,rating,originalIndex:originalIndex||0,
               freeDate:delivery.freeDate,fastDate:delivery.fastDate,
@@ -1046,7 +1048,7 @@ const ITEM_UNITS = [
               freeWindowMinutes:freeWindowMinutes,freeWindowEnd:freeWindowEnd,freeQualifier:freeQualifier,imgUrl:imgUrl,
               paidDate:delivery.paidDate,paidCutoff:delivery.paidCutoff,paidPrice:delivery.paidPrice,isSnap:isSnap,
               isFsaHsa:isFsaHsa,isClimatePledge:isClimatePledge,isSmallBusiness:isSmallBusiness,
-              brand:brand,brandFlagged:brandFlagged,brandDetection:brandDetection};
+              brand:brand,brandFlagged:brandFlagged,brandDetection:brandDetection,isAmazonBrand:isAmazonBrand};
 
     // Override: if Amazon reported a weight unit but the item title indicates a countable
     // solid product (pods, sheets, strips, loads, etc.), ignore the weight unit and
@@ -1219,6 +1221,8 @@ const ITEM_UNITS = [
   var bundledBlocklist = [];   // loaded from brand_blocklist.txt at startup
   var personalBlocklist= [];   // loaded from chrome.storage.local (auBlocklistBrands)
   var personalAllowlist= [];   // loaded from chrome.storage.local (auAllowlistBrands)
+  var amazonBrandsDemoteActive = false;
+  var amazonBrandsList = [];   // loaded from amazon_brands.txt at startup
   var deliveryFilterActive = false;
   var deliveryFilterDays   = 7;   // default 7 days; presets: 2/3/5/7/10/14/21
   var isLiquidDominant = false;
@@ -1288,6 +1292,8 @@ const ITEM_UNITS = [
         signalAllCapsInventedHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('signalAllCapsInvented')!==-1;}).length,
         personalBlocklistSize:personalBlocklist.length,
         personalBlocklistHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('personalBlocklist')!==-1;}).length,
+        amazonBrandsDemoteActive:amazonBrandsDemoteActive,
+        amazonBrandsCountDemoted:amazonBrandsDemoteActive?allData.filter(function(r){return !!r.isAmazonBrand;}).length:0,
         deliveryFilterActive:deliveryFilterActive,
         deliveryFilterMaxDays:deliveryFilterActive?deliveryFilterDays:0,
         deliveryCountFiltered:deliveryFilterActive?(function(){var n=Date.now();var mx=n+(deliveryFilterDays*24*60*60*1000);return allData.filter(function(r){var d=r.freeDate||r.fastDate||null;if(!d)return false;return d.getTime()>mx;}).length;}()):0
@@ -1370,6 +1376,7 @@ const ITEM_UNITS = [
       selectedUnit  = savedFilters.selectedUnit  || null;
       brandFilterActive = !!savedFilters.brandFilterActive;
       brandFilterMode   = savedFilters.brandFilterMode || 'demote';
+      amazonBrandsDemoteActive = !!savedFilters.amazonBrandsDemoteActive;
       deliveryFilterActive = !!savedFilters.deliveryFilterActive;
       deliveryFilterDays   = savedFilters.deliveryFilterDays || 7;
       // srcFilter restored after detectedRetailers is built below
@@ -1385,6 +1392,7 @@ const ITEM_UNITS = [
       selectedUnit  = null;
       brandFilterActive = false;
       brandFilterMode   = 'demote';
+      amazonBrandsDemoteActive = false;
       deliveryFilterActive = false;
       deliveryFilterDays   = 7;
     }
@@ -1572,6 +1580,12 @@ const ITEM_UNITS = [
                 return '<span class="'+cls+'" data-src="'+k+'">'+label+'</span>';
               }).join('')+
             '</div>':'')+
+          '<div id="ppu-amazon-brands-row">'+
+            '<label class="ppu-brand-filter-toggle">'+
+              '<input type="checkbox" id="ppu-amazon-brands-on"'+(amazonBrandsDemoteActive?' checked':'')+'>'+
+              ' Demote Amazon brands'+
+            '</label>'+
+          '</div>'+
           '<div id="ppu-brand-filter-row">'+
             '<label class="ppu-brand-filter-toggle">'+
               '<input type="checkbox" id="ppu-brand-filter-on"'+(brandFilterActive?' checked':'')+'>'+
@@ -1874,7 +1888,7 @@ const ITEM_UNITS = [
       var anyFilterActive = keyword.trim().length>0 || minReviews>0 || minRating>0 ||
         minPrice!=='' || maxPrice!=='' ||
         Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; }) ||
-        sortVal!=='ppu-asc' || sponsoredMode!=='show' || brandFilterActive || deliveryFilterActive;
+        sortVal!=='ppu-asc' || sponsoredMode!=='show' || brandFilterActive || amazonBrandsDemoteActive || deliveryFilterActive;
       resetFiltersBtn.classList.toggle('btn-danger',anyFilterActive);
 
       var unitDataAvail=allData.filter(function(r){return r.ppu!=null;}).length;
@@ -1945,6 +1959,7 @@ const ITEM_UNITS = [
                (climatePledgeOnly&&!r.isClimatePledge)||(smallBusinessOnly&&!r.isSmallBusiness);
       }).length:0;
       var brandFlaggedCt=brandFilterActive?allData.filter(function(r){return !!r.brandFlagged&&r.brand!==null;}).length:0;
+      var amazonDemotedCt=amazonBrandsDemoteActive?allData.filter(function(r){return !!r.isAmazonBrand;}).length:0;
       var deliveryHiddenCt=0;
       if(deliveryFilterActive){
         var nowMs=Date.now();
@@ -1971,9 +1986,10 @@ const ITEM_UNITS = [
       if(ratingHiddenCt>0)         info+=' \u00b7 '+ratingHiddenCt+' below min rating';
       if(priceHiddenCt>0)          info+=' \u00b7 '+priceHiddenCt+' outside price range';
       if(badgeHiddenCt>0)          info+=' \u00b7 '+badgeHiddenCt+' hidden by badge filter';
-      if(brandFilterActive&&brandFilterMode==='hide'&&brandFlaggedCt>0)   info+=' \u00b7 '+brandFlaggedCt+' listings hidden';
-      if(brandFilterActive&&brandFilterMode==='demote'&&brandFlaggedCt>0) info+=' \u00b7 '+brandFlaggedCt+' listings moved to end';
-      if(deliveryFilterActive&&deliveryHiddenCt>0) info+=' \u00b7 '+deliveryHiddenCt+' slow-shipping hidden';
+      if(brandFilterActive&&brandFilterMode==='hide'&&brandFlaggedCt>0)   info+=' · '+brandFlaggedCt+' listings hidden';
+      if(brandFilterActive&&brandFilterMode==='demote'&&brandFlaggedCt>0) info+=' · '+brandFlaggedCt+' listings moved to end';
+      if(amazonBrandsDemoteActive&&amazonDemotedCt>0) info+=' · '+amazonDemotedCt+' Amazon brands moved to end';
+      if(deliveryFilterActive&&deliveryHiddenCt>0) info+=' · '+deliveryHiddenCt+' slow-shipping hidden';
       document.getElementById('ppu-info').textContent=info;
 
       var sortNoteEl=document.getElementById('ppu-sort-note');
@@ -2035,7 +2051,7 @@ const ITEM_UNITS = [
       }).map(function(r){return getCompPPU(r);});
       var bestPPU=ppuVals.length?Math.min.apply(null,ppuVals):null;
 
-      var mainHtml='',demotedHtml='',curPage=0;
+      var mainHtml='',demotedHtml='',amazonDemotedHtml='',curPage=0;
       displayData.forEach(function(r){
         var srcHid=(r.retailer&&!srcFilter[r.retailer.key]);
         var sponHid=sponsoredMode==='hide'&&r.isSponsored;
@@ -2049,6 +2065,7 @@ const ITEM_UNITS = [
         var sbHid=smallBusinessOnly&&!r.isSmallBusiness;
         var brandHid=brandFilterActive&&brandFilterMode==='hide'&&!!r.brandFlagged&&r.brand!==null;
         var brandDem=brandFilterActive&&brandFilterMode==='demote'&&!!r.brandFlagged&&r.brand!==null;
+        var amazonDem=amazonBrandsDemoteActive&&!!r.isAmazonBrand;
         var deliveryHid=false;
         if(deliveryFilterActive){
           var _nowMs=Date.now();
@@ -2193,11 +2210,18 @@ const ITEM_UNITS = [
               noteFieldHtml+
             '</div>'+
           '</div>';
-        if(brandDem){ demotedHtml+=rowHtml; } else { mainHtml+=rowHtml; }
+        if(amazonDem&&!brandDem&&!brandHid){ amazonDemotedHtml+=rowHtml; } else if(brandDem){ demotedHtml+=rowHtml; } else { mainHtml+=rowHtml; }
       });
 
       var brandDemCount=brandFilterActive&&brandFilterMode==='demote'?brandFlaggedCt:0;
       var html=mainHtml;
+      if(amazonDemotedHtml){
+        html+=
+          '<div class="ppu-amazon-divider">'+
+            '<span class="ppu-amazon-divider-label">'+amazonDemotedCt+' Amazon brand item'+(amazonDemotedCt!==1?'s':'')+' moved to end</span>'+
+          '</div>'+
+          amazonDemotedHtml;
+      }
       if(demotedHtml){
         html+=
           '<div class="ppu-brand-divider">'+
@@ -2411,6 +2435,7 @@ const ITEM_UNITS = [
       smallBusinessOnly=false;
       brandFilterActive=false;
       brandFilterMode='demote';
+      amazonBrandsDemoteActive=false;
       deliveryFilterActive=false;
       deliveryFilterDays=7;
       sortVal='ppu-asc'; sortEl.value='ppu-asc';
@@ -2468,6 +2493,15 @@ const ITEM_UNITS = [
     if(sbChk){
       sbChk.addEventListener('change',function(){
         smallBusinessOnly=this.checked;
+        render();
+      });
+    }
+
+    var amazonBrandsChk=document.getElementById('ppu-amazon-brands-on');
+    if(amazonBrandsChk){
+      amazonBrandsChk.addEventListener('change',function(){
+        amazonBrandsDemoteActive=this.checked;
+        persistFilters();
         render();
       });
     }
@@ -2997,6 +3031,19 @@ const ITEM_UNITS = [
     }
   }
 
+  function loadAmazonBrandsList(cb){
+    try{
+      var url=chrome.runtime.getURL('data/amazon_brands.txt');
+      fetch(url).then(function(r){return r.text();}).then(function(text){
+        amazonBrandsList=text.split('\n')
+          .map(function(l){return l.trim();})
+          .filter(function(l){return l&&l[0]!=='#';})
+          .map(function(l){return l.toUpperCase();});
+        cb();
+      }).catch(function(){cb();});
+    }catch(e){cb();}
+  }
+
   function loadBundledBlocklist(cb){
     try{
       var url=chrome.runtime.getURL('data/brand_blocklist.txt');
@@ -3045,10 +3092,12 @@ const ITEM_UNITS = [
     function proceed(){
       if(proceeded)return;
       proceeded=true;
-      loadBundledBlocklist(function(){
-        loadPersonalBlocklist(function(){
-          loadPersonalAllowlist(function(){
-            setTimeout(function(){tryBuild(15);},1500);
+      loadAmazonBrandsList(function(){
+        loadBundledBlocklist(function(){
+          loadPersonalBlocklist(function(){
+            loadPersonalAllowlist(function(){
+              setTimeout(function(){tryBuild(15);},1500);
+            });
           });
         });
       });
