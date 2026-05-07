@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.54)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.55)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1290,7 +1290,7 @@ const ITEM_UNITS = [
         personalBlocklistHits:allData.filter(function(r){return r.brandDetection&&r.brandDetection.signals&&r.brandDetection.signals.indexOf('personalBlocklist')!==-1;}).length,
         deliveryFilterActive:deliveryFilterActive,
         deliveryFilterMaxDays:deliveryFilterActive?deliveryFilterDays:0,
-        deliveryCountFiltered:deliveryFilterActive?(function(){var n=Date.now();var mx=n+(deliveryFilterDays*24*60*60*1000);return allData.filter(function(r){var ts=r.freeDateTs!=null?r.freeDateTs:(r.fastDateTs!=null?r.fastDateTs:null);if(ts==null)return false;return ts>mx;}).length;}()):0
+        deliveryCountFiltered:deliveryFilterActive?(function(){var n=Date.now();var mx=n+(deliveryFilterDays*24*60*60*1000);return allData.filter(function(r){var d=r.freeDate||r.fastDate||null;if(!d)return false;return d.getTime()>mx;}).length;}()):0
       });
     } catch(e){}
   }
@@ -1950,9 +1950,9 @@ const ITEM_UNITS = [
         var nowMs=Date.now();
         var maxMs=nowMs+(deliveryFilterDays*24*60*60*1000);
         deliveryHiddenCt=allData.filter(function(r){
-          var ts=r.freeDateTs!=null?r.freeDateTs:(r.fastDateTs!=null?r.fastDateTs:null);
-          if(ts==null) return false; // null = exempt
-          return ts>maxMs;
+          var d=r.freeDate||r.fastDate||null;
+          if(!d) return false; // no date = exempt
+          return d.getTime()>maxMs;
         }).length;
       }
       var info=withData+'/'+allData.length+' have unit data';
@@ -2053,8 +2053,8 @@ const ITEM_UNITS = [
         if(deliveryFilterActive){
           var _nowMs=Date.now();
           var _maxMs=_nowMs+(deliveryFilterDays*24*60*60*1000);
-          var _ts=r.freeDateTs!=null?r.freeDateTs:(r.fastDateTs!=null?r.fastDateTs:null);
-          if(_ts!=null) deliveryHid=(_ts>_maxMs);
+          var _d=r.freeDate||r.fastDate||null;
+          if(_d) deliveryHid=(_d.getTime()>_maxMs);
         }
         var priceStr=r.price!=null?'$'+r.price.toFixed(2):'\u2014';
         var countStr=r.count?r.count+' ct':'';
@@ -2177,7 +2177,7 @@ const ITEM_UNITS = [
         }
         var safeBrand=r.brand?r.brand.replace(/"/g,'&quot;').replace(/'/g,'&#39;'):'';
         var brandMenuHtml=r.brand?
-          '<div class="ppu-brand-row">Always show or hide listings from this brand:'+
+          '<div class="ppu-brand-row">'+escapeHtml(r.brand)+':'+
           ' <button class="ppu-brand-allow-btn" data-brand="'+safeBrand+'">Always show</button>'+
           ' <button class="ppu-brand-block-btn" data-brand="'+safeBrand+'">Always hide</button>'+
           '</div>':'';

@@ -1,7 +1,7 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.50 (overall) · v0.6.1 (manifest) · v0.6.1.50 (search.js) · v0.6.1.46 (core.js) · v0.6.1.30 (compare.html) · v0.6.1.16 (background.js)*
-*Updated May 4, 2026 (Chat 50 — Brand filter Session 3)*
+*Current version: v0.6.1.55 (overall) · v0.6.1 (manifest) · v0.6.1.55 (search.js) · v0.6.1.53 (core.js) · v0.6.1.30 (compare.html) · v0.6.1.16 (background.js)*
+*Updated May 7, 2026 (Chat 52 — Brand filter Session 4: delivery window filter)*
 
 ---
 
@@ -39,7 +39,7 @@ The four-pillar framework is retained as an **internal reference only**. Public-
 
 *Find the best value:* PPU calculation and display, Fix 1/Fix 2/solid override, best value star, SNAP EBT, FSA/HSA, Subscribe & Save, coupon display, ppuNote transparency, compare PPU column
 
-*See only what you searched for:* keyword filter, source filter, sponsored button, price range filter, badge filters, brand filter, compare filter bar
+*See only what you searched for:* keyword filter, source filter, sponsored button, price range filter, badge filters, brand filter, delivery filter, compare filter bar
 
 *Cut through the noise:* delivery sorting, Prime filter, rating filter, pages slider, Re-sync, compare delivery column, column hide toggles
 
@@ -51,7 +51,7 @@ The four-pillar framework is retained as an **internal reference only**. Public-
 
 The **persistent shortlist** is the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
-**Shortlist item object shape sent to compare.html (current — v0.6.1.50):**
+**Shortlist item object shape sent to compare.html (current — v0.6.1.55):**
 ```
 { asin, title, price (raw float), listPrice (raw float), ppu (raw float), ppuUnit,
   isPrime (bool), isSponsored (bool),
@@ -83,12 +83,11 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 5. Version Numbering
 
-- **Overall / canonical version:** v0.6.1.50 (search.js number — the main file)
-- **Per-file versions:** search.js v0.6.1.50 · core.js v0.6.1.46 · compare.html v0.6.1.30 · background.js v0.6.1.16 · manifest v0.6.1
+- **Overall / canonical version:** v0.6.1.55 (search.js number — the main file)
+- **Per-file versions:** search.js v0.6.1.55 · core.js v0.6.1.53 · compare.html v0.6.1.30 · background.js v0.6.1.16 · manifest v0.6.1
 - Per-file versions differ intentionally — files change at different rates
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
-- **Known gap:** AU_VERSION in core.js is still 0.6.1.46 — logged scriptVersion is stale. Bump core.js next session.
 
 ---
 
@@ -131,10 +130,10 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 | `background.js` | Service worker — search context relay + usage logging (v0.6.1.16) |
 | `popup.html` | Extension popup — telemetry toggle + links |
 | `popup.js` | Popup logic |
-| `content/search.js` | Search results page panel (v0.6.1.50) — single file, all logic |
+| `content/search.js` | Search results page panel (v0.6.1.55) — single file, all logic |
 | `content/product.js` | Product page panel (disabled during alpha) |
-| `content/shared/core.js` | Shared: shortlist, nudge, shared constants, AU_VERSION (v0.6.1.46) |
-| `content/shared/styles.css` | Shared styles — blue palette; brand filter styles added Chat 49 |
+| `content/shared/core.js` | Shared: shortlist, nudge, shared constants, AU_VERSION (v0.6.1.53) |
+| `content/shared/styles.css` | Shared styles — blue palette; brand + delivery filter styles added |
 | `data/brand_blocklist.txt` | Bundled list of known-bad brands (70 entries, Chat 48) — wired up Chat 50 |
 
 **Repo root:**
@@ -184,27 +183,28 @@ The extension panel (styles.css) now uses a blue palette. The website (compare.h
 
 ## 9. Logging — Google Sheets
 
-**Background.js** fires a POST to the Apps Script endpoint on every panel load. Sheet has 58 columns as of v0.6.1.50 (56 from Chat 49 + 2 personal blocklist fields added Chat 50). Apps Script header row update still pending.
+**Background.js** fires a POST to the Apps Script endpoint on every panel load. Sheet has 61 columns actual as of v0.6.1.55. Apps Script header row update still pending (currently shows 56 columns).
 
 **Apps Script endpoint:** stored in background.js as LOG_URL constant.
 **Sheet:** "Actually Useful Usage Log" in butactuallyuseful Google account.
 
-**New columns (57–58), to be added to sheet header row:**
-personalBlocklistSize · personalBlocklistHits
+**Pending columns (57–61), not yet added to sheet header row:**
+personalBlocklistSize · personalBlocklistHits · deliveryFilterActive · deliveryFilterMaxDays · deliveryCountFiltered
 
 ---
 
 ## 10. Brand Filter — architecture summary (v0.7, in progress)
 
-Full design in Brand_Filter_Design.md. Sessions 1, 2, and 3 complete.
+Full design in Brand_Filter_Design.md. Sessions 1–4 complete.
 
 **Detection layers (priority order):**
-1. Bundled blocklist (`extension/data/brand_blocklist.txt`) — known junk, always flagged. Wired up Chat 50.
-2. Personal blocklist (`chrome.storage.local` → `auBlocklistBrands`) — user-curated, always flagged. Implemented Chat 50.
-3. Heuristic detector (`detectGibberishBrand`) — 5 signals. signalFakeMashup and signalAllCapsInvented flag alone; others require score ≥ 2.
-4. Bundled allowlist — deferred until telemetry shows false positives worth addressing.
+1. Personal allowlist (`chrome.storage.local` → `auAllowlistBrands`) — user-curated, always passes. Implemented Chat 51.
+2. Bundled blocklist (`extension/data/brand_blocklist.txt`) — known junk, always flagged. Wired up Chat 50.
+3. Personal blocklist (`chrome.storage.local` → `auBlocklistBrands`) — user-curated, always flagged. Implemented Chat 50.
+4. Heuristic detector (`detectGibberishBrand`) — 5 signals. signalFakeMashup and signalAllCapsInvented flag alone; others require score ≥ 2.
+5. Bundled allowlist — deferred until telemetry shows false positives worth addressing.
 
-**UI (as of v0.6.1.50):**
+**UI (as of v0.6.1.55):**
 - Checkbox toggle "Filter unrecognized brands" in Filters collapsible, off by default
 - "Move to end / Hide" pill — visible when filter is on
 - Demote: items pushed below thin gray divider "N items with unrecognized brands"
@@ -212,8 +212,13 @@ Full design in Brand_Filter_Design.md. Sessions 1, 2, and 3 complete.
 - Info bar: "N listings moved to end" / "N listings hidden"
 - High-noise banner (orange): fires at ≥25% flagged, always visible regardless of filter state
 - Banner text: "A lot of noise in these results. Try Amazon's brand filters on the far left before loading more pages. Hiding sponsored listings (above) also helps in categories like this."
-- [•••] menu inline next to brand name on each card — "Hide all [Brand] forever"
-- "My blocklist (N)" footer link — management view with remove buttons
+- Each card with a detected brand shows: "[BrandName]: [Always show] [Always hide]"
+  - Always show: adds to personal allowlist, removes from personal blocklist if present, re-detects, re-renders
+  - Always hide: adds to personal blocklist, removes from personal allowlist if present, forces filter on + hide mode, re-renders
+- "My brand rules (N)" footer link — N = combined allowlist + blocklist count
+  - Opens overlay (position:fixed, appended to body) with two sections: Always show / Always hide
+  - Remove buttons remove individual entries without closing the overlay
+  - Empty sections show "None yet."
 
 **Console logging:** removed in v0.6.1.49.
 
@@ -221,7 +226,27 @@ Full design in Brand_Filter_Design.md. Sessions 1, 2, and 3 complete.
 
 ---
 
-## 11. Working Rules (standing)
+## 11. Delivery Window Filter — architecture summary (v0.7, Session 4)
+
+Added Chat 52. Lives in search.js and styles.css.
+
+**Filter logic:** Uses `r.freeDate || r.fastDate` (Date objects on allData items). Items with neither date are exempt. Hides items whose earliest date exceeds `Date.now() + (deliveryFilterDays × 86400000)`.
+
+**UI:**
+- Checkbox "Hide slow shipping" in Filters collapsible, below brand filter row, off by default
+- When checked: row of preset buttons appears — 2 / 3 / 5 / 7 / 10 / 14 / 21 days; default 7
+- Label: "Arriving within N days" — updates when preset changes
+- Hide-only. No demote option.
+- Info line: "N slow-shipping hidden" when active
+- Best-value star excludes delivery-hidden items
+- State persists in sessionStorage per search term; resets on new search term
+- Reset Filters clears delivery filter
+
+**Logging:** `deliveryFilterActive` (bool), `deliveryFilterMaxDays` (int), `deliveryCountFiltered` (int)
+
+---
+
+## 12. Working Rules (standing)
 
 - **Single agent.** Claude only. No Replit, Gemini, Figma, or other tools touching code files directly.
 - **Confirm before coding.** Always align on scope before touching files.
