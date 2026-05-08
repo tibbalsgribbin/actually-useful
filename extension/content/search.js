@@ -318,7 +318,9 @@ const ITEM_UNITS = [
 
   // ── Keyword parsing ───────────────────────────────────────────────────────
   function parseKeywords(kwRaw) {
-    var segments = kwRaw.trim().split(/\s+OR\s+|\|/i);
+    // Normalize smart quotes and straight quotes so "fragrance-free" works like fragrance-free
+    var normalized = kwRaw.replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"').replace(/"/g, '');
+    var segments = normalized.trim().split(/\s+OR\s+|\|/i);
     var exclusions = [];
     var branches = [];
     segments.forEach(function(seg) {
@@ -1626,7 +1628,7 @@ const ITEM_UNITS = [
               '<div class="ppu-select-menu-item" data-action="none">None</div>'+
             '</div>'+
           '</div>'+
-          '<span id="ppu-compare-hint"><span id="ppu-compare-main">Check items to compare</span><span id="ppu-compare-sub" style="display:block;font-size:10px;color:#9ca3af;margin-top:1px;font-weight:400;">Click for the full comparison table, more filters, and to save &amp; share your results</span></span>'+
+          '<span id="ppu-compare-hint"><span id="ppu-compare-main">Check items to compare</span><span id="ppu-compare-sub" style="display:block;font-size:10px;margin-top:1px;font-weight:400;">Click for the full comparison table, more filters, and to save &amp; share your results</span></span>'+
           '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary" title="View side-by-side comparison table">Compare</button>'+
         '</div>'+
         '<div id="ppu-high-noise-banner" style="display:none"><span class="ppu-noise-msg"></span><button class="ppu-noise-dismiss" title="Dismiss">\u00d7</button></div>'+
