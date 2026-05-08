@@ -340,7 +340,8 @@
       font-size: 0.85rem;
     }
 
-    .col-delivery { min-width: 140px; }
+    .col-free-delivery { min-width: 130px; }
+    .col-fast-delivery { min-width: 130px; }
     .col-rating   { white-space: nowrap; min-width: 100px; }
     .col-reviews  { min-width: 70px; }
     .col-brand    { color: var(--muted); font-size: 0.85rem; min-width: 80px; }
@@ -847,11 +848,19 @@
         return sortDir === 'asc' ? haB - haA : haA - haB;
       }
 
-      // Delivery: use timestamp fields for precise sort; nulls go last
-      if (col === 'delivery') {
+      // Free delivery: sort on freeDateTs; nulls last
+      if (col === 'freeDelivery') {
         const FAR = 9999999999999;
-        const tsA = a.freeDateTs || a.fastDateTs || FAR;
-        const tsB = b.freeDateTs || b.fastDateTs || FAR;
+        const tsA = a.freeDateTs || FAR;
+        const tsB = b.freeDateTs || FAR;
+        return sortDir === 'asc' ? tsA - tsB : tsB - tsA;
+      }
+
+      // Fastest delivery: sort on fastDateTs; nulls last
+      if (col === 'fastDelivery') {
+        const FAR = 9999999999999;
+        const tsA = a.fastDateTs || FAR;
+        const tsB = b.fastDateTs || FAR;
         return sortDir === 'asc' ? tsA - tsB : tsB - tsA;
       }
 
@@ -935,7 +944,9 @@
       if (filterHideUnrecognizedBrands && detectGibberishBrand(effectiveBrand)) return false;
       if (filterHideAmazonBrands && isAmazonBrand(effectiveBrand)) return false;
       if (filterHideSlowShipping) {
-        var ts = item.freeDateTs || item.fastDateTs;
+        var tsF = item.freeDateTs || null;
+        var tsFast = item.fastDateTs || null;
+        var ts = (tsF && tsFast) ? Math.min(tsF, tsFast) : (tsF || tsFast);
         if (ts && ts > Date.now() + filterDeliveryDays * 86400000) return false;
       }
       return true;
@@ -1125,7 +1136,8 @@
       { key: 'title',       label: 'Product' },
       { key: 'price',       label: 'Price' },
       { key: 'ppu',         label: 'Per unit' },
-      { key: 'delivery',    label: 'Delivery' },
+      { key: 'freeDelivery',  label: 'Free delivery' },
+      { key: 'fastDelivery',  label: 'Fastest delivery' },
       { key: 'rating',      label: 'Rating' },
       { key: 'reviewCount', label: 'Reviews' },
       { key: 'isPrime',     label: 'Prime' },
@@ -1204,22 +1216,22 @@
         priceCell = '<span class="na">—</span>';
       }
 
-      var deliveryParts = [];
-      if (item.freeDate) {
-        var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
-        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs, item.freeWindowMinutes != null ? item.freeWindowMinutes : null, item.freeWindowEnd != null ? item.freeWindowEnd : null) + q);
-      }
+      var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
+      var freeDeliveryCell = item.freeDate
+        ? formatDeliveryDate(item.freeDate, item.freeDateTs, item.freeWindowMinutes != null ? item.freeWindowMinutes : null, item.freeWindowEnd != null ? item.freeWindowEnd : null) + q
+        : '<span class="na">—</span>';
+      var fastDeliveryParts = [];
       if (item.fastDate) {
-        var fastLine = 'Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs, null, null);
+        var fastLine = formatDeliveryDate(item.fastDate, item.fastDateTs, null, null);
         if (item.fastCutoff) fastLine += ' <span class="na">(order by ' + esc(item.fastCutoff) + ')</span>';
-        deliveryParts.push(fastLine);
+        fastDeliveryParts.push(fastLine);
       }
       if (item.paidDate && item.paidPrice) {
         var paidLine = esc(item.paidPrice) + ' delivery ' + esc(item.paidDate);
         if (item.paidCutoff) paidLine += ' <span class="na">(order by ' + esc(item.paidCutoff) + ')</span>';
-        deliveryParts.push('<span style="color:#b45309;">' + paidLine + '</span>');
+        fastDeliveryParts.push('<span style="color:#b45309;">' + paidLine + '</span>');
       }
-      var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
+      var fastDeliveryCell = fastDeliveryParts.length ? fastDeliveryParts.join('<br>') : '<span class="na">—</span>';
 
       var sourceKey = item.retailerKey || 'standard';
       var sourceCell = sourceKey === 'standard'
@@ -1243,7 +1255,8 @@
         + '<td class="col-title"><a href="' + affiliateUrl(item.asin) + '" target="_blank" rel="noopener">' + esc(item.title) + '</a>' + sponsoredBadge + '</td>'
         + '<td class="col-price">' + priceCell + '</td>'
         + '<td class="col-ppu">' + ppuCell + '</td>'
-        + '<td class="col-delivery">' + deliveryCell + '</td>'
+        + '<td class="col-free-delivery">' + freeDeliveryCell + '</td>'
+        + '<td class="col-fast-delivery">' + fastDeliveryCell + '</td>'
         + '<td class="col-rating">' + renderStars(item.rating) + '</td>'
         + '<td class="col-reviews">' + formatReviews(item.reviewCount) + '</td>'
         + '<td>' + primeCell + '</td>'
@@ -1569,7 +1582,8 @@
       { key: 'title',       label: 'Product' },
       { key: 'price',       label: 'Price' },
       { key: 'ppu',         label: 'Per unit' },
-      { key: 'delivery',    label: 'Delivery' },
+      { key: 'freeDelivery',  label: 'Free delivery' },
+      { key: 'fastDelivery',  label: 'Fastest delivery' },
       { key: 'rating',      label: 'Rating' },
       { key: 'reviewCount', label: 'Reviews' },
       { key: 'isPrime',     label: 'Prime' },
@@ -1645,22 +1659,22 @@
         priceCell = '<span class="na">—</span>';
       }
 
-      var deliveryParts = [];
-      if (item.freeDate) {
-        var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
-        deliveryParts.push('FREE: ' + formatDeliveryDate(item.freeDate, item.freeDateTs, item.freeWindowMinutes != null ? item.freeWindowMinutes : null, item.freeWindowEnd != null ? item.freeWindowEnd : null) + q);
-      }
+      var q = item.freeQualifier ? ' <span class="na">(' + esc(item.freeQualifier) + ')</span>' : '';
+      var freeDeliveryCell = item.freeDate
+        ? formatDeliveryDate(item.freeDate, item.freeDateTs, item.freeWindowMinutes != null ? item.freeWindowMinutes : null, item.freeWindowEnd != null ? item.freeWindowEnd : null) + q
+        : '<span class="na">—</span>';
+      var fastDeliveryParts = [];
       if (item.fastDate) {
-        var fastLine = 'Fastest: ' + formatDeliveryDate(item.fastDate, item.fastDateTs, null, null);
+        var fastLine = formatDeliveryDate(item.fastDate, item.fastDateTs, null, null);
         if (item.fastCutoff) fastLine += ' <span class="na">(order by ' + esc(item.fastCutoff) + ')</span>';
-        deliveryParts.push(fastLine);
+        fastDeliveryParts.push(fastLine);
       }
       if (item.paidDate && item.paidPrice) {
         var paidLine = esc(item.paidPrice) + ' delivery ' + esc(item.paidDate);
         if (item.paidCutoff) paidLine += ' <span class="na">(order by ' + esc(item.paidCutoff) + ')</span>';
-        deliveryParts.push('<span style="color:#b45309;">' + paidLine + '</span>');
+        fastDeliveryParts.push('<span style="color:#b45309;">' + paidLine + '</span>');
       }
-      var deliveryCell = deliveryParts.length ? deliveryParts.join('<br>') : '<span class="na">—</span>';
+      var fastDeliveryCell = fastDeliveryParts.length ? fastDeliveryParts.join('<br>') : '<span class="na">—</span>';
 
       var sourceKey = item.retailerKey || 'standard';
       var sourceCell = sourceKey === 'standard'
@@ -1684,7 +1698,8 @@
         + '<td class="col-title"><a href="' + affiliateUrl(item.asin) + '" target="_blank" rel="noopener">' + esc(item.title) + '</a>' + sponsoredBadge + '</td>'
         + '<td class="col-price">' + priceCell + '</td>'
         + '<td class="col-ppu">' + ppuCell + '</td>'
-        + '<td class="col-delivery">' + deliveryCell + '</td>'
+        + '<td class="col-free-delivery">' + freeDeliveryCell + '</td>'
+        + '<td class="col-fast-delivery">' + fastDeliveryCell + '</td>'
         + '<td class="col-rating">' + renderStars(item.rating) + '</td>'
         + '<td class="col-reviews">' + formatReviews(item.reviewCount) + '</td>'
         + '<td>' + primeCell + '</td>'

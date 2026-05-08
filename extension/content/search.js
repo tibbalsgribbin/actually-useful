@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.62)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.63)
 'use strict';
 
 function auFeedbackUrl() {
@@ -848,7 +848,7 @@ const ITEM_UNITS = [
       var storeMatch = t2.match(/^Visit the (.+?) Store$/i);
       if (storeMatch) return storeMatch[1].trim();
       // Plain byline that isn't a shipping/rating note
-      if (t2 && t2.length < 60 && !/deliver|rating|review|result|star/i.test(t2)) return t2;
+      if (t2 && t2.length < 60 && !/deliver|rating|review|result|star|bought|sold/i.test(t2)) return t2;
     }
     // Strategy 3: first word of title (BrandName ProductDescription convention)
     var titleEl = el.querySelector('h2 a span, h2 span');
