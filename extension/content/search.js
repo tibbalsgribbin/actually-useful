@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.64)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.65)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1457,8 +1457,10 @@ const ITEM_UNITS = [
       pillHtml+='</div>';
     }
 
-    var sortOpen    = true;
-    var filtersOpen = true;
+    // Collapsed state — persisted in localStorage after first interaction
+    // Default true (expanded) if never set
+    var sortOpen    = localStorage.getItem('au-sort-open')    !== '0';
+    var filtersOpen = localStorage.getItem('au-filters-open') !== '0';
 
     panel.innerHTML=
       '<div id="ppu-drag-handle"></div>'+
@@ -1493,7 +1495,7 @@ const ITEM_UNITS = [
         '</div>'+
         pillHtml+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-sort-toggle" data-target="ppu-sort-collapsible">'+
-          '<span>Sort <span id="ppu-sort-label-text"></span><span class="ppu-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></span>'+
+          '<span><span id="ppu-sort-section-label">'+(sortOpen?'Sort':'Click to sort and load more pages')+'</span> <span id="ppu-sort-label-text">'+(sortOpen?'':' ')+'</span><span class="ppu-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></span>'+
         '</div>'+
         '<div id="ppu-sort-collapsible" class="ppu-collapsible-section">'+
           '<div id="ppu-controls">'+
@@ -1524,7 +1526,7 @@ const ITEM_UNITS = [
 
         '</div>'+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-filters-toggle" data-target="ppu-filters-collapsible">'+
-          '<span>Filters <span id="ppu-filters-count" style="display:none"></span><span class="ppu-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></span>'+
+          '<span><span id="ppu-filters-section-label">'+(filtersOpen?'Filters':'Click to filter by price, delivery, brand, and more')+'</span> <span id="ppu-filters-count" style="display:none"></span><span class="ppu-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></span>'+
         '</div>'+
         '<div id="ppu-filters-collapsible" class="ppu-collapsible-section">'+
           '<div id="ppu-sliders-row">'+
@@ -2364,8 +2366,8 @@ const ITEM_UNITS = [
         else if (sortVal === 'price-asc')     sortChip = 'Price \u2191';
         else if (sortVal === 'delivery-free') sortChip = 'Free delivery';
         else if (sortVal === 'delivery-any')  sortChip = 'Soonest delivery';
-        sortLabel.textContent = sortChip;
-        sortLabel.className = sortChip ? 'ppu-sec-chip ppu-sec-chip-indigo' : '';
+        sortLabel.textContent = sortOpen ? '' : sortChip;
+        sortLabel.className = (!sortOpen && sortChip) ? 'ppu-sec-chip ppu-sec-chip-indigo' : '';
       }
       // Active decisions bar
       var decBar = document.getElementById('ppu-dec-bar');
@@ -2771,6 +2773,11 @@ const ITEM_UNITS = [
       var section = document.getElementById(sectionId);
       if (!toggle || !section) return;
       section.style.maxHeight = openFlag ? 'none' : '0';
+      if (!openFlag) {
+        toggle.classList.add('collapsed');
+        var chevron0 = toggle.querySelector('.ppu-chevron');
+        if (chevron0) chevron0.style.transform = 'rotate(-90deg)';
+      }
       toggle.addEventListener('click', function() {
         openFlag = !openFlag;
         var chevron = toggle.querySelector('.ppu-chevron');
@@ -2783,9 +2790,32 @@ const ITEM_UNITS = [
           if (chevron) chevron.style.transform = 'rotate(-90deg)';
           toggle.classList.add('collapsed');
         }
-        if (toggleId === 'ppu-sort-toggle')    sortOpen    = openFlag;
+        if (toggleId === 'ppu-sort-toggle') {
+          sortOpen = openFlag;
+          try { localStorage.setItem('au-sort-open', openFlag ? '1' : '0'); } catch(e) {}
+          var sl = document.getElementById('ppu-sort-section-label');
+          if (sl) sl.textContent = openFlag ? 'Sort' : 'Click to sort and load more pages';
+          var slChip = document.getElementById('ppu-sort-label-text');
+          if (slChip) {
+            if (openFlag) { slChip.textContent = ''; slChip.className = ''; }
+            // When closing, chip will be updated by next render() call via the sort dropdown change
+            // But if sort hasn't changed, update it now
+            else {
+              var sortChipVal = '';
+              if (sortVal === 'ppu-asc')            sortChipVal = 'Best value \u2191';
+              else if (sortVal === 'price-asc')     sortChipVal = 'Price \u2191';
+              else if (sortVal === 'delivery-free') sortChipVal = 'Free delivery';
+              else if (sortVal === 'delivery-any')  sortChipVal = 'Soonest delivery';
+              slChip.textContent = sortChipVal;
+              slChip.className = sortChipVal ? 'ppu-sec-chip ppu-sec-chip-indigo' : '';
+            }
+          }
+        }
         if (toggleId === 'ppu-filters-toggle') {
           filtersOpen = openFlag;
+          try { localStorage.setItem('au-filters-open', openFlag ? '1' : '0'); } catch(e) {}
+          var fl = document.getElementById('ppu-filters-section-label');
+          if (fl) fl.textContent = openFlag ? 'Filters' : 'Click to filter by price, delivery, brand, and more';
           var decBar = document.getElementById('ppu-dec-bar');
           if (decBar) decBar.style.display = openFlag ? '' : 'none';
         }

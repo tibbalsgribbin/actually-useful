@@ -268,7 +268,7 @@
 #ppu-btn-reset-filters.btn-danger:hover { background:#fee2e2; }
 #ppu-keyword {
   width:100%;font-size:12px;padding:5px 28px 5px 10px;
-  border:1px solid #e5e5ea;border-radius:7px;background:#f9f9fc;
+  border:1px solid #e5e5ea;border-radius:7px;background:#ffffff;
   color:#1a1a1a;outline:none;
   transition:border-color .15s,box-shadow .15s,background .12s;line-height:1;
 }
@@ -687,12 +687,15 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 
 /* ── Filter toggle rows (brand + delivery) ───────────────────────────── */
 #ppu-amazon-brands-row,
-#ppu-brand-filter-row {
-  display:flex;align-items:center;padding:2px 14px 4px;
+#ppu-brand-filter-row,
+#ppu-delivery-filter-row {
+  display:flex;align-items:flex-start;flex-direction:column;padding:2px 14px 0;
 }
+#ppu-amazon-brands-row { padding-top:6px; }
+#ppu-delivery-filter-row { padding-bottom:8px; }
 .ppu-filter-toggle-label {
   font-size:12px;color:var(--au-text);cursor:pointer;user-select:none;
-  display:inline-flex;align-items:center;gap:5px;font-weight:400;
+  display:inline-flex;align-items:center;gap:5px;font-weight:400;line-height:1.6;
 }
 .ppu-filter-toggle-label input[type=checkbox] {
   accent-color:var(--au-header);cursor:pointer;width:13px;height:13px;flex-shrink:0;
@@ -731,7 +734,7 @@ mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);bor
 
 /* Delivery window filter */
 #ppu-delivery-filter-row {
-  display:flex;align-items:flex-start;gap:4px;padding:2px 14px 8px;flex-wrap:wrap;flex-direction:column;
+  gap:2px;
 }
 #ppu-delivery-slider-wrap {
   display:flex;flex-direction:column;gap:5px;padding-left:18px;

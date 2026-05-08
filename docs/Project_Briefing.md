@@ -1,7 +1,7 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.64 (overall) · v0.6.1 (manifest) · v0.6.1.64 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 57 · v0.6.1.16 (background.js)*
-*Updated May 8, 2026 (Chat 57 — scrapeBrand fix; delivery column split; banner dismisses; re-sync prompt)*
+*Current version: v0.6.1.65 (overall) · v0.6.1 (manifest) · v0.6.1.65 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 57 · v0.6.1.16 (background.js)*
+*Updated May 8, 2026 (Chat 58 — filter layout jank fix; keyword input white; Sort/Filters remember collapsed state; sort chip visibility)*
 
 ---
 
@@ -107,8 +107,8 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 6. Version Numbering
 
-- **Overall / canonical version:** v0.6.1.64 (search.js number — the main file)
-- **Per-file versions:** search.js v0.6.1.64 · core.js v0.6.1.53 · compare.html updated Chat 57 · background.js v0.6.1.16 · manifest v0.6.1
+- **Overall / canonical version:** v0.6.1.65 (search.js number — the main file)
+- **Per-file versions:** search.js v0.6.1.65 · core.js v0.6.1.53 · compare.html updated Chat 57 · background.js v0.6.1.16 · manifest v0.6.1 · styles.css updated Chat 58
 - Per-file versions differ intentionally — files change at different rates
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
@@ -142,9 +142,9 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 **Extension files:**
 - `manifest.json` — v0.6.1 (three-part)
 - `background.js` — v0.6.1.16 — service worker; logging relay; kill switch fetch
-- `content/search.js` — v0.6.1.64 — main content script; all scraping, PPU, panel UI
+- `content/search.js` — v0.6.1.65 — main content script; all scraping, PPU, panel UI
 - `content/core.js` — v0.6.1.53 — shortlist state; compare relay
-- `content/styles.css` — panel styles (blue palette, Chat 45)
+- `content/styles.css` — panel styles (blue palette, Chat 45; updated Chat 58)
 - `popup/` — popup UI
 - `data/brand_blocklist.txt` — bundled blocklist
 - `data/amazon_brands.txt` — Amazon house brands list
@@ -219,7 +219,7 @@ Full design in Brand_Filter_Design.md. Sessions 1–5 complete. compare.html int
 - Bundled lists fetched from actuallyuseful.net/data/ at init, fail-open
 - Brand column toggleable via Show Columns
 
-**UI (search.js panel, as of v0.6.1.64):**
+**UI (search.js panel, as of v0.6.1.65):**
 - "Move Amazon brands to end" checkbox — above unrecognized brands filter, off by default
 - "Move unrecognized brands to end" checkbox — off by default; demote-only (no hide option)
 - Demote dividers: amber pill for unrecognized brands, blue pill for Amazon brands
@@ -269,7 +269,21 @@ search.js panel uses a dual-handle range slider. compare.html retains number inp
 
 ---
 
-## 15. Working Rules (standing)
+## 15. Sort & Filters — collapsed state persistence (search.js v0.6.1.65)
+
+Sort and Filters section dividers remember their open/closed state in `localStorage` (`au-sort-open`, `au-filters-open`). Default is expanded when key is absent — first-time users see everything. State saves on every toggle click.
+
+Collapsed divider labels:
+- Sort collapsed: "Click to sort and load more pages"
+- Sort expanded: "Sort"
+- Filters collapsed: "Click to filter by price, delivery, brand, and more"
+- Filters expanded: "Filters"
+
+The sort chip ("Best value ↑") is hidden when Sort is expanded, visible when collapsed.
+
+---
+
+## 16. Working Rules (standing)
 
 - **Single agent.** Claude only. No Replit, Gemini, Figma, or other tools touching code files directly.
 - **Confirm before coding.** Always align on scope before touching files.

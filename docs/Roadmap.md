@@ -4,7 +4,7 @@
 
 ---
 
-## Current version: v0.6.1.64 (overall) · v0.6.1 (manifest) · v0.6.1.64 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 57 · v0.6.1.16 (background.js)
+## Current version: v0.6.1.65 (overall) · v0.6.1 (manifest) · v0.6.1.65 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 57 · v0.6.1.16 (background.js) · styles.css updated Chat 58
 
 ---
 
@@ -32,7 +32,6 @@
 - **Brand filter threshold tuning** — 25% high-noise threshold needs real-world calibration
 - **Duplicate "Pages slider" comment** — cosmetic only, around line 2808 in search.js; fix opportunistically
 - **Outlier PPU units sorting to top** — items with unusual units ($/lb for weighted heating pad, $/ft for a cord) sort to top as "best value" when their raw PPU is small. Needs design session before fix.
-- **Filter layout jank** — checkboxes and "Hide slow shipping" row layout needs cleanup; deferred to UI improvements session
 
 ---
 
@@ -57,7 +56,7 @@
 **Brand list sync rule:** brand_blocklist.txt and amazon_brands.txt must be updated concurrently in extension/data/ AND repo root data/. Both files must always match.
 
 **Version numbering:**
-- Overall / canonical: v0.6.1.64 (search.js number)
+- Overall / canonical: v0.6.1.65 (search.js number)
 - Per-file versions differ intentionally — files change at different rates
 - v1.0 = Web Store public launch
 
@@ -86,10 +85,9 @@
 
 ## Next session priorities (in order)
 
-1. **UI improvements session** — filter layout jank (checkboxes own line, Hide slow shipping positioning); other panel/compare.html polish Melissa identifies
-2. **Welcome page on install** — chrome.runtime.onInstalled opens onboarding tab
-3. **Fix extractCount "1 Pack (250 Sheets)"** — pack/count ordering fix
-4. **compare.html logging** — deferred until website has more surfaces and telemetry opt-out question is resolved
+1. **Welcome page on install** — chrome.runtime.onInstalled opens onboarding tab
+2. **Fix extractCount "1 Pack (250 Sheets)"** — pack/count ordering fix
+3. **compare.html logging** — deferred until website has more surfaces and telemetry opt-out question is resolved
 
 ---
 
@@ -183,7 +181,10 @@
 - [x] High-noise banner — dismissible X added, upper right (Chat 57)
 - [x] PPU interpretation banner — X moved to upper right (Chat 57)
 - [x] Re-sync prompt — "You had X pages loaded — reload all?" with Yes/No (Chat 57)
-- [ ] UI improvements — filter layout jank; panel/compare.html polish
+- [x] Filter layout jank fixed — three checkbox rows unified (styles.css, Chat 58)
+- [x] Keyword input background — white (#ffffff), was grey (#f9f9fc) (styles.css, Chat 58)
+- [x] Sort and Filters sections remember collapsed state — localStorage, first-time default expanded (search.js, Chat 58)
+- [x] Sort chip ("Best value ↑") — hidden when Sort expanded, visible when collapsed (search.js, Chat 58)
 - [ ] Welcome page on install — chrome.runtime.onInstalled
 - [ ] Fix extractCount "1 Pack (250 Sheets)" ordering issue
 - [ ] Add laundry pods (id=73) and laptop (id=74) sample links to index.html
