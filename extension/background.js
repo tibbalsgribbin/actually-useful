@@ -1,4 +1,4 @@
-// Actually Useful — background.js
+// Actually Useful — background.js v0.6.1.17
 // Manages cross-page state: passes search context from search results to product pages.
 // Uses chrome.storage.session so context clears when the browser closes.
 
@@ -9,6 +9,13 @@ const SESSION_KEY = 'au_search_context';
 const AU_LOG_URL = 'https://script.google.com/macros/s/AKfycby0y2gsDtOKxNLXXsOoSVVx_82QYb8wKESx847_ExIBNW6_XW72CfBR4-bQnCx9V1bn/exec';
 
 
+
+// Open welcome page on fresh install only (not on update or reload)
+chrome.runtime.onInstalled.addListener(function(details) {
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: 'https://actuallyuseful.net/welcome' });
+  }
+});
 
 // Listen for messages from content scripts
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
