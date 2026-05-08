@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.63)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.64)
 'use strict';
 
 function auFeedbackUrl() {
@@ -420,16 +420,22 @@ const ITEM_UNITS = [
           return;
         }
       }
-      var boldEl=div.querySelector('.a-text-bold');
+      var boldEls=Array.from(div.querySelectorAll('.a-text-bold'));
+      var byM=text.match(/by\s+(\d{1,2}(?::\d{2})?\s*(?:AM|PM))/i);
+      var withinM=text.match(/within\s+(\d+\s*hr[s]?)/i);
+      var cutoff=byM?'by '+byM[1]:withinM?withinM[1]:null;
+      // Combined div: contains both free and fastest — two bold elements
+      if(lower.includes('free')&&(lower.includes('fastest')||lower.includes('or fastest'))){
+        if(!result.freeDate&&boldEls[0]){var p=parseDateString(boldEls[0].textContent.trim());if(p){result.freeDate=p;result.freeCutoff=null;}}
+        if(!result.fastDate&&boldEls[1]){var p=parseDateString(boldEls[1].textContent.trim());if(p){result.fastDate=p;result.fastCutoff=cutoff;}}
+        return;
+      }
+      var boldEl=boldEls[0];
       var dateStr=boldEl?boldEl.textContent.trim():'';
       if(!dateStr) return;
       var parsed=parseDateString(dateStr);
       if(!parsed) return;
-      var cutoff=null;
-      var byM=text.match(/by\s+(\d{1,2}(?::\d{2})?\s*(?:AM|PM))/i);
-      var withinM=text.match(/within\s+(\d+\s*hr[s]?)/i);
-      if(byM) cutoff='by '+byM[1]; else if(withinM) cutoff=withinM[1];
-      if(lower.includes('free')&&!lower.includes('fastest')){
+      if(lower.includes('free')){
         if(!result.freeDate){result.freeDate=parsed;result.freeCutoff=cutoff;}
       } else if(lower.includes('fastest')||lower.includes('or fastest')){
         if(!result.fastDate){result.fastDate=parsed;result.fastCutoff=cutoff;}
@@ -1621,7 +1627,7 @@ const ITEM_UNITS = [
           '<span id="ppu-compare-hint"><span id="ppu-compare-main">Check items to compare</span><span id="ppu-compare-sub" style="display:block;font-size:10px;color:#9ca3af;margin-top:1px;font-weight:400;">Click for the full comparison table, more filters, and to save &amp; share your results</span></span>'+
           '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary" title="View side-by-side comparison table">Compare</button>'+
         '</div>'+
-        '<div id="ppu-high-noise-banner" style="display:none"></div>'+
+        '<div id="ppu-high-noise-banner" style="display:none"><span class="ppu-noise-msg"></span><button class="ppu-noise-dismiss" title="Dismiss">\u00d7</button></div>'+
         '<div id="ppu-list"></div>'+
         '<div id="ppu-load-more-row" style="'+(nextPageUrl?'':'display:none')+'">'+
           '<button id="ppu-btn-load-more">\u2193 Load page '+(loadedPages+1)+' results</button>'+
@@ -1674,9 +1680,12 @@ const ITEM_UNITS = [
         '.ppu-badge-label input[type=checkbox]{display:none;}' +
         '.ppu-badge-label:hover{border-color:#d4d4d8;color:#3f3f46;background:#f3f3f6;}' +
         '.ppu-badge-label:has(input:checked){background:#eef2ff;border-color:#c7d2fe;color:#3730a3;font-weight:600;}' +
-        '#ppu-mixed-units-banner{display:none;padding:7px 12px 7px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;line-height:1.5;display:flex;align-items:flex-start;gap:8px;}' +
+        '#ppu-mixed-units-banner{display:none;padding:7px 28px 7px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;line-height:1.5;position:relative;}' +
         '.ppu-mixed-msg{flex:1;user-select:text;cursor:text;}' +
-        '.ppu-mixed-dismiss{flex-shrink:0;background:none;border:none;font-size:14px;color:#877891;cursor:pointer;padding:0;line-height:1;}' +
+        '.ppu-mixed-dismiss{position:absolute;top:5px;right:6px;background:none;border:none;font-size:14px;color:#877891;cursor:pointer;padding:0;line-height:1;}' +
+        '#ppu-high-noise-banner{display:none;padding:7px 28px 7px 14px;background:#fff7ed;border-left:3px solid #f59e0b;font-size:11px;color:#92400e;line-height:1.5;position:relative;}' +
+        '.ppu-noise-msg{display:block;user-select:text;}' +
+        '.ppu-noise-dismiss{position:absolute;top:5px;right:6px;background:none;border:none;font-size:14px;color:#a78060;cursor:pointer;padding:0;line-height:1;}' +
         '.ppu-brand-row{font-size:12px;color:#6b7280;margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;user-select:text;}' +
         '.ppu-brand-allow-btn,.ppu-brand-block-btn{font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid #d1d5db;background:#f9f9fc;color:#4338ca;cursor:pointer;white-space:nowrap;}' +
         '.ppu-brand-allow-btn:hover{background:#eef2ff;border-color:#c7d2fe;}' +
@@ -2019,10 +2028,12 @@ const ITEM_UNITS = [
         var noiseRatio=allData.length>0?allData.filter(function(r){return !!r.brandFlagged&&r.brand!==null;}).length/allData.length:0;
         if(noiseRatio>=0.25){
           highNoiseBanner.style.display='block';
-          highNoiseBanner.textContent='There is a lot of noise in these results. Try using Amazon\u2019s filters on the far left of the webpage first, and then Actually Useful\u2019s filters above.';
+          var noiseMsg=highNoiseBanner.querySelector('.ppu-noise-msg');
+          if(noiseMsg) noiseMsg.textContent='There is a lot of noise in these results. Try using Amazon\u2019s filters on the far left of the webpage first, and then Actually Useful\u2019s filters above.';
         } else {
           highNoiseBanner.style.display='none';
-          highNoiseBanner.textContent='';
+          var noiseMsg=highNoiseBanner.querySelector('.ppu-noise-msg');
+          if(noiseMsg) noiseMsg.textContent='';
         }
       }
 
@@ -2820,10 +2831,92 @@ const ITEM_UNITS = [
         if(b) b.style.display='none';
       });
     }
+    var noiseDismissBtn=document.querySelector('.ppu-noise-dismiss');
+    if(noiseDismissBtn){
+      noiseDismissBtn.addEventListener('click',function(){
+        var b=document.getElementById('ppu-high-noise-banner');
+        if(b) b.style.display='none';
+      });
+    }
     document.getElementById('ppu-btn-refresh').addEventListener('click',function(){
-      this.textContent='Re-syncing\u2026';this.disabled=true;
+      var btn=this;
+      var prevPages=loadedPages;
+      btn.textContent='Re-syncing\u2026';btn.disabled=true;
       checkedAsins={};
-      setTimeout(function(){buildPanel();},100);
+      setTimeout(function(){
+        buildPanel();
+        if(prevPages>1){
+          // After buildPanel resets to page 1, prompt to reload previous pages
+          var pollCount=0;
+          function insertPrompt(){
+            var panel=document.getElementById('ppu-sorter-panel');
+            var header=document.getElementById('ppu-header');
+            var pagesRow=document.getElementById('ppu-pages-row');
+            if((!panel||!header||!pagesRow)&&pollCount<20){pollCount++;setTimeout(insertPrompt,100);return;}
+            if(!panel||!header||!pagesRow) return;
+            var existing=document.getElementById('ppu-resync-reload-bar');
+            if(existing) existing.remove();
+            var reloadBar=document.createElement('div');
+            reloadBar.id='ppu-resync-reload-bar';
+            reloadBar.style.cssText='padding:6px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;display:flex;align-items:center;gap:8px;';
+            var msg=document.createElement('span');
+            msg.textContent='You had '+prevPages+' pages loaded \u2014 reload all?';
+            var yesBtn=document.createElement('button');
+            yesBtn.textContent='Yes';
+            yesBtn.style.cssText='font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;cursor:pointer;';
+            var noBtn=document.createElement('button');
+            noBtn.textContent='No';
+            noBtn.style.cssText='font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #d1d5db;background:#f9f9fc;color:#6b7280;cursor:pointer;';
+            reloadBar.appendChild(msg);
+            reloadBar.appendChild(yesBtn);
+            reloadBar.appendChild(noBtn);
+            var panel=document.getElementById('ppu-sorter-panel');
+            var header=document.getElementById('ppu-header');
+            var pagesRow=document.getElementById('ppu-pages-row');
+            if(pagesRow&&pagesRow.parentNode){
+              pagesRow.parentNode.insertBefore(reloadBar,pagesRow.nextSibling);
+            } else if(controlsWrap){
+              controlsWrap.appendChild(reloadBar);
+            }
+            noBtn.addEventListener('click',function(){reloadBar.remove();});
+            yesBtn.addEventListener('click',function(){
+              reloadBar.remove();
+              var statusEl=document.getElementById('ppu-pages-status');
+              if(statusEl){statusEl.style.display='block';statusEl.textContent='Loading\u2026';}
+              var slider=document.getElementById('ppu-pages-slider');
+              if(slider) slider.disabled=true;
+              function loadNext(remaining){
+                if(remaining===0||!nextPageUrl){
+                  if(slider) slider.disabled=false;
+                  if(statusEl) statusEl.style.display='none';
+                  needsResort=false; updateLoadMoreRow(); render(); return;
+                }
+                var fp=loadedPages+1,si=allData.length;
+                if(statusEl) statusEl.textContent='Loading page '+fp+'\u2026';
+                fetchPage(nextPageUrl,fp,si).then(function(result){
+                  allData=allData.concat(result.rows);loadedPages=fp;nextPageUrl=result.nextUrl;
+                  isLiquidDominant=inferLiquidDominant(allData);
+                  if(isLiquidDominant) applyLiquidCtConversion(result.rows);
+                  isLiquidDominant=inferLiquidDominant(allData);
+                  isWeightDominant=inferWeightDominant(allData);
+                  unitPills=generateUnitPills(allData,isLiquidDominant,isWeightDominant);
+                  if(result.nextUrl&&remaining>1){
+                    setTimeout(function(){loadNext(remaining-1);},750);
+                  } else {
+                    loadNext(result.nextUrl?remaining-1:0);
+                  }
+                }).catch(function(err){
+                  console.log('[PPU] Resync reload failed:',err);
+                  if(slider) slider.disabled=false;
+                  if(statusEl){statusEl.textContent='Load failed \u2014 try Re-sync';setTimeout(function(){statusEl.style.display='none';},3000);}
+                });
+              }
+              loadNext(prevPages-1);
+            });
+          }
+          insertPrompt();
+        }
+      },100);
     });
 
     var coffeeLink=document.getElementById('ppu-coffee');
