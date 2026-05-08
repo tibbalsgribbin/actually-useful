@@ -64,11 +64,11 @@
   flex-shrink:0;border-top:1px solid #c7d2fe;background:var(--au-footer);
 }
 #ppu-sort-note {
-  padding:3px 14px 0;font-size:11px;color:#4b5563;font-style:italic;
-  min-height:0;
+  padding:2px 14px 0;font-size:10px;color:#4b5563;font-style:italic;
+  min-height:0;line-height:1.4;
 }
 #ppu-info {
-  padding:2px 14px 4px;font-size:12px;color:#4b5563;
+  padding:1px 14px 3px;font-size:10.5px;color:#4b5563;line-height:1.4;
 }
 #ppu-footer-links {
   padding:5px 14px;background:var(--au-footer);border-top:1px solid rgba(0,0,0,.06);
@@ -197,7 +197,7 @@
 /* Sponsored button states */
 #ppu-btn-hide-sponsored { display:none; }
 #ppu-btn-hide-sponsored.mode-demote { border-color:#c7d2fe;color:var(--au-orchid-dark); }
-#ppu-btn-hide-sponsored.mode-hide   { border-color:var(--au-coral-dark);color:var(--au-coral-dark);background:var(--au-coral); }
+#ppu-btn-hide-sponsored.mode-hide   { border-color:#4338ca;color:#ffffff;background:#4f46e5; }
 
 /* ── Sort row ────────────────────────────────────────────────────────── */
 #ppu-controls {
@@ -342,16 +342,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-slider-ticks span.minor { height:3px; }
 
 /* ── Active decisions bar ────────────────────────────────────────────── */
-#ppu-dec-bar {
-  margin:3px 12px 7px;padding:4px 10px 4px 14px;
-  background:#f4f4fc;border:1px solid #e2e2f0;border-radius:7px;
-  min-height:26px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;
-  position:relative;overflow:hidden;
-}
-#ppu-dec-bar::before {
-  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
-  background:#4f46e5;border-radius:7px 0 0 7px;
-}
+#ppu-dec-bar { display:none; }
 .ppu-dc {
   font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;
   white-space:nowrap;line-height:1.4;
@@ -437,7 +428,8 @@ input[type=range].ppu-slider::-moz-range-thumb {
 #ppu-compare-hint {
   flex:1;font-size:12px;font-weight:500;color:#6b7280;line-height:1.2;transition:color 0.18s;
 }
-#ppu-shortlist-bar.active #ppu-compare-hint { color:rgba(255,255,255,0.85); }
+#ppu-shortlist-bar.active #ppu-compare-hint { color:#ffffff; }
+#ppu-shortlist-bar.active #ppu-compare-hint * { color:#ffffff; }
 
 #ppu-list { padding:4px 0; }
 .ppu-row {
@@ -490,7 +482,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
   padding:5px 14px;background:var(--au-periwinkle);border-top:1px solid #c7d2fe;
   border-bottom:1px solid #c7d2fe;font-size:0.82rem;font-weight:400;color:var(--au-text);
 }
-mark.ppu-kw-highlight { background:var(--au-best-value);color:var(--au-text);border-radius:2px;padding:0 1px; }
+mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2px;padding:0 2px; }
 
 /* ── Best value row ──────────────────────────────────────────────────── */
 .ppu-row.best-value-row { background:#FFFFFF; }

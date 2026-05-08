@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.65)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.66)
 'use strict';
 
 function auFeedbackUrl() {
@@ -2335,6 +2335,24 @@ const ITEM_UNITS = [
         });
       });
 
+      // ── Note add/edit links (rendered via innerHTML — need explicit wiring) ─
+      document.querySelectorAll('.ppu-note-add-link').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var asin = this.getAttribute('data-asin');
+          var widget = this.closest('.ppu-note-widget');
+          if (asin && widget) auShowNoteTextarea(widget, asin);
+        });
+      });
+      document.querySelectorAll('.ppu-note-edit-link').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var asin = this.getAttribute('data-asin');
+          var widget = this.closest('.ppu-note-widget');
+          if (asin && widget) auShowNoteTextarea(widget, asin);
+        });
+      });
+
             scheduleLog();
       persistFilters();
       updateActiveIndicators();
@@ -2394,7 +2412,7 @@ const ITEM_UNITS = [
       var filled = pct.toFixed(1) + '%';
       el.style.background = 'linear-gradient(to right,#4f46e5 ' + filled + ',#e5e5ea ' + filled + ')';
     }
-    function updatePagesSliderFill(el) { if (el) updateSliderFill(el, 1, 10); }
+    function updatePagesSliderFill(el) { if (el) updateSliderFill(el, 1, 7); }
     function updatePagesLabel() {
       var labelEl = document.getElementById('ppu-pages-label');
       if (!labelEl || !pagesSlider) return;
