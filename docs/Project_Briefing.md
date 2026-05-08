@@ -1,7 +1,7 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
 *Current version: v0.6.1.62 (overall) · v0.6.1 (manifest) · v0.6.1.62 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 55 · v0.6.1.16 (background.js)*
-*Updated May 7, 2026 (Chat 55 — compare.html sync, brand column, filters, resizable columns, sticky header/scrollbar)*
+*Updated May 7, 2026 (Chat 56 — website strategy added; compare.html logging deferred; positioning updated)*
 
 ---
 
@@ -33,6 +33,8 @@ The four-pillar framework is retained as an **internal reference only**. Public-
 
 **Core positioning:** Amazon is built to sell what *they* want. Actually Useful is built to help you buy what *you* want.
 
+**The extension-to-website arc:** The extension is the data bridge — it travels with the user on Amazon, captures what Amazon buries, and sends the user's research to the website. The website is where Actually Useful is fully realized: room to breathe, tools Amazon would never build, and the place where affiliate links can do their job. A user who never leaves the extension gets real value. A user who follows the research to the website gets everything.
+
 **The two-stage story:** Actually Useful expands first (load up to 7 pages), then helps you narrow (filter, sort, shortlist), then decides (compare side by side). Most tools only narrow — AU expands AND narrows.
 
 **Intended compare.html workflow:** Load maximum pages (up to 7), apply a few panel filters, send hundreds of items to compare.html for second-stage refinement. compare.html is a full research surface, not just a final-3-items view.
@@ -49,7 +51,27 @@ The four-pillar framework is retained as an **internal reference only**. Public-
 
 ---
 
-## 3. The Data Spine: The Persistent Shortlist
+## 3. Website Strategy (internal)
+
+The website is the long-term product. The extension is the bridge that gets Amazon's data out — but actuallyuseful.net is where Actually Useful becomes a full shopping research platform, not dependent on being on Amazon at all.
+
+**Current state:** compare.html is the website, for all practical purposes. It's a full research surface: filter, sort, compare side by side, share, take notes.
+
+**Long-term vision:** Expand to cover every major part of the Amazon shopping experience — and eventually operate as a standalone research tool that doesn't require Amazon at all.
+
+Planned surfaces (in rough priority order):
+- `compare.html` — live ✅ — shortlist research, side-by-side comparison, sharing
+- `search.html` — post-alpha — standalone search results page; AU features without being on Amazon; clean, ad-free alternative to tools like jungle-search.com
+- Product pages — post-alpha — per-product research surface (price history, reviews, variants, return rate)
+- Gift lists, carts, saved-for-later — post-alpha — AU features across the full Amazon experience
+
+**Affiliate tags:** Every outbound Amazon link from the website carries the Associates tag. The website is where monetization happens. The extension never carries tags — this is a firm standing rule.
+
+**Telemetry:** compare.html can't read the user's telemetry opt-out from `chrome.storage.local` (website can't access extension storage). For now, compare.html logging is deferred — search.js logging captures the signal that matters most. Revisit when the website has more surfaces.
+
+---
+
+## 4. The Data Spine: The Persistent Shortlist
 
 The **persistent shortlist** is the user's active research file. Currently session-scoped (clears on browser close); cross-session persistence via `chrome.storage.local` is post-alpha.
 
@@ -73,17 +95,17 @@ Payload also includes: `searchTerm` (string), `searchUrl` (string).
 
 ---
 
-## 4. Monetization Model
+## 5. Monetization Model
 
 Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. No paywalls ever.
 
-**Affiliate link policy:** Tags on website only — never in the extension.
+**Affiliate link policy:** Tags on website only — never in the extension. Every outbound Amazon link from the website carries the Associates tag.
 
 **Affiliate disclosure:** Every page must display: *"This site contains affiliate links. If you click through and make a purchase, I may earn a commission at no additional cost to you."*
 
 ---
 
-## 5. Version Numbering
+## 6. Version Numbering
 
 - **Overall / canonical version:** v0.6.1.62 (search.js number — the main file)
 - **Per-file versions:** search.js v0.6.1.62 · core.js v0.6.1.53 · compare.html updated Chat 55 · background.js v0.6.1.16 · manifest v0.6.1
@@ -93,7 +115,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ---
 
-## 6. Website Architecture
+## 7. Website Architecture
 
 **Platform:** GitHub Pages (static) + Supabase (free tier).
 
@@ -101,7 +123,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 - `index.html` — marketing/landing page ✅ live — fully overhauled Chat 42
 - `privacy.html` — privacy policy ✅ live
 - `compare.html` — Actually Useful Comparisons ✅ live — loads via ?id= (Supabase); ?data= fallback for old links
-- `search.html` — Actually Useful Searches (post-alpha)
+- `search.html` — Actually Useful Searches (post-alpha) — standalone search results page; AU features without being on Amazon; clean alternative to ad-heavy tools like jungle-search.com
 
 **Website data files (repo root data/ folder):**
 - `data/brand_blocklist.txt` — fetched by compare.html for brand filter. Must match extension/data/ copy.
@@ -127,7 +149,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ---
 
-## 7. Extension File Structure
+## 8. Extension File Structure
 
 **Extension folder:** `C:\Users\tibba\GitHub\actually-useful\extension\`
 
@@ -164,7 +186,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ---
 
-## 8. Palette — Blue (redesigned Chat 45)
+## 9. Palette — Blue (redesigned Chat 45)
 
 The extension panel (styles.css) now uses a blue palette. The website (compare.html, index.html) retains the original monochromatic indigo palette. A full cross-product palette redesign is post-alpha.
 
@@ -194,11 +216,11 @@ The extension panel (styles.css) now uses a blue palette. The website (compare.h
 
 ---
 
-## 9. Logging — Google Sheets
+## 10. Logging — Google Sheets
 
 **Background.js** fires a POST to the Apps Script endpoint on every panel load. Sheet has 63 columns — header row updated Chat 54. Apps Script updated to Version 3 (Chat 54) to include all 63 fields.
 
-**compare.html logging** not yet implemented — priority #1 for next session.
+**compare.html logging:** Deferred. compare.html can't read the user's telemetry opt-out from `chrome.storage.local` (website/extension storage boundary). Search.js logging captures the most important signal for now. Revisit when the website has more surfaces.
 
 **Apps Script endpoint:** stored in background.js as LOG_URL constant.
 **Sheet:** "Actually Useful Usage Log" in butactuallyuseful Google account.
@@ -207,7 +229,7 @@ The extension panel (styles.css) now uses a blue palette. The website (compare.h
 
 ---
 
-## 10. Brand Filter — architecture summary (v0.7, complete)
+## 11. Brand Filter — architecture summary (v0.7, complete)
 
 Full design in Brand_Filter_Design.md. Sessions 1–5 complete. compare.html integration complete (Chat 55).
 
@@ -239,7 +261,7 @@ Full design in Brand_Filter_Design.md. Sessions 1–5 complete. compare.html int
 
 ---
 
-## 11. Delivery Window Filter — architecture summary (v0.7, Session 4)
+## 12. Delivery Window Filter — architecture summary (v0.7, Session 4)
 
 Added Chat 52 to search.js. Added Chat 55 to compare.html.
 
@@ -254,7 +276,7 @@ Added Chat 52 to search.js. Added Chat 55 to compare.html.
 
 ---
 
-## 12. compare.html — current feature state (as of Chat 55)
+## 13. compare.html — current feature state (as of Chat 55)
 
 **Filter bar:** include/exclude text, min reviews, min rating, min/max price (number inputs), source, hide sponsored, Prime, SNAP, FSA/HSA, Climate Pledge, Small Business, hide unrecognized brands, hide Amazon brands, hide slow shipping + day presets.
 
@@ -264,17 +286,17 @@ Added Chat 52 to search.js. Added Chat 55 to compare.html.
 
 **Other:** liquid unit toggle, action bar (open tabs, show checked only, share checked, deselect all), share button (Supabase), editable notes, sort by any column.
 
-**Not yet on compare.html:** logging (next session priority).
+**Not yet on compare.html:** logging (deferred — see Section 10).
 
 ---
 
-## 13. Price Range Filter — dual-handle slider (search.js v0.6.1.61)
+## 14. Price Range Filter — dual-handle slider (search.js v0.6.1.61)
 
 search.js panel uses a dual-handle range slider. compare.html retains number inputs — appropriate for a fixed loaded dataset where dynamic bounds don't apply.
 
 ---
 
-## 14. Working Rules (standing)
+## 15. Working Rules (standing)
 
 - **Single agent.** Claude only. No Replit, Gemini, Figma, or other tools touching code files directly.
 - **Confirm before coding.** Always align on scope before touching files.
@@ -284,7 +306,7 @@ search.js panel uses a dual-handle range slider. compare.html retains number inp
 - **Rollback rule:** 3 failed fix attempts = stop, revert to last stable commit.
 - **Don't touch weight unit logic** without a design session first.
 - **search.js stays as one file** until selector resilience is properly designed.
-- **Affiliate tags on website only** — never in the extension.
+- **Affiliate tags on website only** — never in the extension. Every outbound Amazon link from the website carries the Associates tag.
 - **All extension text must be selectable.**
 - **note = user note; ppuNote = AU inference note** — never conflated.
 - **search.js sends raw numbers to compare.html** — compare.html handles all formatting.

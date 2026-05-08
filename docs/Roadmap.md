@@ -28,7 +28,7 @@
 - **isFsaHsa/isClimatePledge/isSmallBusiness on compare.html** — only available after v0.6.1.34
 - **Collapsible animation gone** — snap only; post-alpha
 - **Other discount types not captured** — buy-multiple deals, vague "save X%" promos; post-alpha
-- **compare.html logging** — no logging on compare page yet
+- **compare.html logging** — deferred; compare.html can't read telemetry opt-out from chrome.storage.local; revisit when website has more surfaces
 - **Brand filter mixed-case invented names** — Floerns, Verdusa, Wenrine etc. score 0 on heuristics; accepted gap, covered partially by bundled blocklist
 - **Brand filter threshold tuning** — 25% high-noise threshold needs real-world calibration
 - **Duplicate "Pages slider" comment** — cosmetic only, around line 2808 in search.js; fix opportunistically
@@ -62,7 +62,7 @@
 - Per-file versions differ intentionally — files change at different rates
 - v1.0 = Web Store public launch
 
-**Affiliate tags:** Website only — never in the extension.
+**Affiliate tags:** Website only — never in the extension. Every outbound Amazon link from the website carries the Associates tag.
 
 **Affiliate disclosure:** Every page. Standing rule.
 
@@ -87,11 +87,11 @@
 
 ## Next session priorities (in order)
 
-1. **compare.html logging** — direct fetch to Google Sheets endpoint
-2. **search.js scrapeBrand() fix** — first-word fallback grabbing purchase metadata for electronics; needs tighter scraping
-3. **Welcome page on install** — chrome.runtime.onInstalled opens onboarding tab
-4. **Fix extractCount "1 Pack (250 Sheets)"** — pack/count ordering fix
-5. **Verify auto-resort fires on Re-sync page-add**
+1. **search.js scrapeBrand() fix** — first-word fallback grabbing purchase metadata instead of brand name for electronics categories
+2. **Welcome page on install** — chrome.runtime.onInstalled opens onboarding tab
+3. **Fix extractCount "1 Pack (250 Sheets)"** — pack/count ordering fix
+4. **Verify auto-resort fires on Re-sync page-add**
+5. **compare.html logging** — deferred until website has more surfaces and telemetry opt-out question is resolved
 
 ---
 
@@ -176,11 +176,12 @@
 - [x] Google Sheet header row updated to 63 columns (Chat 54)
 - [x] compare.html sync — brand column, brand filters, delivery filter, resizable columns, sticky header, sticky scrollbar, cell wrapping, reduced padding (Chat 55)
 - [x] Website data/ folder — brand_blocklist.txt and amazon_brands.txt added (Chat 55)
-- [ ] compare.html logging
+- [x] Website strategy framing added to Project Briefing (Chat 56)
+- [x] compare.html logging — deferred (Chat 56, see Section 10 of Briefing)
 - [ ] search.js scrapeBrand() fix — first-word fallback grabbing purchase metadata for electronics
+- [ ] Welcome page on install — chrome.runtime.onInstalled
 - [ ] Fix extractCount "1 Pack (250 Sheets)" ordering issue
 - [ ] Verify auto-resort fires on Re-sync page-add
-- [ ] Welcome page on install — chrome.runtime.onInstalled
 - [ ] Add laundry pods (id=73) and laptop (id=74) sample links to index.html
 
 ### Alpha release — status
@@ -250,11 +251,15 @@ Full design in Brand_Filter_Design.md.
 - Selector resilience refactor (if not completed pre-public)
 - Walmart version
 - Brand filter allowlist — bundled; add after telemetry shows false positives worth addressing
+- compare.html logging — revisit when website has more surfaces
 
 ### Website (post-alpha)
+- [ ] search.html — standalone search results page; AU features without being on Amazon; clean, ad-free alternative to tools like jungle-search.com
+- [ ] Product pages on website — per-product research surface
+- [ ] Gift lists, carts, saved-for-later surfaces
 - [ ] "For nerds" transparency doc
 - [ ] Demo video recorded and embedded
-- [ ] Search.html page
+- [ ] Affiliate tags wired into all outbound Amazon links on website
 
 ---
 
