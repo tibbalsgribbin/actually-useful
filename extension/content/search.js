@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.74)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.78)
 'use strict';
 
 function auFeedbackUrl() {
@@ -949,8 +949,34 @@ const ITEM_UNITS = [
     return result;
   }
 
-  // ── Weight quantity parser ───────────────────────────────────────────────────
-  // Returns true if the title's lb number is a paper-weight spec, not a physical weight.
+  // ── Multi-pack × weight guard ────────────────────────────────────────────────
+  // Returns true when it's safe to multiply a detected weight by a pack count.
+  // Fires when EITHER:
+  //   (C) a container word appears adjacent to the weight in the title, OR
+  //   (B) a strong substance/food word appears anywhere in the title.
+  // Prevents e.g. "Dumbbell 10 lb (Set of 2)" from getting $/lb × 2.
+  function isMultiPackWeight(title) {
+    // Condition C: container word within ~25 chars after the weight match
+    var weightMatch = title.match(/\b\d+(?:\.\d+)?\s*[-\s]*(?:lb\.?|lbs\.?|pound|pounds|oz\.?|ounce|ounces|fl\s*oz|g\b|kg|ml)\b/i);
+    if (weightMatch) {
+      var after = title.slice(weightMatch.index + weightMatch[0].length, weightMatch.index + weightMatch[0].length + 25);
+      if (/\b(?:bag|box|pouch|can|canister|jug|bottle|carton|tub|pail)\b/i.test(after)) return true;
+    }
+    // Condition B: strong substance word anywhere in title
+    if (/\b(?:rice|flour|sugar|oats|oatmeal|coffee|beans|lentils|pasta|kibble|food|feed|seed|seeds|salt|powder|protein|formula|detergent|softener)\b/i.test(title)) return true;
+    return false;
+  }
+
+  // ── Serving weight suppression ───────────────────────────────────────────────
+  // Returns true when the gram value in a title is a per-serving nutrition spec,
+  // not the product's physical weight. e.g. "30g Protein" in a protein powder title.
+  // Suppresses small gram values (under 100g) when supplement keywords are present.
+  function isServingWeight(title, gQty) {
+    if (!gQty || gQty >= 100) return false;
+    return /\b(?:whey|isolate|casein|collagen|creatine|bcaa|amino|pre-?workout|mass\s*gainer|greens|protein|serving|servings)\b/i.test(title);
+  }
+
+
   // e.g. "65 lb Cover Weight", "90 lb Index", "110 lb/176 gsm" — these are paper grade specs.
   // Used to suppress lb-based PPU calculation for paper/cardstock products.
   function isPaperWeightLb(title) {
@@ -964,7 +990,7 @@ const ITEM_UNITS = [
   // Used to sanity-check Amazon's reported unit price (e.g. Amazon says $5/oz
   // but item is $9.99 for 32 oz — detect and recalculate).
   function parseTitleWeightQty(title, unit) {
-    var ozM = title.match(/\b(\d+(?:\.\d+)?)\s*(?:oz|ounce|ounces)\b/i);
+    var ozM = title.match(/\b(\d+(?:\.\d+)?)[- ]*(?:oz|ounce|ounces)\b/i);
     // Exclude paper-weight specs: "65 lb Cover Weight", "90 lb Bond", "110 lb Index"
     var lbM = title.match(/\b(\d+(?:\.\d+)?)\s*[-\s]*(?:lb\.?|lbs\.?|pound|pounds)\b/i);
     if (lbM && isPaperWeightLb(title)) lbM = null;
@@ -1291,6 +1317,31 @@ const ITEM_UNITS = [
     }
     if(ap) return applyPairsNote(Object.assign(base,{ppu:ap.ppu,unit:ap.unit,source:'amazon'}),title);
     if(count&&price){
+      // Multi-pack × weight: when title has both a count and a physical weight,
+      // and the guard confirms this is a bulk substance (rice, dog food, detergent etc.),
+      // use total weight as the unit instead of $/ct.
+      if(isMultiPackWeight(title)) {
+        var mwUnit=null,mwQty=0;
+        var mwOz=title.match(/\b(\d+(?:\.\d+)?)[- ]*(?:oz|ounce|ounces)\b/i);
+        var mwLb=title.match(/\b(\d+(?:\.\d+)?)\s*[-\s]*(?:lb\.?|lbs\.?|pound|pounds)\b/i);
+        if(mwLb&&isPaperWeightLb(title)) mwLb=null;
+        var mwG =title.match(/\b(\d+(?:\.\d+)?)\s*(?:g|gram|grams)\b/i);
+        var mwKg=title.match(/\b(\d+(?:\.\d+)?)\s*(?:kg|kilogram|kilograms)\b/i);
+        if(mwOz){mwQty=parseFloat(mwOz[1]);mwUnit='oz';}
+        else if(mwLb){mwQty=parseFloat(mwLb[1]);mwUnit='lb';}
+        else if(mwG){mwQty=parseFloat(mwG[1]);mwUnit='g';}
+        else if(mwKg){mwQty=parseFloat(mwKg[1]);mwUnit='kg';}
+        if(mwQty>0&&mwUnit) {
+          if(count>1) {
+            var mwTotal=mwQty*count;
+            var mwNote=count+' \u00d7 '+mwQty+' '+mwUnit+' = '+mwTotal+' '+mwUnit+' total';
+            return Object.assign(base,{ppu:price/mwTotal,unit:mwUnit,source:'calc-weight',ppuNote:mwNote});
+          } else {
+            return Object.assign(base,{ppu:price/mwQty,unit:mwUnit,source:'calc-weight',
+              note:'No Amazon unit price \u2014 calculated from weight in title.'});
+          }
+        }
+      }
       var unit2=guessCountUnit(title)||guessUnitFromTitle(title)||'ct';
       return Object.assign(base,{ppu:price/count,unit:unit2,source:'calc'});
     }
@@ -1299,18 +1350,29 @@ const ITEM_UNITS = [
     // Handles single-bag rice, dog food bags, etc.
     if(price) {
       var wtUnit=null,wtQty=0;
-      var ozM2=title.match(/\b(\d+(?:\.\d+)?)\s*(?:oz|ounce|ounces)\b/i);
+      var ozM2=title.match(/\b(\d+(?:\.\d+)?)[- ]*(?:oz|ounce|ounces)\b/i);
       var lbM2=title.match(/\b(\d+(?:\.\d+)?)\s*[-\s]*(?:lb\.?|lbs\.?|pound|pounds)\b/i);
       if(lbM2&&isPaperWeightLb(title)) lbM2=null; // paper-weight spec, not physical weight
       var gM2 =title.match(/\b(\d+(?:\.\d+)?)\s*(?:g|gram|grams)\b/i);
+      if(gM2&&isServingWeight(title,parseFloat(gM2[1]))) gM2=null; // per-serving nutrition spec, not product weight
       var kgM2=title.match(/\b(\d+(?:\.\d+)?)\s*(?:kg|kilogram|kilograms)\b/i);
       if(ozM2){wtQty=parseFloat(ozM2[1]);wtUnit='oz';}
       else if(lbM2){wtQty=parseFloat(lbM2[1]);wtUnit='lb';}
       else if(gM2){wtQty=parseFloat(gM2[1]);wtUnit='g';}
       else if(kgM2){wtQty=parseFloat(kgM2[1]);wtUnit='kg';}
-      if(wtQty>0&&wtUnit)
+      if(wtQty>0&&wtUnit) {
+        // Multi-pack × weight: if a pack count exists and the title signals a bulk
+        // substance purchase (rice bags, dog food, detergent jugs etc.), multiply
+        // unit weight by pack count so PPU reflects total weight, not per-bag weight.
+        if(count&&count>1&&isMultiPackWeight(title)) {
+          var totalWt=wtQty*count;
+          var packNote=count+' \u00d7 '+wtQty+' '+wtUnit+' = '+totalWt+' '+wtUnit+' total';
+          return Object.assign(base,{ppu:price/totalWt,unit:wtUnit,source:'calc-weight',
+            ppuNote:packNote});
+        }
         return Object.assign(base,{ppu:price/wtQty,unit:wtUnit,source:'calc-weight',
           note:'No Amazon unit price \u2014 calculated from weight in title.'});
+      }
       return Object.assign(base,{ppu:price,unit:'ct',source:'calc-single'});
     }
     if(!price) return Object.assign(base,{ppu:null,unit:null,source:'unavailable'});
