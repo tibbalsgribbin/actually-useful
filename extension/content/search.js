@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.70)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.71)
 'use strict';
 
 function auFeedbackUrl() {
@@ -858,9 +858,8 @@ const ITEM_UNITS = [
     var pats=[
       /(\d[\d,]*)\s*-?\s*count/i,/(\d[\d,]*)\s*ct\b/i,
       /(\d[\d,]*)\s*-?\s*bags?/i,/(\d[\d,]*)\s*-?\s*pcs\.?/i,
-      /(\d[\d,]*)\s*-?\s*pieces?/i,/(\d[\d,]*)\s*-?\s*pack/i,/(\d[\d,]*)\s*-?\s*pk\b/i,/(\d[\d,]*)\s*-?\s*rolls?/i,
+      /(\d[\d,]*)\s*-?\s*pieces?/i,/(\d[\d,]*)\s*-?\s*rolls?/i,
       /(\d[\d,]*)\s*-?\s*bars?\b/i,
-      /pack\s+of\s+(\d[\d,]*)/i,/box\s+of\s+(\d[\d,]*)/i,
       /(\d[\d,]*)\s+\w+\s+\w+\s+bars?\b/i,
       /(\d[\d,]*)\s+loads?\b/i,
       /(\d[\d,]*)\s*-?\s*sheets?/i,           // "100 sheets", "40-sheet"
@@ -872,6 +871,9 @@ const ITEM_UNITS = [
       /(?<![.\d])(\d[\d,]*)(?!\.\d)\s+\w+\s+sticks?\b/i,
       /(?<![.\d])(\d[\d,]*)(?!\.\d)\s+\w+\s+bottles?\b/i,
       /(?<![.\d])(\d[\d,]*)(?!\.\d)\s+\w+\s+jars?\b/i,
+      // pack/pk last — generic container word, loses to specific item counts above
+      /(\d[\d,]*)\s*-?\s*pack/i,/(\d[\d,]*)\s*-?\s*pk\b/i,
+      /pack\s+of\s+(\d[\d,]*)/i,/box\s+of\s+(\d[\d,]*)/i,
     ];
     for(var i=0;i<pats.length;i++){var m=text.match(pats[i]);if(m){var n=parseInt(m[1].replace(/,/g,''),10);if(n>1&&n<10000)return n;}}
     // Footage extraction: min 5ft, not preceded by fraction digit (avoids 5/8")
@@ -1625,7 +1627,7 @@ const ITEM_UNITS = [
               '<input id="ppu-keyword" type="text" placeholder="e.g. unscented OR &quot;fragrance-free&quot; AND pods OR pa*s -sheet*" value="'+keyword.replace(/"/g,'&quot;')+'">'+
               '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
             '</div>'+
-            '<div class="ppu-kw-hint">AND = must match both sides &middot; OR or space = match any &middot; &minus; or NOT to exclude<br>&quot;&nbsp;&quot; exact phrase &middot; * wildcard anywhere (pa*s matches pacs, paks, packs)<br>e.g. unscented OR &quot;fragrance-free&quot; AND pods OR pa*s -sheet*</div>'+
+            '<div class="ppu-kw-hint" id="ppu-kw-hint" style="display:none;">AND = must match both sides &middot; OR or space = match any &middot; &minus; or NOT to exclude<br>&quot;&nbsp;&quot; exact phrase &middot; * wildcard anywhere (pa*s matches pacs, paks, packs)<br>e.g. unscented OR &quot;fragrance-free&quot; AND pods OR pa*s -sheet*</div>'+
           '</div>'+
           '<button id="ppu-btn-reset-filters" class="ppu-btn" title="Clears all filters, sorting, and returns to page 1 results.">Clear all</button>'+
         '</div>'+
@@ -2858,10 +2860,14 @@ const ITEM_UNITS = [
     }
 
 
+    // Show keyword hint on first use, then keep it visible for the session
+    var kwHint=document.getElementById('ppu-kw-hint');
+    if(kwHint && localStorage.getItem('au-kw-hint-seen')==='1') kwHint.style.display='block';
     kwInput.addEventListener('input',function(){
       keyword=this.value;
       this.classList.toggle('active',this.value.trim().length>0);
       clearKw.style.display=this.value.trim().length>0?'flex':'none';
+      if(kwHint && kwHint.style.display==='none'){kwHint.style.display='block';localStorage.setItem('au-kw-hint-seen','1');}
       clearTimeout(kwDebounceTimer);
       kwDebounceTimer=setTimeout(function(){render();},250);
     });

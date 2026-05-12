@@ -900,18 +900,107 @@
   }
 
   // ── Filter helpers ────────────────────────────────────────────
-  // Include filter: supports OR branches via | or · separator
-  // Each branch is a set of space-separated terms that must ALL appear (AND within branch)
+  // Boolean keyword parser — ported from search.js v0.6.1.71
+  // Supports: AND (group separator), OR/|/space (alternatives), "phrase", term*, -term, NOT term
+  function auNormalizeDimensions(str) {
+    var s = str.replace(/["\u2018\u2019\u201c\u201d\u2033\u2032]/g, '');
+    return s.replace(/(\d+(?:\.\d+)?)\s*[xX\u00d7]\s*(\d+(?:\.\d+)?)/g, '$1x$2');
+  }
+
+  function auReadToken(str, i) {
+    if (i >= str.length) return null;
+    if (str[i] === '"') {
+      var end = str.indexOf('"', i + 1);
+      if (end === -1) end = str.length;
+      var phrase = auNormalizeDimensions(str.slice(i + 1, end).toLowerCase().trim());
+      return phrase.length > 0 ? { token: { type: 'phrase', value: phrase }, end: end + 1 } : null;
+    }
+    var match = str.slice(i).match(/^([^\s"]+)/);
+    if (!match) return null;
+    var raw = match[1];
+    var end2 = i + raw.length;
+    var lower = auNormalizeDimensions(raw.toLowerCase());
+    if (lower.includes('*')) {
+      var pattern = lower.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+      var re = new RegExp('^' + pattern + '$');
+      return lower.replace(/\*/g, '').length > 0 ? { token: { type: 'wildcard', value: lower, pattern: re }, end: end2 } : null;
+    }
+    return lower.length > 0 ? { token: { type: 'word', value: lower }, end: end2 } : null;
+  }
+
+  function auTokenMatches(tok, nt) {
+    if (tok.type === 'phrase') return nt.includes(tok.value);
+    if (tok.type === 'wildcard') {
+      var words = nt.split(/\s+/);
+      for (var w = 0; w < words.length; w++) {
+        var bare = words[w].replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+        if (tok.pattern.test(bare)) return true;
+      }
+      return false;
+    }
+    return nt.includes(tok.value);
+  }
+
+  function auParseKeywords(kwRaw) {
+    var normalized = kwRaw.replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"');
+    var exclusions = [];
+    var cleaned = '';
+    var i = 0;
+    var inQuote = false;
+    while (i < normalized.length) {
+      var ch = normalized[i];
+      if (ch === '"') { inQuote = !inQuote; cleaned += ch; i++; continue; }
+      if (inQuote) { cleaned += ch; i++; continue; }
+      var notM = normalized.slice(i).match(/^NOT\s+/i);
+      if (notM) { i += notM[0].length; var et = auReadToken(normalized, i); if (et) { exclusions.push(et.token); i = et.end; } continue; }
+      if (ch === '-' && i + 1 < normalized.length && !/\s/.test(normalized[i + 1])) { i++; var et2 = auReadToken(normalized, i); if (et2) { exclusions.push(et2.token); i = et2.end; } continue; }
+      cleaned += ch; i++;
+    }
+    var andGroups = [];
+    var current = '';
+    inQuote = false;
+    for (var ci = 0; ci < cleaned.length; ci++) {
+      var c = cleaned[ci];
+      if (c === '"') { inQuote = !inQuote; current += c; continue; }
+      if (!inQuote) { var andM = cleaned.slice(ci).match(/^\s+AND\s+/i); if (andM) { andGroups.push(current); current = ''; ci += andM[0].length - 1; continue; } }
+      current += c;
+    }
+    andGroups.push(current);
+    var requiredGroups = [];
+    andGroups.forEach(function(grp) {
+      grp = grp.trim(); if (!grp) return;
+      var alternatives = []; var j = 0;
+      while (j < grp.length) {
+        if (/\s/.test(grp[j])) { j++; continue; }
+        var orM = grp.slice(j).match(/^OR\s*/i); if (orM) { j += orM[0].length; continue; }
+        if (grp[j] === '|') { j++; continue; }
+        if (grp[j] === '+') { j++; continue; }
+        var tok = auReadToken(grp, j); if (tok) { alternatives.push(tok.token); j = tok.end; } else { j++; }
+      }
+      if (alternatives.length > 0) requiredGroups.push(alternatives);
+    });
+    if (requiredGroups.length === 0) requiredGroups.push([]);
+    return { requiredGroups: requiredGroups, exclusions: exclusions };
+  }
+
+  // Include filter — full boolean model matching search.js
   function includeMatchesItem(item, raw) {
     if (!raw.trim()) return true;
-    var haystack = (item.title || '').toLowerCase();
-    var branches = raw.split(/\bOR\b|[|·]/).map(function(s) { return s.trim(); }).filter(Boolean);
-    return branches.some(function(branch) {
-      var tokens = branch.split(/\s+/).filter(Boolean);
-      return tokens.every(function(tok) {
-        return haystack.includes(tok.toLowerCase());
-      });
-    });
+    var nt = auNormalizeDimensions((item.title || '').toLowerCase());
+    var parsed = auParseKeywords(raw);
+    for (var i = 0; i < parsed.exclusions.length; i++) {
+      if (auTokenMatches(parsed.exclusions[i], nt)) return false;
+    }
+    for (var g = 0; g < parsed.requiredGroups.length; g++) {
+      var group = parsed.requiredGroups[g];
+      if (group.length === 0) continue;
+      var groupMatch = false;
+      for (var k = 0; k < group.length; k++) {
+        if (auTokenMatches(group[k], nt)) { groupMatch = true; break; }
+      }
+      if (!groupMatch) return false;
+    }
+    return true;
   }
 
   // Exclude filter: space-separated terms — item is hidden if ANY term matches
@@ -1033,7 +1122,7 @@
       + '</div>'
       + '<div id="filter-bar-body">'
       + '<div class="fb-row">'
-      + '<label class="fb-label">Include<span style="font-size:0.75em;color:#6B5FA0;font-weight:400;margin-left:0.3em;">(use | or OR for alternatives)</span><input type="text" id="fb-include" placeholder="e.g. unscented | fragrance free" value="' + inclVal + '" style="min-width:260px;"></label>'
+      + '<label class="fb-label">Include<span style="font-size:0.75em;color:#6B5FA0;font-weight:400;margin-left:0.3em;">(AND · OR · &minus;exclude · &quot;phrase&quot; · wild*)</span><input type="text" id="fb-include" placeholder="e.g. unscented OR &quot;fragrance-free&quot; AND pods OR pa*s -sheet*" value="' + inclVal + '" style="min-width:260px;"></label>'
       + '<label class="fb-label">Exclude<input type="text" id="fb-exclude" placeholder="e.g. refill travel" value="' + exclVal + '" style="min-width:180px;"></label>'
       + '<label class="fb-label">Minimum reviews<input type="number" id="fb-min-reviews" min="0" placeholder="0" value="' + mrVal + '"></label>'
       + '<label class="fb-label">Minimum rating<input type="number" id="fb-min-rating" min="0" max="5" step="0.1" placeholder="0" value="' + ratingVal + '"></label>'
