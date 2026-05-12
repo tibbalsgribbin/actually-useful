@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.71)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.72)
 'use strict';
 
 function auFeedbackUrl() {
@@ -953,7 +953,9 @@ const ITEM_UNITS = [
   // but item is $9.99 for 32 oz — detect and recalculate).
   function parseTitleWeightQty(title, unit) {
     var ozM = title.match(/\b(\d+(?:\.\d+)?)\s*(?:oz|ounce|ounces)\b/i);
+    // Exclude paper-weight specs: "65 lb Cover Weight", "90 lb Bond", "110 lb Index"
     var lbM = title.match(/\b(\d+(?:\.\d+)?)\s*[-\s]*(?:lb\.?|lbs\.?|pound|pounds)\b/i);
+    if (lbM && /\b(?:cover|bond|text|index|weight|cardstock|card\s*stock|gsm|basis)\b/i.test(title.slice(lbM.index + lbM[0].length, lbM.index + lbM[0].length + 30))) lbM = null;
     var gM  = title.match(/\b(\d+(?:\.\d+)?)\s*(?:g|gram|grams)\b/i);
     var kgM = title.match(/\b(\d+(?:\.\d+)?)\s*(?:kg|kilogram|kilograms)\b/i);
     if (unit === 'oz') {
@@ -973,27 +975,28 @@ const ITEM_UNITS = [
   // Returns a brand string or null. Tries 3 selectors in priority order.
   // null means "couldn't detect" — item is exempt from brand filter.
   function scrapeBrand(el) {
+    function cleanBrand(s) { return s.replace(/\s+/g, ' ').trim(); }
     // Strategy 1: explicit "by [Brand]" line (apparel, beauty)
     var s1 = el.querySelector('h2.a-size-mini span, h2[class*="a-size-mini"] span');
     if (s1) {
-      var t1 = s1.textContent.trim();
+      var t1 = cleanBrand(s1.textContent);
       // Exclude sponsored labels that live in the same selector
       if (t1 && !/sponsor/i.test(t1)) return t1;
     }
     // Strategy 2: dedicated brand byline span (second-row text)
     var s2 = el.querySelector('.a-size-base.a-color-secondary');
     if (s2) {
-      var t2 = s2.textContent.trim();
+      var t2 = cleanBrand(s2.textContent);
       // "Visit the X Store" → extract X
       var storeMatch = t2.match(/^Visit the (.+?) Store$/i);
-      if (storeMatch) return storeMatch[1].trim();
+      if (storeMatch) return cleanBrand(storeMatch[1]);
       // Plain byline that isn't a shipping/rating note
       if (t2 && t2.length < 60 && !/deliver|rating|review|result|star|bought|sold/i.test(t2)) return t2;
     }
     // Strategy 3: first word of title (BrandName ProductDescription convention)
     var titleEl = el.querySelector('h2 a span, h2 span');
     if (titleEl) {
-      var titleText = titleEl.textContent.trim();
+      var titleText = cleanBrand(titleEl.textContent);
       var firstWord = titleText.split(/\s+/)[0];
       // Only use if it looks like a brand token (not a generic word, number, or article)
       if (firstWord && firstWord.length >= 3 && !/^\d|^(the|a|an|for|with|by)$/i.test(firstWord)) {
@@ -1627,7 +1630,7 @@ const ITEM_UNITS = [
               '<input id="ppu-keyword" type="text" placeholder="e.g. unscented OR &quot;fragrance-free&quot; AND pods OR pa*s -sheet*" value="'+keyword.replace(/"/g,'&quot;')+'">'+
               '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
             '</div>'+
-            '<div class="ppu-kw-hint" id="ppu-kw-hint" style="display:none;">AND = must match both sides &middot; OR or space = match any &middot; &minus; or NOT to exclude<br>&quot;&nbsp;&quot; exact phrase &middot; * wildcard anywhere (pa*s matches pacs, paks, packs)<br>e.g. unscented OR &quot;fragrance-free&quot; AND pods OR pa*s -sheet*</div>'+
+            '<div class="ppu-kw-hint" id="ppu-kw-hint" style="display:none;position:relative;">AND = must match both sides &middot; OR or space = match any &middot; &minus; or NOT to exclude<br>&quot;&nbsp;&quot; exact phrase &middot; * wildcard anywhere (pa*s matches pacs, paks, packs)<br>e.g. unscented OR &quot;fragrance-free&quot; AND pods OR pa*s -sheet*<button id="ppu-kw-hint-close" title="Dismiss" style="position:absolute;top:0;right:0;background:none;border:none;cursor:pointer;font-size:12px;color:#9ca3af;line-height:1;padding:0 2px;">&times;</button></div>'+
           '</div>'+
           '<button id="ppu-btn-reset-filters" class="ppu-btn" title="Clears all filters, sorting, and returns to page 1 results.">Clear all</button>'+
         '</div>'+
@@ -2863,6 +2866,8 @@ const ITEM_UNITS = [
     // Show keyword hint on first use, then keep it visible for the session
     var kwHint=document.getElementById('ppu-kw-hint');
     if(kwHint && localStorage.getItem('au-kw-hint-seen')==='1') kwHint.style.display='block';
+    var kwHintClose=document.getElementById('ppu-kw-hint-close');
+    if(kwHintClose){kwHintClose.addEventListener('click',function(){kwHint.style.display='none';localStorage.removeItem('au-kw-hint-seen');});}
     kwInput.addEventListener('input',function(){
       keyword=this.value;
       this.classList.toggle('active',this.value.trim().length>0);

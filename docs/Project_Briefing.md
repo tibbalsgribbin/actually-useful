@@ -1,7 +1,7 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.70 (overall) · v0.6.1 (manifest) · v0.6.1.70 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 57 · v0.6.1.17 (background.js)*
-*Updated May 11, 2026 (Chat 60 — keyword filter full rewrite: AND-group boolean model, wildcard anywhere, quoted phrases, label + hint UI)*
+*Current version: v0.6.1.72 (overall) · v0.6.1 (manifest) · v0.6.1.72 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 61 · v0.6.1.17 (background.js)*
+*Updated May 11, 2026 (Chat 61 — keyword hint first-use/dismiss, extractCount pack fix, scrapeBrand whitespace, compare.html boolean filter + keyword highlight)*
 
 ---
 
@@ -107,8 +107,8 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 6. Version Numbering
 
-- **Overall / canonical version:** v0.6.1.70 (search.js number — the main file)
-- **Per-file versions:** search.js v0.6.1.70 · core.js v0.6.1.53 · compare.html updated Chat 57 · background.js v0.6.1.17 · manifest v0.6.1 · styles.css updated Chat 60 · welcome.html created Chat 59
+- **Overall / canonical version:** v0.6.1.72 (search.js number — the main file)
+- **Per-file versions:** search.js v0.6.1.72 · core.js v0.6.1.53 · compare.html updated Chat 61 · background.js v0.6.1.17 · manifest v0.6.1 · styles.css updated Chat 60 · welcome.html created Chat 59
 - Per-file versions differ intentionally — files change at different rates
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
@@ -142,7 +142,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 **Extension files:**
 - `manifest.json` — v0.6.1 (three-part)
 - `background.js` — v0.6.1.17 — service worker; logging relay; kill switch fetch; onInstalled welcome page
-- `content/search.js` — v0.6.1.70 — main content script; all scraping, PPU, panel UI
+- `content/search.js` — v0.6.1.72 — main content script; all scraping, PPU, panel UI
 - `content/core.js` — v0.6.1.53 — shortlist state; compare relay
 - `content/styles.css` — panel styles (blue palette, Chat 45; updated Chat 60)
 - `popup/` — popup UI
@@ -219,6 +219,11 @@ Full design in Brand_Filter_Design.md. Sessions 1–5 complete. compare.html int
 - Bundled lists fetched from actuallyuseful.net/data/ at init, fail-open
 - Brand column toggleable via Show Columns
 
+**Known issues with brand scraping:**
+- Strategy 3 (first word of title) produces wrong results — "Premium" instead of "Astrobrights." Needs design session.
+- Amazon Basics items may show — in brand column on compare.html. Needs investigation.
+- scrapeBrand whitespace normalization added Chat 61 — fixes "Premiu m" artifacts.
+
 **UI (search.js panel, as of v0.6.1.65):**
 - "Move Amazon brands to end" checkbox — above unrecognized brands filter, off by default
 - "Move unrecognized brands to end" checkbox — off by default; demote-only (no hide option)
@@ -227,7 +232,7 @@ Full design in Brand_Filter_Design.md. Sessions 1–5 complete. compare.html int
 - Each card with a detected brand shows: "[BrandName]: [Always show] [Always hide]"
 - "My brand rules (N)" footer link — management overlay with two sections
 
-**UI (compare.html, as of Chat 57):**
+**UI (compare.html, as of Chat 61):**
 - "Hide unrecognized brands" checkbox — hides items with flagged brands
 - "Hide Amazon brands" checkbox — hides Amazon house brand items
 - Brand column in table — toggleable, shows detected brand or dash
@@ -249,13 +254,15 @@ Added Chat 52 to search.js. Added Chat 55 to compare.html.
 
 ---
 
-## 13. compare.html — current feature state (as of Chat 57)
+## 13. compare.html — current feature state (as of Chat 61)
 
-**Filter bar:** include/exclude text, min reviews, min rating, min/max price (number inputs), source, hide sponsored, Prime, SNAP, FSA/HSA, Climate Pledge, Small Business, hide unrecognized brands, hide Amazon brands, hide slow shipping + day presets. Hide slow shipping now filters on earliest of free/fastest delivery.
+**Filter bar:** include/exclude text (boolean parser — AND/OR/phrase/wildcard/exclusion), min reviews, min rating, min/max price, source, hide sponsored, Prime, SNAP, FSA/HSA, Climate Pledge, Small Business, hide unrecognized brands, hide Amazon brands, hide slow shipping + day presets.
 
-**Table columns (all toggleable):** checkbox, thumbnail, product, price, per unit, free delivery, fastest delivery, rating, reviews, Prime, coupon/promo, source, brand, notes. Delivery is now two separate columns — Free delivery and Fastest delivery — each independently sortable.
+**Table columns (all toggleable):** checkbox, thumbnail, product, price, per unit, free delivery, fastest delivery, rating, reviews, Prime, coupon/promo, source, brand, notes. Delivery is two separate columns — Free delivery and Fastest delivery — each independently sortable.
 
-**Table UX:** resizable columns (drag header edge), sticky header (80vh scroll container), sticky horizontal scrollbar (mirror div, always visible at viewport bottom), cell text wrapping.
+**Table UX:** resizable columns, sticky header, sticky horizontal scrollbar, cell text wrapping.
+
+**Keyword highlight:** matching Include filter terms highlighted yellow in title column. Works for word, phrase, and wildcard token types.
 
 **Other:** liquid unit toggle, action bar (open tabs, show checked only, share checked, deselect all), share button (Supabase), editable notes, sort by any column.
 
@@ -289,7 +296,7 @@ New page at actuallyuseful.net/welcome. Opens on fresh install via chrome.runtim
 
 ---
 
-## 17. Keyword Filter — boolean search model (search.js v0.6.1.70, Chat 60)
+## 17. Keyword Filter — boolean search model (search.js v0.6.1.70, Chat 60; hint UI updated Chat 61)
 
 Full boolean search model with the following operators:
 
@@ -303,20 +310,19 @@ Full boolean search model with the following operators:
 | `+term` | Same as bare required term |
 
 **Example:** `unscented OR "fragrance-free" AND pods OR pa*s -sheet*`
-- Group 1: unscented OR fragrance-free
-- Group 2: pods OR anything matching pa*s (pacs, paks, packs, etc.)
-- Exclusion: any word matching sheet* (sheet, sheets, sheeting)
 
-**Implementation:** 3-pass parser in `parseKeywords` — strip exclusions, split on AND, collect OR-alternatives per group. `readToken` is the shared tokenizer. `tokenMatches` handles phrase/wildcard/word types. Wildcard matching strips leading/trailing punctuation from title words before regex test (handles "Pacs," correctly).
+**Implementation:** 3-pass parser in `parseKeywords`. `readToken` shared tokenizer. `tokenMatches` handles phrase/wildcard/word types. Ported to compare.html as `auParseKeywords` / `auReadToken` / `auTokenMatches` (Chat 61).
 
-**UI:** Persistent `Keyword filter` label outside the input. 3-line hint block below. `ppu-kw-input-row` wrapper div re-anchors the clear button.
+**UI (search.js):** Persistent label outside input. Hint block hidden by default — appears on first keypress, stays visible. × dismiss button resets flag so hint reappears on next first use. `localStorage` key: `au-kw-hint-seen`.
+
+**UI (compare.html):** Include field hint updated to `(AND · OR · −exclude · "phrase" · wild*)`. Placeholder matches search.js example.
 
 ---
 
 ## 18. Working Rules (standing)
 
 - **Single agent.** Claude only. No Replit, Gemini, Figma, or other tools touching code files directly.
-- **Confirm before coding.** Always align on scope before touching files.
+- **Confirm before coding.** Always align on scope before touching files. Do not code without explicit approval.
 - **Use AskUserQuestion widget** for all clarifying questions — options over open-ended prose.
 - **Melissa's wording is Melissa's wording.** For UI copy and user-facing text, use exact wording. Flag suggestions, let her decide.
 - **Complete documents at end of every session.** No merge instructions, no snippets.
@@ -330,3 +336,4 @@ Full boolean search model with the following operators:
 - **Template literal rule:** compare.html JS uses string concatenation, not template literals.
 - **core.js uses callback pattern**, not Promises.
 - **Brand list sync rule:** brand_blocklist.txt and amazon_brands.txt must be updated concurrently in extension/data/ AND repo root data/. Both copies must always match.
+- **Context rot warning:** long sessions degrade quality. Stop and wrap up rather than pushing through.

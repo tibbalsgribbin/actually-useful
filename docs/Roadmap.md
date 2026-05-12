@@ -4,7 +4,7 @@
 
 ---
 
-## Current version: v0.6.1.70 (overall) · v0.6.1 (manifest) · v0.6.1.70 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 57 · v0.6.1.17 (background.js) · styles.css updated Chat 60 · welcome.html created Chat 59
+## Current version: v0.6.1.72 (overall) · v0.6.1 (manifest) · v0.6.1.72 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 61 · v0.6.1.17 (background.js) · styles.css updated Chat 60 · welcome.html created Chat 59
 
 ---
 
@@ -14,7 +14,6 @@
 - **Contact lens solution — Amazon-reported $/fl oz unreliable** — stray numbers in title cause wrong unit price; needs recalculate-and-compare check
 - **Cotton swabs — extractCount grabbing pack count instead of swab count** — "500 per Pack - 2 Pack" → shows 2 ct instead of 1000 ct
 - **Razor blade $0.1/ct outlier** — one item still showing one decimal despite zero-pad fix
-- **Cardstock "1 Pack (250 Sheets)"** — extractCount picks up 1 from "1 Pack" before 250 from "Sheets"
 - **Pairs ambiguity** — socks/gloves sold in pairs AND multiples; uncertainty note added as interim
 - **FSA/HSA, Climate Pledge Friendly, Small Business badge detection** — not yet verified on live Amazon searches
 - **Blue/indigo palette inconsistency** — extension panel is blue; website is indigo. Full unification post-alpha.
@@ -33,6 +32,10 @@
 - **Duplicate "Pages slider" comment** — cosmetic only, around line 2808 in search.js; fix opportunistically
 - **Outlier PPU units sorting to top** — items with unusual units ($/lb for weighted heating pad, $/ft for a cord) sort to top as "best value" when their raw PPU is small. Needs design session before fix.
 - **welcome.html screenshot** — current screenshot is old search; needs replacement with laundry pods screenshot, keyword filter active, annotated callout design
+- **Cardstock $/lb PPU — parseTitleWeightQty guard insufficient.** Cardstock items with paper-weight specs ("65 lb Cover Weight", "110 lb Index Weight") still showing $/lb PPU via a different code path than parseTitleWeightQty. Needs a design session. "cardstock" may need to be added to SOLID_KEYWORDS. Do not attempt a quick fix — this touches weight unit logic.
+- **Prime scraping — possible Amazon selector change.** Two searches in Chat 61 showed no Prime badges detected. Amazon may have changed from a "Prime" filter to "Free Shipping by Amazon." Needs investigation.
+- **scrapeBrand Strategy 3 (first-word fallback) unreliable** — returns "Premium" instead of "Astrobrights." First word of title is not reliably a brand name. Needs design session; Melissa has scraper data that may help.
+- **Amazon Basics brand column shows — on compare.html** — needs investigation.
 
 ---
 
@@ -40,7 +43,7 @@
 
 **Single agent.** Claude only. No Replit, Gemini, Figma, or other tools touching code files directly.
 
-**Confirm before coding.** Always align with Melissa on what we're building before touching any files.
+**Confirm before coding.** Always align with Melissa on what we're building before touching any files. Do not code without explicit approval.
 
 **One decision surface per session.**
 
@@ -57,7 +60,7 @@
 **Brand list sync rule:** brand_blocklist.txt and amazon_brands.txt must be updated concurrently in extension/data/ AND repo root data/. Both files must always match.
 
 **Version numbering:**
-- Overall / canonical: v0.6.1.70 (search.js number)
+- Overall / canonical: v0.6.1.72 (search.js number)
 - Per-file versions differ intentionally — files change at different rates
 - v1.0 = Web Store public launch
 
@@ -86,9 +89,11 @@
 
 ## Next session priorities (in order)
 
-1. **New screenshot for welcome.html** — laundry pods search, keyword filter showing multiple terms, annotated callout design (red ovals, lines left and right of image, minimize button called out)
-2. **Fix extractCount "1 Pack (250 Sheets)"** — pack/count ordering fix
-3. **compare.html logging** — deferred until website has more surfaces
+1. **Cardstock PPU design session** — add "cardstock" to SOLID_KEYWORDS? Exclude paper-weight lb from weight-from-title path? Don't touch without scoping first.
+2. **scrapeBrand Strategy 3 design** — remove or tighten first-word fallback; use Melissa's scraper data to inform better detection
+3. **Prime scraping investigation** — check selectors against current Amazon HTML
+4. **welcome.html screenshot** — laundry pods, annotated callout design
+5. **CWS push + Reddit posts** — held pending above
 
 ---
 
@@ -105,6 +110,7 @@
 - [x] compare.html — full redesign (Chat 28)
 - [x] Chrome Web Store — published unlisted (Chat 29)
 - [x] Reddit posts live (Chats 29/30)
+- [x] Reddit feedback received (Chat 38)
 - [x] Rating filter (Chat 31)
 - [x] Keyword filter (Chat 32)
 - [x] Sponsored filter (Chat 33)
@@ -112,7 +118,6 @@
 - [x] Price range filter (Chat 34)
 - [x] Re-sync button (Chat 35)
 - [x] Pages slider (Chat 35)
-- [x] Reddit feedback received (Chat 38)
 - [x] PPU Fix 1 — recalculate when Amazon's $/ct equals full item price (Chat 38)
 - [x] PPU Fix 2 — suppress / calculate $/ft from footage (Chat 38)
 - [x] Pairs uncertainty note + mixed-units transparency banner (Chat 38)
@@ -205,7 +210,17 @@
 - [x] Keyword filter — punctuation stripping fix for wildcard word matching (Chat 60)
 - [x] Keyword filter UI — persistent label outside input, 3-line hint block, updated placeholder (Chat 60)
 - [x] styles.css — ppu-kw-wrap column flex, new label/input-row/hint classes, filter-row align-items flex-start (Chat 60)
-- [ ] Fix extractCount "1 Pack (250 Sheets)" ordering issue
+- [x] extractCount — pack/pk patterns moved to end; "1 Pack (250 Sheets)" returns 250 not 1 (Chat 61)
+- [x] Keyword hint — hidden by default, shown on first keypress, × dismiss resets flag (Chat 61)
+- [x] scrapeBrand — whitespace normalization via cleanBrand() helper (Chat 61)
+- [x] parseTitleWeightQty — paper-weight lb guard (cover/bond/text/index/weight/cardstock/gsm/basis) — NOTE: insufficient, cardstock still shows $/lb via different path (Chat 61)
+- [x] compare.html — boolean keyword parser ported (auParseKeywords/auReadToken/auTokenMatches) (Chat 61)
+- [x] compare.html — Include filter hint text and placeholder updated (Chat 61)
+- [x] compare.html — keyword highlight in title column via highlightTitle() (Chat 61)
+- [ ] Cardstock PPU — design session required
+- [ ] scrapeBrand Strategy 3 — design session required
+- [ ] Prime scraping — investigate selector change
+- [ ] welcome.html screenshot — laundry pods, annotated callout design
 - [ ] Add laundry pods (id=73) and laptop (id=74) sample links to index.html
 
 ### Alpha release — status
@@ -226,11 +241,12 @@
 - [ ] Create Amazon account (prerequisite for Associates)
 - [ ] Apply for Amazon Associates (after real user base)
 
-### Chrome Web Store stats (as of May 2, 2026)
-- 15 total installs · 8 weekly active users · 0 uninstalls
-- 87% US · 7% Italy · 6% Canada (installs)
-- 82% Windows · 14% Mac · 4% ChromeOS (weekly users)
-- All installs began Apr 22 (Reddit post date)
+### Chrome Web Store stats (as of May 11, 2026)
+- 28 total installs · 12 weekly active users · 2 uninstalls
+- 86% US · 7% Other · Germany and Italy (installs)
+- 77% US · 13% Canada · 7% Italy (weekly users)
+- 43% ChromeOS · 39% Windows · 18% Mac OS (installs)
+- 79% Windows · 16% Mac OS · 5% ChromeOS (weekly users)
 
 ---
 
