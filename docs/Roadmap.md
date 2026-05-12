@@ -4,7 +4,7 @@
 
 ---
 
-## Current version: v0.6.1.66 (overall) · v0.6.1 (manifest) · v0.6.1.66 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 57 · v0.6.1.17 (background.js) · styles.css updated Chat 59 · welcome.html created Chat 59
+## Current version: v0.6.1.70 (overall) · v0.6.1 (manifest) · v0.6.1.70 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 57 · v0.6.1.17 (background.js) · styles.css updated Chat 60 · welcome.html created Chat 59
 
 ---
 
@@ -32,6 +32,7 @@
 - **Brand filter threshold tuning** — 25% high-noise threshold needs real-world calibration
 - **Duplicate "Pages slider" comment** — cosmetic only, around line 2808 in search.js; fix opportunistically
 - **Outlier PPU units sorting to top** — items with unusual units ($/lb for weighted heating pad, $/ft for a cord) sort to top as "best value" when their raw PPU is small. Needs design session before fix.
+- **welcome.html screenshot** — current screenshot is old search; needs replacement with laundry pods screenshot, keyword filter active, annotated callout design
 
 ---
 
@@ -56,7 +57,7 @@
 **Brand list sync rule:** brand_blocklist.txt and amazon_brands.txt must be updated concurrently in extension/data/ AND repo root data/. Both files must always match.
 
 **Version numbering:**
-- Overall / canonical: v0.6.1.65 (search.js number)
+- Overall / canonical: v0.6.1.70 (search.js number)
 - Per-file versions differ intentionally — files change at different rates
 - v1.0 = Web Store public launch
 
@@ -85,9 +86,9 @@
 
 ## Next session priorities (in order)
 
-1. **Welcome page on install** — chrome.runtime.onInstalled opens onboarding tab
+1. **New screenshot for welcome.html** — laundry pods search, keyword filter showing multiple terms, annotated callout design (red ovals, lines left and right of image, minimize button called out)
 2. **Fix extractCount "1 Pack (250 Sheets)"** — pack/count ordering fix
-3. **compare.html logging** — deferred until website has more surfaces and telemetry opt-out question is resolved
+3. **compare.html logging** — deferred until website has more surfaces
 
 ---
 
@@ -196,6 +197,14 @@
 - [x] Dec-bar hidden — display:none (Chat 59)
 - [x] Footer text smaller and tighter (Chat 59)
 - [x] Keyword highlight yellow background (Chat 59)
+- [x] Keyword filter — full parser rewrite: AND-group boolean model (Chat 60)
+- [x] Keyword filter — quoted phrase support, strict adjacency (Chat 60)
+- [x] Keyword filter — wildcard anywhere in word, pa*s matches pacs/paks/packs (Chat 60)
+- [x] Keyword filter — AND as top-level group separator; OR/space/| as alternatives within group (Chat 60)
+- [x] Keyword filter — NOT, +, AND as explicit operators (Chat 60)
+- [x] Keyword filter — punctuation stripping fix for wildcard word matching (Chat 60)
+- [x] Keyword filter UI — persistent label outside input, 3-line hint block, updated placeholder (Chat 60)
+- [x] styles.css — ppu-kw-wrap column flex, new label/input-row/hint classes, filter-row align-items flex-start (Chat 60)
 - [ ] Fix extractCount "1 Pack (250 Sheets)" ordering issue
 - [ ] Add laundry pods (id=73) and laptop (id=74) sample links to index.html
 

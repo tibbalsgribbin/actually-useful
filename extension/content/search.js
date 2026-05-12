@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.66)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.70)
 'use strict';
 
 function auFeedbackUrl() {
@@ -317,88 +317,218 @@ const ITEM_UNITS = [
   }
 
   // ── Keyword parsing ───────────────────────────────────────────────────────
+  // Model:
+  //   AND splits the expression into required groups (all must match)
+  //   Within each group: OR, |, and spaces are all alternatives (any one matches)
+  //   Exclusions (-term, NOT term) are global and stripped first
+  //   Phrases ("...") are standalone alternatives within a group
+  //   Wildcards (term*) match any word starting with that prefix
+  //
+  // e.g. "unscented OR "fragrance-free" AND pods OR pa*s -sheet*"
+  //   requiredGroups: [[unscented, "fragrance-free"], [pods, pacs, paks]]
+  //   exclusions:     [sheet*]
+  //   A result must match at least one from each group and none of the exclusions.
   function parseKeywords(kwRaw) {
-    // Normalize smart quotes and straight quotes so "fragrance-free" works like fragrance-free
-    var normalized = kwRaw.replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"').replace(/"/g, '');
-    var segments = normalized.trim().split(/\s+OR\s+|\|/i);
+    // Normalize smart/curly quotes to straight double-quotes
+    var normalized = kwRaw.replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"');
+
+    // Pass 1: extract exclusions and remove them from the string
     var exclusions = [];
-    var branches = [];
-    segments.forEach(function(seg) {
-      var nk = normalizeDimensions(seg.trim().toLowerCase());
-      var terms = nk.split(/\s+/).filter(Boolean);
-      var positive = [];
-      terms.forEach(function(t) {
-        if (t.startsWith('-') && t.length > 1) { exclusions.push(t.slice(1)); }
-        else if (!t.startsWith('-')) { positive.push(t); }
-      });
-      if (positive.length > 0) branches.push(positive);
+    var cleaned = '';
+    var i = 0;
+    var inQuote = false;
+    while (i < normalized.length) {
+      var ch = normalized[i];
+      if (ch === '"') { inQuote = !inQuote; cleaned += ch; i++; continue; }
+      if (inQuote) { cleaned += ch; i++; continue; }
+      // NOT term
+      var notM = normalized.slice(i).match(/^NOT\s+/i);
+      if (notM) {
+        i += notM[0].length;
+        var et = readToken(normalized, i);
+        if (et) { exclusions.push(et.token); i = et.end; }
+        continue;
+      }
+      // -term (minus immediately followed by non-space)
+      if (ch === '-' && i + 1 < normalized.length && !/\s/.test(normalized[i + 1])) {
+        i++;
+        var et2 = readToken(normalized, i);
+        if (et2) { exclusions.push(et2.token); i = et2.end; }
+        continue;
+      }
+      cleaned += ch;
+      i++;
+    }
+
+    // Pass 2: split cleaned string on AND (outside quotes) → required groups
+    var andGroups = [];
+    var current = '';
+    inQuote = false;
+    for (var ci = 0; ci < cleaned.length; ci++) {
+      var c = cleaned[ci];
+      if (c === '"') { inQuote = !inQuote; current += c; continue; }
+      if (!inQuote) {
+        var andM = cleaned.slice(ci).match(/^\s+AND\s+/i);
+        if (andM) { andGroups.push(current); current = ''; ci += andM[0].length - 1; continue; }
+      }
+      current += c;
+    }
+    andGroups.push(current);
+
+    // Pass 3: within each AND-group, collect alternatives (OR / | / space all separate)
+    var requiredGroups = [];
+    andGroups.forEach(function(grp) {
+      grp = grp.trim();
+      if (!grp) return;
+      var alternatives = [];
+      var j = 0;
+      while (j < grp.length) {
+        if (/\s/.test(grp[j])) { j++; continue; }               // space = OR separator
+        var orM = grp.slice(j).match(/^OR\s*/i);
+        if (orM) { j += orM[0].length; continue; }              // explicit OR
+        if (grp[j] === '|') { j++; continue; }                  // pipe
+        if (grp[j] === '+') { j++; continue; }                  // + treated as bare term
+        var tok = readToken(grp, j);
+        if (tok) { alternatives.push(tok.token); j = tok.end; }
+        else { j++; }
+      }
+      if (alternatives.length > 0) requiredGroups.push(alternatives);
     });
-    if (branches.length === 0) branches.push([]);
-    return { branches: branches, exclusions: exclusions };
+
+    if (requiredGroups.length === 0) requiredGroups.push([]);
+    return { requiredGroups: requiredGroups, exclusions: exclusions };
+  }
+
+  // Read one token starting at position i in str.
+  // Returns { token: {type, value}, end: newIndex } or null.
+  // Token types: word, phrase, prefix (suffix wildcard)
+  function readToken(str, i) {
+    if (i >= str.length) return null;
+    // Quoted phrase
+    if (str[i] === '"') {
+      var end = str.indexOf('"', i + 1);
+      if (end === -1) end = str.length;
+      var phrase = normalizeDimensions(str.slice(i + 1, end).toLowerCase().trim());
+      return phrase.length > 0
+        ? { token: { type: 'phrase', value: phrase }, end: end + 1 }
+        : null;
+    }
+    // Bare word — may contain * anywhere (wildcard)
+    var match = str.slice(i).match(/^([^\s"]+)/);
+    if (!match) return null;
+    var raw = match[1];
+    var end2 = i + raw.length;
+    var lower = normalizeDimensions(raw.toLowerCase());
+    if (lower.includes('*')) {
+      // Convert glob to anchored regex: * → .*, escape other special chars
+      var pattern = lower.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+      var re = new RegExp('^' + pattern + '$');
+      return lower.replace(/\*/g, '').length > 0
+        ? { token: { type: 'wildcard', value: lower, pattern: re }, end: end2 }
+        : null;
+    }
+    return lower.length > 0
+      ? { token: { type: 'word', value: lower }, end: end2 }
+      : null;
+  }
+
+  // Test whether a single token matches a normalized text string
+  function tokenMatches(tok, nt) {
+    if (tok.type === 'phrase') {
+      return nt.includes(tok.value);
+    }
+    if (tok.type === 'wildcard') {
+      // Test each whitespace-separated word in nt against the glob pattern
+      // Strip leading/trailing punctuation so "pacs," matches pa*s
+      var words = nt.split(/\s+/);
+      for (var w = 0; w < words.length; w++) {
+        var bare = words[w].replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+        if (tok.pattern.test(bare)) return true;
+      }
+      return false;
+    }
+    // word
+    return nt.includes(tok.value);
   }
 
   function titleMatchesKeywords(title, cardText, kwRaw) {
     var nt = normalizeDimensions(title.toLowerCase());
-    var nc = cardText || '';
+    var nc = (cardText || '').toLowerCase();
     var parsed = parseKeywords(kwRaw);
-    for (var i=0; i<parsed.exclusions.length; i++) {
-      var word = parsed.exclusions[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      var re = new RegExp('\\b' + word + '\\b', 'i');
-      if (re.test(nt)) return false;
-      if (nc.toLowerCase().includes(parsed.exclusions[i])) return false;
+    // All exclusions must fail to match
+    for (var i = 0; i < parsed.exclusions.length; i++) {
+      if (tokenMatches(parsed.exclusions[i], nt) || tokenMatches(parsed.exclusions[i], nc)) return false;
     }
-    for (var b=0; b<parsed.branches.length; b++) {
-      var branch = parsed.branches[b];
-      var branchMatch = true;
-      for (var j=0; j<branch.length; j++) {
-        var term = branch[j];
-        if (!nt.includes(term) && !nc.includes(term)) { branchMatch = false; break; }
+    // Every AND-group must have at least one alternative that matches
+    for (var g = 0; g < parsed.requiredGroups.length; g++) {
+      var group = parsed.requiredGroups[g];
+      if (group.length === 0) continue;
+      var groupMatch = false;
+      for (var k = 0; k < group.length; k++) {
+        if (tokenMatches(group[k], nt) || tokenMatches(group[k], nc)) { groupMatch = true; break; }
       }
-      if (branchMatch) return true;
+      if (!groupMatch) return false;
     }
-    return false;
+    return true;
   }
 
   function highlightKeywords(title, cardText, kwRaw) {
     if (!kwRaw||!kwRaw.trim()) return escapeHtml(title);
     var normTitle = normalizeDimensions(title.toLowerCase());
-    var nc = cardText || '';
+    var nc = (cardText || '').toLowerCase();
     var parsed = parseKeywords(kwRaw);
-    var matchingBranch = null;
-    for (var b=0; b<parsed.branches.length; b++) {
-      var branch = parsed.branches[b];
-      var branchMatch = branch.length > 0;
-      for (var j=0; j<branch.length; j++) {
-        if (!normTitle.includes(branch[j]) && !nc.includes(branch[j])) { branchMatch = false; break; }
-      }
-      if (branchMatch) { matchingBranch = branch; break; }
-    }
-    if (!matchingBranch || matchingBranch.length === 0) return escapeHtml(title);
-    var titleTerms = matchingBranch.filter(function(t){ return normTitle.includes(t); });
-    if (!titleTerms.length) return escapeHtml(title);
+
+    // Collect all tokens that match in the title, across all groups
     var ranges = [];
-    titleTerms.forEach(function(term){
-      var idx=0;
-      while(true){
-        var found=normTitle.indexOf(term,idx);
-        if(found===-1) break;
-        ranges.push({start:found,end:found+term.length}); idx=found+1;
-      }
+    parsed.requiredGroups.forEach(function(group) {
+      group.forEach(function(tok) {
+        if (!tokenMatches(tok, normTitle)) return; // only highlight title matches
+        if (tok.type === 'phrase') {
+          var idx = 0;
+          while (true) {
+            var found = normTitle.indexOf(tok.value, idx);
+            if (found === -1) break;
+            ranges.push({ start: found, end: found + tok.value.length });
+            idx = found + 1;
+          }
+        } else if (tok.type === 'wildcard') {
+          // Find each word in the title that matches the glob pattern
+          // Strip leading/trailing punctuation before testing, but highlight the full word
+          var wordRe2 = /\S+/g;
+          var m2;
+          while ((m2 = wordRe2.exec(normTitle)) !== null) {
+            var bare2 = m2[0].replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+            if (tok.pattern.test(bare2)) {
+              ranges.push({ start: m2.index, end: m2.index + m2[0].length });
+            }
+          }
+        } else {
+          var idx2 = 0;
+          while (true) {
+            var found2 = normTitle.indexOf(tok.value, idx2);
+            if (found2 === -1) break;
+            ranges.push({ start: found2, end: found2 + tok.value.length });
+            idx2 = found2 + 1;
+          }
+        }
+      });
     });
-    ranges.sort(function(a,b){return a.start-b.start;});
-    var merged=[];
-    ranges.forEach(function(r){
-      if(merged.length&&r.start<=merged[merged.length-1].end)
-        merged[merged.length-1].end=Math.max(merged[merged.length-1].end,r.end);
-      else merged.push({start:r.start,end:r.end});
+
+    if (!ranges.length) return escapeHtml(title);
+    ranges.sort(function(a, b) { return a.start - b.start; });
+    var merged = [];
+    ranges.forEach(function(r) {
+      if (merged.length && r.start <= merged[merged.length-1].end)
+        merged[merged.length-1].end = Math.max(merged[merged.length-1].end, r.end);
+      else merged.push({ start: r.start, end: r.end });
     });
-    var result='',pos=0;
-    merged.forEach(function(r){
-      result+=escapeHtml(title.slice(pos,r.start));
-      result+='<mark class="ppu-kw-highlight">'+escapeHtml(title.slice(r.start,r.end))+'</mark>';
-      pos=r.end;
+    var result = '', pos = 0;
+    merged.forEach(function(r) {
+      result += escapeHtml(title.slice(pos, r.start));
+      result += '<mark class="ppu-kw-highlight">' + escapeHtml(title.slice(r.start, r.end)) + '</mark>';
+      pos = r.end;
     });
-    return result+escapeHtml(title.slice(pos));
+    return result + escapeHtml(title.slice(pos));
   }
 
   // ── Delivery date parsing ─────────────────────────────────────────────────
@@ -1490,8 +1620,12 @@ const ITEM_UNITS = [
         '</div>')+
         '<div id="ppu-filter-row">'+
           '<div class="ppu-kw-wrap">'+
-            '<input id="ppu-keyword" type="text" placeholder="Keyword filter \u00b7 e.g. organic -refill" value="'+keyword.replace(/"/g,'&quot;')+'">'+
-            '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
+            '<label for="ppu-keyword" class="ppu-kw-label">Keyword filter</label>'+
+            '<div class="ppu-kw-input-row">'+
+              '<input id="ppu-keyword" type="text" placeholder="e.g. unscented OR &quot;fragrance-free&quot; AND pods OR pa*s -sheet*" value="'+keyword.replace(/"/g,'&quot;')+'">'+
+              '<button id="ppu-btn-clear-kw" title="Clear">\u00d7</button>'+
+            '</div>'+
+            '<div class="ppu-kw-hint">AND = must match both sides &middot; OR or space = match any &middot; &minus; or NOT to exclude<br>&quot;&nbsp;&quot; exact phrase &middot; * wildcard anywhere (pa*s matches pacs, paks, packs)<br>e.g. unscented OR &quot;fragrance-free&quot; AND pods OR pa*s -sheet*</div>'+
           '</div>'+
           '<button id="ppu-btn-reset-filters" class="ppu-btn" title="Clears all filters, sorting, and returns to page 1 results.">Clear all</button>'+
         '</div>'+

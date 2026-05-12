@@ -256,9 +256,12 @@
 /* ── Keyword filter row ──────────────────────────────────────────────── */
 #ppu-filter-row {
   padding:7px 12px 5px;
-  display:flex;gap:6px;align-items:center;flex-wrap:nowrap;
+  display:flex;gap:6px;align-items:flex-start;flex-wrap:nowrap;
 }
-.ppu-kw-wrap { flex:1;min-width:0;position:relative; }
+.ppu-kw-wrap { flex:1;min-width:0;display:flex;flex-direction:column;gap:3px; }
+.ppu-kw-label { font-size:11px;font-weight:600;color:#4f46e5;padding:0 2px; }
+.ppu-kw-input-row { position:relative; }
+.ppu-kw-hint { font-size:10px;color:#9ca3af;line-height:1.3;padding:0 2px; }
 #ppu-btn-reset-filters {
   font-size:11px;padding:5px 10px;white-space:nowrap;flex-shrink:0;
   border-color:#e5e5ea;color:#71717a;background:#f9f9fc;box-shadow:none;border-radius:7px;

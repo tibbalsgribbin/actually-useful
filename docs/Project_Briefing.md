@@ -1,7 +1,7 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.66 (overall) · v0.6.1 (manifest) · v0.6.1.66 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 57 · v0.6.1.17 (background.js)*
-*Updated May 8, 2026 (Chat 59 — welcome.html; onInstalled listener; note click fix; slider fill fix; keyword smart quote fix; compare subtext fix; sponsored button indigo; dec-bar hidden; footer tighter; yellow keyword highlight)*
+*Current version: v0.6.1.70 (overall) · v0.6.1 (manifest) · v0.6.1.70 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 57 · v0.6.1.17 (background.js)*
+*Updated May 11, 2026 (Chat 60 — keyword filter full rewrite: AND-group boolean model, wildcard anywhere, quoted phrases, label + hint UI)*
 
 ---
 
@@ -107,8 +107,8 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 6. Version Numbering
 
-- **Overall / canonical version:** v0.6.1.66 (search.js number — the main file)
-- **Per-file versions:** search.js v0.6.1.66 · core.js v0.6.1.53 · compare.html updated Chat 57 · background.js v0.6.1.17 · manifest v0.6.1 · styles.css updated Chat 59 · welcome.html created Chat 59
+- **Overall / canonical version:** v0.6.1.70 (search.js number — the main file)
+- **Per-file versions:** search.js v0.6.1.70 · core.js v0.6.1.53 · compare.html updated Chat 57 · background.js v0.6.1.17 · manifest v0.6.1 · styles.css updated Chat 60 · welcome.html created Chat 59
 - Per-file versions differ intentionally — files change at different rates
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
@@ -141,10 +141,10 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 **Extension files:**
 - `manifest.json` — v0.6.1 (three-part)
-- `background.js` — v0.6.1.16 — service worker; logging relay; kill switch fetch
-- `content/search.js` — v0.6.1.65 — main content script; all scraping, PPU, panel UI
+- `background.js` — v0.6.1.17 — service worker; logging relay; kill switch fetch; onInstalled welcome page
+- `content/search.js` — v0.6.1.70 — main content script; all scraping, PPU, panel UI
 - `content/core.js` — v0.6.1.53 — shortlist state; compare relay
-- `content/styles.css` — panel styles (blue palette, Chat 45; updated Chat 58)
+- `content/styles.css` — panel styles (blue palette, Chat 45; updated Chat 60)
 - `popup/` — popup UI
 - `data/brand_blocklist.txt` — bundled blocklist
 - `data/amazon_brands.txt` — Amazon house brands list
@@ -271,12 +271,6 @@ search.js panel uses a dual-handle range slider. compare.html retains number inp
 
 ## 15. Sort & Filters — collapsed state persistence (search.js v0.6.1.65)
 
----
-
-## 16. Welcome page (welcome.html, Chat 59)
-
-New page at actuallyuseful.net/welcome. Opens on fresh install via chrome.runtime.onInstalled (background.js v0.6.1.17). Matches index.html palette. Contains panel anatomy, 5-step workflow, feature cards, video placeholder, compare section. Screenshot embedded as base64 — needs replacement next session with laundry pods / annotated callout design.
-
 Sort and Filters section dividers remember their open/closed state in `localStorage` (`au-sort-open`, `au-filters-open`). Default is expanded when key is absent — first-time users see everything. State saves on every toggle click.
 
 Collapsed divider labels:
@@ -289,7 +283,37 @@ The sort chip ("Best value ↑") is hidden when Sort is expanded, visible when c
 
 ---
 
-## 16. Working Rules (standing)
+## 16. Welcome page (welcome.html, Chat 59)
+
+New page at actuallyuseful.net/welcome. Opens on fresh install via chrome.runtime.onInstalled (background.js v0.6.1.17). Matches index.html palette. Contains panel anatomy, 5-step workflow, feature cards, video placeholder, compare section. Screenshot embedded as base64 — needs replacement next session with laundry pods / annotated callout design.
+
+---
+
+## 17. Keyword Filter — boolean search model (search.js v0.6.1.70, Chat 60)
+
+Full boolean search model with the following operators:
+
+| Operator | Meaning |
+|---|---|
+| `AND` | Top-level group separator — all groups must match |
+| `OR` / `\|` / space | Alternatives within a group — any one matches |
+| `"exact phrase"` | Strict adjacency match |
+| `term*` / `t*m` | Wildcard anywhere in the word |
+| `-term` / `NOT term` | Global exclusion — always applied first |
+| `+term` | Same as bare required term |
+
+**Example:** `unscented OR "fragrance-free" AND pods OR pa*s -sheet*`
+- Group 1: unscented OR fragrance-free
+- Group 2: pods OR anything matching pa*s (pacs, paks, packs, etc.)
+- Exclusion: any word matching sheet* (sheet, sheets, sheeting)
+
+**Implementation:** 3-pass parser in `parseKeywords` — strip exclusions, split on AND, collect OR-alternatives per group. `readToken` is the shared tokenizer. `tokenMatches` handles phrase/wildcard/word types. Wildcard matching strips leading/trailing punctuation from title words before regex test (handles "Pacs," correctly).
+
+**UI:** Persistent `Keyword filter` label outside the input. 3-line hint block below. `ppu-kw-input-row` wrapper div re-anchors the clear button.
+
+---
+
+## 18. Working Rules (standing)
 
 - **Single agent.** Claude only. No Replit, Gemini, Figma, or other tools touching code files directly.
 - **Confirm before coding.** Always align on scope before touching files.
