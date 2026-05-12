@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.72)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.74)
 'use strict';
 
 function auFeedbackUrl() {
@@ -871,6 +871,8 @@ const ITEM_UNITS = [
       /(?<![.\d])(\d[\d,]*)(?!\.\d)\s+\w+\s+sticks?\b/i,
       /(?<![.\d])(\d[\d,]*)(?!\.\d)\s+\w+\s+bottles?\b/i,
       /(?<![.\d])(\d[\d,]*)(?!\.\d)\s+\w+\s+jars?\b/i,
+      // "250/Pack", "100/Box" — number before slash then container word
+      /(\d[\d,]*)\/(?:pack|box|pk)\b/i,
       // pack/pk last — generic container word, loses to specific item counts above
       /(\d[\d,]*)\s*-?\s*pack/i,/(\d[\d,]*)\s*-?\s*pk\b/i,
       /pack\s+of\s+(\d[\d,]*)/i,/box\s+of\s+(\d[\d,]*)/i,
@@ -948,6 +950,16 @@ const ITEM_UNITS = [
   }
 
   // ── Weight quantity parser ───────────────────────────────────────────────────
+  // Returns true if the title's lb number is a paper-weight spec, not a physical weight.
+  // e.g. "65 lb Cover Weight", "90 lb Index", "110 lb/176 gsm" — these are paper grade specs.
+  // Used to suppress lb-based PPU calculation for paper/cardstock products.
+  function isPaperWeightLb(title) {
+    var lbM = title.match(/\b(\d+(?:\.\d+)?)\s*[-\s]*(?:lb\.?|lbs?\.?)\b/i);
+    if (!lbM) return false;
+    var after = title.slice(lbM.index + lbM[0].length, lbM.index + lbM[0].length + 40);
+    return /\b(?:cover|bond|text|index|weight|cardstock|card\s*stock|gsm|basis|bristol|vellum)\b/i.test(after);
+  }
+
   // Returns the weight quantity in the given unit found in the title.
   // Used to sanity-check Amazon's reported unit price (e.g. Amazon says $5/oz
   // but item is $9.99 for 32 oz — detect and recalculate).
@@ -955,7 +967,7 @@ const ITEM_UNITS = [
     var ozM = title.match(/\b(\d+(?:\.\d+)?)\s*(?:oz|ounce|ounces)\b/i);
     // Exclude paper-weight specs: "65 lb Cover Weight", "90 lb Bond", "110 lb Index"
     var lbM = title.match(/\b(\d+(?:\.\d+)?)\s*[-\s]*(?:lb\.?|lbs\.?|pound|pounds)\b/i);
-    if (lbM && /\b(?:cover|bond|text|index|weight|cardstock|card\s*stock|gsm|basis)\b/i.test(title.slice(lbM.index + lbM[0].length, lbM.index + lbM[0].length + 30))) lbM = null;
+    if (lbM && isPaperWeightLb(title)) lbM = null;
     var gM  = title.match(/\b(\d+(?:\.\d+)?)\s*(?:g|gram|grams)\b/i);
     var kgM = title.match(/\b(\d+(?:\.\d+)?)\s*(?:kg|kilogram|kilograms)\b/i);
     if (unit === 'oz') {
@@ -999,7 +1011,7 @@ const ITEM_UNITS = [
       var titleText = cleanBrand(titleEl.textContent);
       var firstWord = titleText.split(/\s+/)[0];
       // Only use if it looks like a brand token (not a generic word, number, or article)
-      if (firstWord && firstWord.length >= 3 && !/^\d|^(the|a|an|for|with|by)$/i.test(firstWord)) {
+      if (firstWord && firstWord.length >= 3 && !/^\d|^(the|a|an|for|with|by|premium|extra|heavy|ultra|thick|white|black|bright|pure|classic|super|best|pro|true|new|large|small|big|soft|hard|clear|blank|bulk|pack|set|kit|high|low|top|max|mini|micro|multi|anti|non)$/i.test(firstWord)) {
         return firstWord;
       }
     }
@@ -1245,7 +1257,15 @@ const ITEM_UNITS = [
     // Fix 2: Amazon reported a weight/liquid unit but the title has no weight quantity.
     // Before suppressing, check if we can calculate $/ft from footage in the title instead.
     if(ap&&(WEIGHT_UNITS.includes(ap.unit)||LIQUID_UNITS.includes(ap.unit))) {
-      var titleHasWeightQty=/\b\d+(?:\.\d+)?[-\s]*(?:lb\.?|lbs\.?|pound|pounds|oz\.?|ounce|ounces|g\b|kg|ml|fl\s*oz|litre|liter)/i.test(title);
+      var titleHasWeightQty=(function(){
+        var m=/\b\d+(?:\.\d+)?[-\s]*(?:lb\.?|lbs\.?|pound|pounds|oz\.?|ounce|ounces|g\b|kg|ml|fl\s*oz|litre|liter)/i.test(title);
+        // Don't count paper-weight lb specs as physical weight
+        if(m && isPaperWeightLb(title)) {
+          // Re-test without lb — only count as weight if something other than paper-weight lb matches
+          m=/\b\d+(?:\.\d+)?[-\s]*(?:oz\.?|ounce|ounces|g\b|kg|ml|fl\s*oz|litre|liter)/i.test(title);
+        }
+        return m;
+      })();
       if(!titleHasWeightQty) {
         // If title has footage (e.g. "25ft hose"), calculate $/ft instead of suppressing
         var ftMatch=title.match(/(?<![\d\/])(\d+)\s*(?:ft|feet)\b/i);
@@ -1281,6 +1301,7 @@ const ITEM_UNITS = [
       var wtUnit=null,wtQty=0;
       var ozM2=title.match(/\b(\d+(?:\.\d+)?)\s*(?:oz|ounce|ounces)\b/i);
       var lbM2=title.match(/\b(\d+(?:\.\d+)?)\s*[-\s]*(?:lb\.?|lbs\.?|pound|pounds)\b/i);
+      if(lbM2&&isPaperWeightLb(title)) lbM2=null; // paper-weight spec, not physical weight
       var gM2 =title.match(/\b(\d+(?:\.\d+)?)\s*(?:g|gram|grams)\b/i);
       var kgM2=title.match(/\b(\d+(?:\.\d+)?)\s*(?:kg|kilogram|kilograms)\b/i);
       if(ozM2){wtQty=parseFloat(ozM2[1]);wtUnit='oz';}

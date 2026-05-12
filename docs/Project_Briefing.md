@@ -1,7 +1,7 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.72 (overall) · v0.6.1 (manifest) · v0.6.1.72 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 61 · v0.6.1.17 (background.js)*
-*Updated May 11, 2026 (Chat 61 — keyword hint first-use/dismiss, extractCount pack fix, scrapeBrand whitespace, compare.html boolean filter + keyword highlight)*
+*Current version: v0.6.1.74 (overall) · v0.6.1 (manifest) · v0.6.1.74 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 61 · v0.6.1.17 (background.js)*
+*Updated May 12, 2026 (Chat 62 — isPaperWeightLb helper, N/Pack extractCount fix, scrapeBrand Strategy 3 adjective blocklist)*
 
 ---
 
@@ -107,8 +107,8 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 6. Version Numbering
 
-- **Overall / canonical version:** v0.6.1.72 (search.js number — the main file)
-- **Per-file versions:** search.js v0.6.1.72 · core.js v0.6.1.53 · compare.html updated Chat 61 · background.js v0.6.1.17 · manifest v0.6.1 · styles.css updated Chat 60 · welcome.html created Chat 59
+- **Overall / canonical version:** v0.6.1.74 (search.js number — the main file)
+- **Per-file versions:** search.js v0.6.1.74 · core.js v0.6.1.53 · compare.html updated Chat 61 · background.js v0.6.1.17 · manifest v0.6.1 · styles.css updated Chat 60 · welcome.html created Chat 59
 - Per-file versions differ intentionally — files change at different rates
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
@@ -142,7 +142,7 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 **Extension files:**
 - `manifest.json` — v0.6.1 (three-part)
 - `background.js` — v0.6.1.17 — service worker; logging relay; kill switch fetch; onInstalled welcome page
-- `content/search.js` — v0.6.1.72 — main content script; all scraping, PPU, panel UI
+- `content/search.js` — v0.6.1.74 — main content script; all scraping, PPU, panel UI
 - `content/core.js` — v0.6.1.53 — shortlist state; compare relay
 - `content/styles.css` — panel styles (blue palette, Chat 45; updated Chat 60)
 - `popup/` — popup UI
@@ -220,7 +220,7 @@ Full design in Brand_Filter_Design.md. Sessions 1–5 complete. compare.html int
 - Brand column toggleable via Show Columns
 
 **Known issues with brand scraping:**
-- Strategy 3 (first word of title) produces wrong results — "Premium" instead of "Astrobrights." Needs design session.
+- Strategy 3 adjective blocklist expanded Chat 62 — "Premium", "White", "Extra" etc. no longer returned as brand names.
 - Amazon Basics items may show — in brand column on compare.html. Needs investigation.
 - scrapeBrand whitespace normalization added Chat 61 — fixes "Premiu m" artifacts.
 

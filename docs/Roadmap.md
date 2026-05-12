@@ -4,13 +4,13 @@
 
 ---
 
-## Current version: v0.6.1.72 (overall) · v0.6.1 (manifest) · v0.6.1.72 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 61 · v0.6.1.17 (background.js) · styles.css updated Chat 60 · welcome.html created Chat 59
+## Current version: v0.6.1.74 (overall) · v0.6.1 (manifest) · v0.6.1.74 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 61 · v0.6.1.17 (background.js) · styles.css updated Chat 60 · welcome.html created Chat 59
 
 ---
 
 ## Known issues / needs testing
 
-- **Multi-pack weight PPU wrong** — Amazon reports $/oz per item in a multi-pack, not per total package weight. Needs design session before any fix attempt.
+- **Multi-pack × weight PPU wrong — needs design session.** Items with both a weight and a pack count (e.g. "2 lb Bag (Pack of 2)", "32-Ounce Box (Pack of 6)") should show PPU based on total weight (unit weight × pack count), not per-bag or full-price $/ct. For food/consumables categories this is critical — $/oz or $/lb is the meaningful comparison. Correct logic: total weight = unit weight × pack count; PPU = price / total weight. Do not attempt without a design session — touches weight unit logic.
 - **Contact lens solution — Amazon-reported $/fl oz unreliable** — stray numbers in title cause wrong unit price; needs recalculate-and-compare check
 - **Cotton swabs — extractCount grabbing pack count instead of swab count** — "500 per Pack - 2 Pack" → shows 2 ct instead of 1000 ct
 - **Razor blade $0.1/ct outlier** — one item still showing one decimal despite zero-pad fix
@@ -32,9 +32,7 @@
 - **Duplicate "Pages slider" comment** — cosmetic only, around line 2808 in search.js; fix opportunistically
 - **Outlier PPU units sorting to top** — items with unusual units ($/lb for weighted heating pad, $/ft for a cord) sort to top as "best value" when their raw PPU is small. Needs design session before fix.
 - **welcome.html screenshot** — current screenshot is old search; needs replacement with laundry pods screenshot, keyword filter active, annotated callout design
-- **Cardstock $/lb PPU — parseTitleWeightQty guard insufficient.** Cardstock items with paper-weight specs ("65 lb Cover Weight", "110 lb Index Weight") still showing $/lb PPU via a different code path than parseTitleWeightQty. Needs a design session. "cardstock" may need to be added to SOLID_KEYWORDS. Do not attempt a quick fix — this touches weight unit logic.
 - **Prime scraping — possible Amazon selector change.** Two searches in Chat 61 showed no Prime badges detected. Amazon may have changed from a "Prime" filter to "Free Shipping by Amazon." Needs investigation.
-- **scrapeBrand Strategy 3 (first-word fallback) unreliable** — returns "Premium" instead of "Astrobrights." First word of title is not reliably a brand name. Needs design session; Melissa has scraper data that may help.
 - **Amazon Basics brand column shows — on compare.html** — needs investigation.
 
 ---
@@ -60,7 +58,7 @@
 **Brand list sync rule:** brand_blocklist.txt and amazon_brands.txt must be updated concurrently in extension/data/ AND repo root data/. Both files must always match.
 
 **Version numbering:**
-- Overall / canonical: v0.6.1.72 (search.js number)
+- Overall / canonical: v0.6.1.74 (search.js number)
 - Per-file versions differ intentionally — files change at different rates
 - v1.0 = Web Store public launch
 
@@ -89,11 +87,10 @@
 
 ## Next session priorities (in order)
 
-1. **Cardstock PPU design session** — add "cardstock" to SOLID_KEYWORDS? Exclude paper-weight lb from weight-from-title path? Don't touch without scoping first.
-2. **scrapeBrand Strategy 3 design** — remove or tighten first-word fallback; use Melissa's scraper data to inform better detection
-3. **Prime scraping investigation** — check selectors against current Amazon HTML
-4. **welcome.html screenshot** — laundry pods, annotated callout design
-5. **CWS push + Reddit posts** — held pending above
+1. **Multi-pack × weight PPU design session** — "2 lb Bag (Pack of 2)" should show $/lb or $/oz based on total weight, not $/ct. Design the logic before touching code.
+2. **Prime scraping investigation** — check selectors against current Amazon HTML
+3. **welcome.html screenshot** — laundry pods, annotated callout design
+4. **CWS push + Reddit posts** — held pending above
 
 ---
 
@@ -213,12 +210,16 @@
 - [x] extractCount — pack/pk patterns moved to end; "1 Pack (250 Sheets)" returns 250 not 1 (Chat 61)
 - [x] Keyword hint — hidden by default, shown on first keypress, × dismiss resets flag (Chat 61)
 - [x] scrapeBrand — whitespace normalization via cleanBrand() helper (Chat 61)
-- [x] parseTitleWeightQty — paper-weight lb guard (cover/bond/text/index/weight/cardstock/gsm/basis) — NOTE: insufficient, cardstock still shows $/lb via different path (Chat 61)
+- [x] parseTitleWeightQty — paper-weight lb guard (cover/bond/text/index/weight/cardstock/gsm/basis) — NOTE: insufficient alone (Chat 61)
 - [x] compare.html — boolean keyword parser ported (auParseKeywords/auReadToken/auTokenMatches) (Chat 61)
 - [x] compare.html — Include filter hint text and placeholder updated (Chat 61)
 - [x] compare.html — keyword highlight in title column via highlightTitle() (Chat 61)
-- [ ] Cardstock PPU — design session required
-- [ ] scrapeBrand Strategy 3 — design session required
+- [x] isPaperWeightLb() helper — centralises paper-weight lb detection; used in parseTitleWeightQty, titleHasWeightQty check, and weight-from-title fallback (Chat 62)
+- [x] titleHasWeightQty — paper-weight lb no longer triggers weight path; items fall through to $/ct (Chat 62)
+- [x] Weight-from-title fallback — lbM2 suppressed when isPaperWeightLb fires (Chat 62)
+- [x] scrapeBrand Strategy 3 — expanded adjective blocklist; premium/extra/heavy/white/black etc. no longer returned as brand names (Chat 62)
+- [x] extractCount — N/Pack pattern added; "250/Pack", "100/Box" now return correct count (Chat 62)
+- [ ] Multi-pack × weight PPU — design session required
 - [ ] Prime scraping — investigate selector change
 - [ ] welcome.html screenshot — laundry pods, annotated callout design
 - [ ] Add laundry pods (id=73) and laptop (id=74) sample links to index.html
@@ -268,20 +269,6 @@
 
 ---
 
-## v0.7 — Brand filter feature suite (designed Chat 47)
-
-Full design in Brand_Filter_Design.md.
-
-- [x] Session 1: brand text scraping + heuristic detector (no UI) ✅ Chat 48
-- [x] Session 2: brand filter UI + hide/demote toggle + high-noise banner ✅ Chat 49
-- [x] Session 3: bundled blocklist wire-up + personal blocklist + [•••] menu + management view ✅ Chat 50
-- [x] Session 3 retrofit: brand row UI rework + personal allowlist + bug fixes ✅ Chat 51
-- [x] Session 4: delivery window filter ✅ Chat 52
-- [x] Session 5: Amazon-brands demote toggle + polish ✅ Chat 53
-- [x] Session 6: compare.html integration ✅ Chat 55
-
----
-
 ## Post-alpha (v0.8+)
 
 - Lazy product-page fetch architecture (Frequently Returned, variations, Sold by — progressive enrichment)
@@ -312,15 +299,3 @@ Full design in Brand_Filter_Design.md.
 - Show HN / Product Hunt launch — coordinate with public CWS listing
 - r/InternetIsBeautiful — after polish pass
 - Cross-device blocklist sync — post-alpha (chrome.storage.sync, 100KB cap)
-
----
-
-## Brand filter tuning — categories to test
-
-- "floral summer dress" ✅ tested Chat 49 — 187/380 flagged, banner fires, working
-- "yoga pants" — added Chat 49, not yet tested
-- "home décor" — high junk likelihood
-- "phone case" — high junk likelihood
-- "dog treats" — lower junk likelihood, good false-positive check
-- "paper towels" — should be near-zero noise, good false-positive check
-- "laundry detergent" — same
