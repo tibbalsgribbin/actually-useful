@@ -12,14 +12,14 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --navy:        oklch(52% 0.24 285);    /* vivid violet — brand primary */
-      --teal:        oklch(65% 0.18 285);        /* medium violet — links */
-      --teal-mid:    oklch(52% 0.24 285);    /* violet hover */
+      --navy:        #f25d4e;    /* vivid violet — brand primary */
+      --teal:        #c2362a;        /* medium violet — links */
+      --teal-mid:    #f25d4e;    /* violet hover */
       --cream:       #ffffff;         /* white canvas */
-      --warm:        oklch(94% 0.018 280);       /* light violet tint */
-      --text:        oklch(14% 0.02 280);       /* near-black */
-      --muted:       oklch(52% 0.06 280);      /* muted text */
-      --rule:        oklch(88% 0.04 280);     /* light border */
+      --warm:        #fef2f0;       /* light violet tint */
+      --text:        #1e293b;       /* near-black */
+      --muted:       #64748b;      /* muted text */
+      --rule:        #e2e8f0;     /* light border */
     }
 
     html { scroll-behavior: smooth; }
@@ -88,7 +88,7 @@
       color: var(--teal);
       margin-bottom: 1.6rem;
       padding-bottom: 0.55rem;
-      border-bottom: 1px solid oklch(52% 0.24 285 / 0.3);
+      border-bottom: 1px solid rgba(242,93,78,0.3);
     }
 
     h1 {
@@ -159,7 +159,7 @@
     .policy-section a {
       color: var(--teal);
       text-decoration: none;
-      border-bottom: 1px solid oklch(52% 0.24 285 / 0.25);
+      border-bottom: 1px solid rgba(242,93,78,0.25);
       transition: border-color 0.2s;
     }
 

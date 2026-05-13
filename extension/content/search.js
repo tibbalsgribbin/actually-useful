@@ -1551,9 +1551,9 @@ const ITEM_UNITS = [
       var pct = ((loadedPages - 1) / 9) * 100;
       pagesSlider.style.setProperty('--fill', pct + '%');
       pagesSlider.classList.toggle('active', loadedPages > 1);
-      if (labelEl) labelEl.innerHTML = nextPageUrl ? 'Pages to load: <em>' + loadedPages + '</em>' : 'No more pages available';
+      if (labelEl) labelEl.innerHTML = nextPageUrl ? 'Show me: <b>' + loadedPages + '</b> pages' : 'No more pages available';
     } else {
-      if (labelEl) labelEl.innerHTML = nextPageUrl ? 'Pages to load: <em>1</em>' : 'No more pages available';
+      if (labelEl) labelEl.innerHTML = nextPageUrl ? 'Show me: <b>1</b> pages' : 'No more pages available';
     }
   }
 
@@ -1679,7 +1679,6 @@ const ITEM_UNITS = [
 
     // Collapsed state — persisted in localStorage after first interaction
     // Default true (expanded) if never set
-    var sortOpen    = localStorage.getItem('au-sort-open')    !== '0';
     var filtersOpen = localStorage.getItem('au-filters-open') !== '0';
 
     panel.innerHTML=
@@ -1693,7 +1692,7 @@ const ITEM_UNITS = [
           '</div>'+
           '<div id="ppu-header-btns">'+
             '<a id="ppu-help" href="https://actuallyuseful.net" target="_blank" title="Help &amp; instructions">?</a>'+
-            '<button id="ppu-collapse" title="Collapse/expand">\u2195</button>'+
+            '<button id="ppu-minimize" title="Minimize (coming in Phase 4)">\u2212</button>'+
             '<button id="ppu-close" title="Close">\u00d7</button>'+
           '</div>'+
         '</div>'+
@@ -1718,36 +1717,31 @@ const ITEM_UNITS = [
           '<button id="ppu-btn-reset-filters" class="ppu-btn" title="Clears all filters, sorting, and returns to page 1 results.">Clear all</button>'+
         '</div>'+
         pillHtml+
-        '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-sort-toggle" data-target="ppu-sort-collapsible">'+
-          '<span><span id="ppu-sort-section-label">'+(sortOpen?'Sort':'Click to sort and load more pages')+'</span> <span id="ppu-sort-label-text">'+(sortOpen?'':' ')+'</span><span class="ppu-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></span>'+
+        '<div id="ppu-sort-row">'+
+          '<span id="ppu-sort-row-label">Sort:</span>'+
+          '<select id="ppu-sort" class="ppu-sort-select" title="Sort products by different criteria">'+
+            '<option value="ppu-asc">Best value \u2191</option>'+
+            '<option value="price-asc">Price low\u2192high</option>'+
+            '<option value="delivery-free">Soonest FREE delivery</option>'+
+            '<option value="delivery-any">Soonest ANY delivery</option>'+
+            '<option value="amazon-default">As Amazon listed</option>'+
+          '</select>'+
+          '<button id="ppu-btn-hide-sponsored" class="ppu-btn" title="Control how sponsored products appear in results">Move ads to end</button>'+
         '</div>'+
-        '<div id="ppu-sort-collapsible" class="ppu-collapsible-section">'+
-          '<div id="ppu-controls">'+
-            '<select id="ppu-sort" class="ppu-sort-select" title="Sort products by different criteria">'+
-              '<option value="ppu-asc">Best value \u2191</option>'+
-              '<option value="price-asc">Price low\u2192high</option>'+
-              '<option value="delivery-free">Soonest FREE delivery</option>'+
-              '<option value="delivery-any">Soonest ANY delivery</option>'+
-              '<option value="default">As shown in Amazon results</option>'+
-            '</select>'+
-            '<button id="ppu-btn-hide-sponsored" class="ppu-btn" title="Control how sponsored products appear in results">Move ads to end of results</button>'+
-          '</div>'+
-          '<div id="ppu-pages-row">'+
-            '<span id="ppu-pages-label">'+(nextPageUrl?'Pages: <b>1</b>':'No more pages available')+'</span>'+
-            '<div class="ppu-slider-wrap">'+
-              '<span class="ppu-slider-startlabel">1</span>'+
-              '<div class="ppu-slider-track-wrap">'+
-                '<input id="ppu-pages-slider" type="range" class="ppu-slider" min="1" max="7" step="1" value="1"'+(nextPageUrl?'':' disabled')+'>'+
-                '<div class="ppu-slider-ticks">'+
-                  '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="minor"></span><span class="major"></span>'+
-                '</div>'+
+        '<div id="ppu-pages-standalone-row">'+
+          '<span id="ppu-pages-label">'+(nextPageUrl?'Show me: <b>4</b> pages':'No more pages available')+'</span>'+
+          '<div class="ppu-slider-wrap" style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;">'+
+            '<span class="ppu-slider-startlabel">1</span>'+
+            '<div class="ppu-slider-track-wrap">'+
+              '<input id="ppu-pages-slider" type="range" class="ppu-slider" min="1" max="7" step="1" value="4"'+(nextPageUrl?'':' disabled')+'>'+
+              '<div class="ppu-slider-ticks">'+
+                '<span class="major"></span><span class="minor"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="minor"></span><span class="major"></span>'+
               '</div>'+
-              '<span class="ppu-slider-endlabel">7</span>'+
             '</div>'+
-            '<span id="ppu-pages-status"></span>'+
-            '<button id="ppu-btn-refresh" class="ppu-btn" style="margin-left:6px;flex-shrink:0;" title="Re-syncs with the Amazon page. Use this if you changed Amazon\u2019s filters or categories. Extra pages loaded will be lost.">\u21ba Re-sync</button>'+
+            '<span class="ppu-slider-endlabel">7</span>'+
           '</div>'+
-
+          '<span id="ppu-pages-status"></span>'+
+          '<button id="ppu-btn-refresh" class="ppu-btn" style="margin-left:6px;flex-shrink:0;" title="Re-syncs with the Amazon page. Use this if you changed Amazon\u2019s filters or categories. Extra pages loaded will be lost.">\u21ba Re-sync</button>'+
         '</div>'+
         '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-filters-toggle" data-target="ppu-filters-collapsible">'+
           '<span><span id="ppu-filters-section-label">'+(filtersOpen?'Filters':'Click to filter by price, delivery, brand, and more')+'</span> <span id="ppu-filters-count" style="display:none"></span><span class="ppu-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></span>'+
@@ -1850,8 +1844,8 @@ const ITEM_UNITS = [
               '<div class="ppu-select-menu-item" data-action="none">None</div>'+
             '</div>'+
           '</div>'+
-          '<span id="ppu-compare-hint"><span id="ppu-compare-main">Check items to compare</span><span id="ppu-compare-sub" style="display:block;font-size:10px;margin-top:1px;font-weight:400;">Click for the full comparison table, more filters, and to save &amp; share your results</span></span>'+
-          '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary" title="View side-by-side comparison table">Compare</button>'+
+          '<span id="ppu-compare-hint"><span id="ppu-compare-main">Check items below to send to the full comparison table</span><span id="ppu-compare-sub" style="display:block;font-size:10px;margin-top:1px;font-weight:400;">Filter, sort, share, save with Actually Useful\'s research workspace</span></span>'+
+          '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary disabled" title="Check items to compare">Compare (0)</button>'+
         '</div>'+
         '<div id="ppu-high-noise-banner" style="display:none"><span class="ppu-noise-msg"></span><button class="ppu-noise-dismiss" title="Dismiss">\u00d7</button></div>'+
         '<div id="ppu-list"></div>'+
@@ -1867,7 +1861,7 @@ const ITEM_UNITS = [
         '<div id="ppu-footer-links">'+
           '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">Give feedback</a>'+
           '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">Buy me a coffee</a>'+
-          '<span id="ppu-blocklist-link" style="cursor:pointer;text-decoration:underline;color:#4338ca;font-size:11px;">My brand rules (0)</span>'+
+          '<span id="ppu-blocklist-link" style="cursor:pointer;text-decoration:underline;color:#c2362a;font-size:11px;">My brand rules (0)</span>'+
         '</div>'+
       '</div>';
 
@@ -1883,10 +1877,10 @@ const ITEM_UNITS = [
         '#ppu-price-range-row{display:flex;align-items:center;gap:8px;padding:4px 14px 6px;}' +
         '.ppu-price-slider-wrap{position:relative;flex:1;height:18px;}' +
         '.ppu-price-track-bg{position:absolute;top:50%;left:0;right:0;height:4px;background:#d1d5db;border-radius:2px;transform:translateY(-50%);}' +
-        '.ppu-price-track-fill{position:absolute;top:0;height:4px;background:#4f46e5;border-radius:2px;}' +
+        '.ppu-price-track-fill{position:absolute;top:0;height:4px;background:#f25d4e;border-radius:2px;}' +
         '.ppu-price-thumb{position:absolute;top:50%;width:100%;height:18px;margin:0;padding:0;transform:translateY(-50%);background:transparent;-webkit-appearance:none;appearance:none;pointer-events:none;}' +
-        '.ppu-price-thumb::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#4f46e5;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);pointer-events:all;cursor:pointer;}' +
-        '.ppu-price-thumb::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#4f46e5;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);pointer-events:all;cursor:pointer;}' +
+        '.ppu-price-thumb::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#f25d4e;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);pointer-events:all;cursor:pointer;}' +
+        '.ppu-price-thumb::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#f25d4e;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);pointer-events:all;cursor:pointer;}' +
         '.ppu-price-label{font-size:11px;color:#6b7280;white-space:nowrap;min-width:72px;text-align:right;}' +
         '.ppu-note-widget{margin-top:5px;}' +
         '.ppu-note-add-link{font-size:11px;color:#877891;cursor:pointer;text-decoration:none;user-select:none;}' +
@@ -1905,16 +1899,16 @@ const ITEM_UNITS = [
         '.ppu-badge-label{font-size:11px;font-weight:500;padding:4px 10px;border-radius:6px;border:1px solid #e5e5ea;background:#f9f9fc;color:#6b7280;cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:0;transition:all .12s;}' +
         '.ppu-badge-label input[type=checkbox]{display:none;}' +
         '.ppu-badge-label:hover{border-color:#d4d4d8;color:#3f3f46;background:#f3f3f6;}' +
-        '.ppu-badge-label:has(input:checked){background:#eef2ff;border-color:#c7d2fe;color:#3730a3;font-weight:600;}' +
-        '#ppu-mixed-units-banner{display:none;padding:7px 28px 7px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;line-height:1.5;position:relative;}' +
+        '.ppu-badge-label:has(input:checked){background:#fef2f0;border-color:#fcc8c3;color:#a02820;font-weight:600;}' +
+        '#ppu-mixed-units-banner{display:none;padding:7px 28px 7px 14px;background:#fef2f0;border-left:3px solid #f25d4e;font-size:11px;color:#7c2d12;line-height:1.5;position:relative;}' +
         '.ppu-mixed-msg{flex:1;user-select:text;cursor:text;}' +
         '.ppu-mixed-dismiss{position:absolute;top:5px;right:6px;background:none;border:none;font-size:14px;color:#877891;cursor:pointer;padding:0;line-height:1;}' +
         '#ppu-high-noise-banner{display:none;padding:7px 28px 7px 14px;background:#fff7ed;border-left:3px solid #f59e0b;font-size:11px;color:#92400e;line-height:1.5;position:relative;}' +
         '.ppu-noise-msg{display:block;user-select:text;}' +
         '.ppu-noise-dismiss{position:absolute;top:5px;right:6px;background:none;border:none;font-size:14px;color:#a78060;cursor:pointer;padding:0;line-height:1;}' +
         '.ppu-brand-row{font-size:12px;color:#6b7280;margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;user-select:text;}' +
-        '.ppu-brand-allow-btn,.ppu-brand-block-btn{font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid #d1d5db;background:#f9f9fc;color:#4338ca;cursor:pointer;white-space:nowrap;}' +
-        '.ppu-brand-allow-btn:hover{background:#eef2ff;border-color:#c7d2fe;}' +
+        '.ppu-brand-allow-btn,.ppu-brand-block-btn{font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid #d1d5db;background:#f9f9fc;color:#c2362a;cursor:pointer;white-space:nowrap;}' +
+        '.ppu-brand-allow-btn:hover{background:#fef2f0;border-color:#fcc8c3;}' +
         '.ppu-brand-block-btn:hover{background:#fff1f2;border-color:#fecdd3;color:#be123c;}';
       document.head.appendChild(styleEl);
     }
@@ -2114,9 +2108,19 @@ const ITEM_UNITS = [
       }
 
       if(compareBtn){ compareBtn.textContent=cc>0?'Compare ('+cc+')':'Compare'; }
+      // Empty-state compare bar: button is non-clickable when 0 items checked.
+      // NOTE: ppu-btn-compare pointer-events:none when cc===0 is intentional in Phase 1.
+      // Phase 2+ should add tooltip or improved disabled UX.
+      if(compareBtn){ compareBtn.classList.toggle('disabled', cc===0); }
       if(compareHint){ compareHint.style.display='block'; }
       if(shortlistBar){ shortlistBar.classList.toggle('active',cc>0); }
-      var sortLabels={'ppu-asc':'best value','price-asc':'price','delivery-free':'soonest free delivery','delivery-any':'soonest delivery','default':'Amazon order'};
+      // Update compare bar copy based on checked item count (§10.4 / §10.1)
+      var mainEl=document.getElementById('ppu-compare-main');
+      if(mainEl){
+        if(cc>0){ mainEl.textContent='Take '+cc+' item'+(cc===1?'':'s')+' to the full comparison table — that’s where Actually Useful really earns its name.'; }
+        else { mainEl.textContent='Check items below to send to the full comparison table'; }
+      }
+      var sortLabels={'ppu-asc':'best value','price-asc':'price','delivery-free':'soonest free delivery','delivery-any':'soonest delivery','amazon-default':'Amazon order'};
 
       var anyFilterActive = keyword.trim().length>0 || minReviews>0 || minRating>0 ||
         minPrice!=='' || maxPrice!=='' ||
@@ -2159,7 +2163,7 @@ const ITEM_UNITS = [
           if(dateDiffAny!==0) return dateDiffAny;
           return (a.freeWindowMinutes||Infinity)-(b.freeWindowMinutes||Infinity);
         }
-        if(effectiveSort==='default') return a.originalIndex-b.originalIndex;
+        if(effectiveSort==='default'||effectiveSort==='amazon-default') return a.originalIndex-b.originalIndex;
         return 0;
       }
 
@@ -2488,9 +2492,15 @@ const ITEM_UNITS = [
             selectAllBox.textContent = cnt===0?'':cnt===total?'\u2713':'\u2013';
             selectAllBox.className = 'ppu-select-box'+(cnt===0?' empty':cnt===total?' checked':' indeterminate');
           }
-          if(compareBtn){ compareBtn.textContent=cnt>0?'Compare ('+cnt+')':'Compare'; }
+          if(compareBtn){ compareBtn.textContent=cnt>0?'Compare ('+cnt+')':'Compare (0)'; }
+          if(compareBtn){ compareBtn.classList.toggle('disabled', cnt===0); }
           if(compareHint){ compareHint.style.display='block'; }
           if(shortlistBar){ shortlistBar.classList.toggle('active',cnt>0); }
+          var mainEl2=document.getElementById('ppu-compare-main');
+          if(mainEl2){
+            if(cnt>0){ mainEl2.textContent='Take '+cnt+' item'+(cnt===1?'':'s')+' to the full comparison table — that’s where Actually Useful really earns its name.'; }
+            else { mainEl2.textContent='Check items below to send to the full comparison table'; }
+          }
           updateActiveIndicators();
         });
       });
@@ -2600,22 +2610,11 @@ const ITEM_UNITS = [
           filterCount.style.display = 'none';
         }
       }
-      // Sort chip (shows when section is collapsed)
-      var sortLabel = document.getElementById('ppu-sort-label-text');
-      if (sortLabel) {
-        var sortChip = '';
-        if (sortVal === 'ppu-asc')            sortChip = 'Best value \u2191';
-        else if (sortVal === 'price-asc')     sortChip = 'Price \u2191';
-        else if (sortVal === 'delivery-free') sortChip = 'Free delivery';
-        else if (sortVal === 'delivery-any')  sortChip = 'Soonest delivery';
-        sortLabel.textContent = sortOpen ? '' : sortChip;
-        sortLabel.className = (!sortOpen && sortChip) ? 'ppu-sec-chip ppu-sec-chip-indigo' : '';
-      }
       // Active decisions bar
       var decBar = document.getElementById('ppu-dec-bar');
       if (decBar) {
         var chips = [];
-        var sortNames = {'price-asc':'Price \u2191','delivery-free':'Free delivery','delivery-any':'Soonest delivery','default':'Amazon order'};
+        var sortNames = {'price-asc':'Price \u2191','delivery-free':'Free delivery','delivery-any':'Soonest delivery','amazon-default':'As Amazon listed'};
         if (sortVal !== 'ppu-asc') chips.push('<span class="ppu-dc ppu-dc-s">' + (sortNames[sortVal] || sortVal) + '</span>');
         if (keyword.trim()) chips.push('<span class="ppu-dc ppu-dc-k">\u201c' + keyword.trim().slice(0,20) + (keyword.trim().length > 20 ? '\u2026' : '\u201d') + '</span>');
         if (minReviews > 0) chips.push('<span class="ppu-dc ppu-dc-f">\u2265' + minReviews + ' reviews</span>');
@@ -2634,14 +2633,14 @@ const ITEM_UNITS = [
       if (!el) return;
       var pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
       var filled = pct.toFixed(1) + '%';
-      el.style.background = 'linear-gradient(to right,#4f46e5 ' + filled + ',#e5e5ea ' + filled + ')';
+      el.style.background = 'linear-gradient(to right,#f25d4e ' + filled + ',#e5e5ea ' + filled + ')';
     }
     function updatePagesSliderFill(el) { if (el) updateSliderFill(el, 1, 7); }
     function updatePagesLabel() {
       var labelEl = document.getElementById('ppu-pages-label');
       if (!labelEl || !pagesSlider) return;
       var v = parseInt(pagesSlider.value, 10);
-      labelEl.innerHTML = 'Pages: <b>' + v + '</b>';
+      labelEl.innerHTML = 'Show me: <b>' + v + '</b> pages';
     }
 
     // ── Events ────────────────────────────────────────────────────────────
@@ -2937,7 +2936,7 @@ const ITEM_UNITS = [
             if(mainEl){ mainEl.textContent='Couldn\u2019t open comparison \u2014 check your connection and try again.'; }
             compareHint.style.color='#c94b2e';
             setTimeout(function(){
-              if(mainEl){ mainEl.textContent='Check items to compare'; }
+              if(mainEl){ mainEl.textContent='Check items below to send to the full comparison table'; }
               compareHint.style.color='';
             },4000);
           }
@@ -3038,27 +3037,6 @@ const ITEM_UNITS = [
           if (chevron) chevron.style.transform = 'rotate(-90deg)';
           toggle.classList.add('collapsed');
         }
-        if (toggleId === 'ppu-sort-toggle') {
-          sortOpen = openFlag;
-          try { localStorage.setItem('au-sort-open', openFlag ? '1' : '0'); } catch(e) {}
-          var sl = document.getElementById('ppu-sort-section-label');
-          if (sl) sl.textContent = openFlag ? 'Sort' : 'Click to sort and load more pages';
-          var slChip = document.getElementById('ppu-sort-label-text');
-          if (slChip) {
-            if (openFlag) { slChip.textContent = ''; slChip.className = ''; }
-            // When closing, chip will be updated by next render() call via the sort dropdown change
-            // But if sort hasn't changed, update it now
-            else {
-              var sortChipVal = '';
-              if (sortVal === 'ppu-asc')            sortChipVal = 'Best value \u2191';
-              else if (sortVal === 'price-asc')     sortChipVal = 'Price \u2191';
-              else if (sortVal === 'delivery-free') sortChipVal = 'Free delivery';
-              else if (sortVal === 'delivery-any')  sortChipVal = 'Soonest delivery';
-              slChip.textContent = sortChipVal;
-              slChip.className = sortChipVal ? 'ppu-sec-chip ppu-sec-chip-indigo' : '';
-            }
-          }
-        }
         if (toggleId === 'ppu-filters-toggle') {
           filtersOpen = openFlag;
           try { localStorage.setItem('au-filters-open', openFlag ? '1' : '0'); } catch(e) {}
@@ -3069,30 +3047,12 @@ const ITEM_UNITS = [
         }
       });
     }
-    setupCollapsible('ppu-sort-toggle',    'ppu-sort-collapsible',    sortOpen);
     setupCollapsible('ppu-filters-toggle', 'ppu-filters-collapsible', filtersOpen);
     // Sync dec-bar visibility with initial filters open state
     (function(){ var db=document.getElementById('ppu-dec-bar'); if(db) db.style.display=filtersOpen?'':'none'; })();
 
-    document.getElementById('ppu-collapse').addEventListener('click',function(e){
-      e.stopPropagation();
-      isCollapsed = !isCollapsed;
-      panel.classList.toggle('collapsed', isCollapsed);
-      if (isCollapsed) {
-        // Clear inline height so the CSS collapsed rule (max-height:41px) can take effect
-        panel.style.height    = '';
-        panel.style.maxHeight = '';
-      } else {
-        // Restore saved height if one exists
-        chrome.storage.local.get('au_search_panel_pos', function(r) {
-          var pos = r['au_search_panel_pos'];
-          if (pos && pos.height) {
-            panel.style.height    = pos.height + 'px';
-            panel.style.maxHeight = pos.height + 'px';
-          }
-        });
-      }
-    });
+    // ppu-minimize: intentionally inert in Phase 1. Wire collapse/expand logic in Phase 4.
+    // ppu-close: functional — removes panel from DOM.
     document.getElementById('ppu-close').addEventListener('click',function(e){e.stopPropagation();panel.remove();});
     var workflowDismiss=document.getElementById('ppu-workflow-dismiss');
     if(workflowDismiss){
@@ -3129,19 +3089,19 @@ const ITEM_UNITS = [
           function insertPrompt(){
             var panel=document.getElementById('ppu-sorter-panel');
             var header=document.getElementById('ppu-header');
-            var pagesRow=document.getElementById('ppu-pages-row');
+            var pagesRow=document.getElementById('ppu-pages-standalone-row');
             if((!panel||!header||!pagesRow)&&pollCount<20){pollCount++;setTimeout(insertPrompt,100);return;}
             if(!panel||!header||!pagesRow) return;
             var existing=document.getElementById('ppu-resync-reload-bar');
             if(existing) existing.remove();
             var reloadBar=document.createElement('div');
             reloadBar.id='ppu-resync-reload-bar';
-            reloadBar.style.cssText='padding:6px 14px;background:#f5f3ff;border-left:3px solid #7b76e5;font-size:11px;color:#4a3f7a;display:flex;align-items:center;gap:8px;';
+            reloadBar.style.cssText='padding:6px 14px;background:#fef2f0;border-left:3px solid #f25d4e;font-size:11px;color:#7c2d12;display:flex;align-items:center;gap:8px;';
             var msg=document.createElement('span');
             msg.textContent='You had '+prevPages+' pages loaded \u2014 reload all?';
             var yesBtn=document.createElement('button');
             yesBtn.textContent='Yes';
-            yesBtn.style.cssText='font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;cursor:pointer;';
+            yesBtn.style.cssText='font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #fcc8c3;background:#fef2f0;color:#c2362a;cursor:pointer;';
             var noBtn=document.createElement('button');
             noBtn.textContent='No';
             noBtn.style.cssText='font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #d1d5db;background:#f9f9fc;color:#6b7280;cursor:pointer;';
@@ -3150,7 +3110,7 @@ const ITEM_UNITS = [
             reloadBar.appendChild(noBtn);
             var panel=document.getElementById('ppu-sorter-panel');
             var header=document.getElementById('ppu-header');
-            var pagesRow=document.getElementById('ppu-pages-row');
+            var pagesRow=document.getElementById('ppu-pages-standalone-row');
             if(pagesRow&&pagesRow.parentNode){
               pagesRow.parentNode.insertBefore(reloadBar,pagesRow.nextSibling);
             } else if(controlsWrap){

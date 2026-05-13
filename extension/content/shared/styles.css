@@ -1,33 +1,39 @@
-/* search panel (ppu-sorter-panel) and product panel (ppu-product-panel). v0.6.1.37. */
+/* search panel (ppu-sorter-panel) and product panel (ppu-product-panel). Phase 1 — coral+slate palette. */
 
-/* ── Indigo palette — v0.6.1.37 ──────────────────────────────────────── */
+/* ── Coral + slate palette — Phase 1 ─────────────────────────────────── */
 :root {
-  --au-bg:           #FFFFFF;
-  --au-surface:      #f9fafb;                /* panel background */
-  --au-header:       #4f46e5;                /* panel header — indigo-600 */
-  --au-footer:       #e0e7ff;                /* footer bg — indigo-100 */
-  --au-orchid:       #6366f1;                /* sliders, active states, nudge — indigo-500 */
-  --au-orchid-dark:  #4338ca;                /* links & interactive accents — indigo-700 */
-  --au-orchid-hover: #c7d2fe;                /* hover — indigo-200 */
-  --au-periwinkle:   #eef2ff;                /* buttons, inactive pills — indigo-50 */
-  --au-periwinkle-h: #e0e7ff;                /* button hover — indigo-100 */
-  --au-seafoam:      #818cf8;                /* mid accent — indigo-400 */
+  --au-bg:           #ffffff;
+  --au-surface:      #f8fafc;                /* panel bg — slate-50 */
+  --au-header:       #f25d4e;                /* coral — header bg, primary button, brand accent */
+  --au-header-deep:  #c2362a;                /* deep coral — links, hover, brand name in titles */
+  --au-surface-accent: #fef2f0;              /* coral wash — compare bar bg, PPU pill bg, hints */
+  --au-footer:       #fef2f0;                /* footer bg — coral wash */
+  --au-orchid:       #f25d4e;                /* coral — sliders, active states */
+  --au-orchid-dark:  #c2362a;                /* deep coral — links & interactive accents */
+  --au-orchid-hover: #fde8e5;                /* light coral hover */
+  --au-periwinkle:   #fef2f0;                /* coral wash — buttons, inactive pills */
+  --au-periwinkle-h: #fde8e5;                /* coral wash hover */
+  --au-seafoam:      #f47d71;                /* mid coral accent */
   --au-coral:        #FFA590;                /* warnings — unchanged */
-  --au-coral-dark:   #c94b2e;
-  --au-text:         #111827;                /* near-black — gray-900 */
-  --au-text-muted:   #6b7280;                /* muted text — gray-500 */
-  --au-border:       #d1d5db;                /* borders & dividers — gray-300 */
-  --au-row-hover:    #e0e7ff;                /* row hover — indigo-100 */
-  --au-success:      #059669;                /* delivery text — green-600 */
+  --au-coral-dark:   #c94b2e;                /* warning dark — unchanged */
+  --au-text:         #1e293b;                /* slate-800 — body text, headings */
+  --au-text-muted:   #64748b;                /* slate-500 — labels, secondary text */
+  --au-placeholder:  #94a3b8;                /* slate-400 — placeholder text, muted icons */
+  --au-border:       #e2e8f0;                /* slate-200 — row dividers, card dividers */
+  --au-border-outer: #cbd5e1;                /* slate-300 — outer borders, input borders */
+  --au-row-hover:    #fef2f0;                /* coral wash row hover */
+  --au-success:      #0f8a4d;                /* green — delivery dates, SNAP EBT */
   --au-best-value:   #FFFFFF;                /* best value row — white */
   --au-saffron:      oklch(72% 0.18 62);     /* saffron — best value badge */
   --au-saffron-l:    oklch(96% 0.06 80);     /* saffron light — badge bg */
+  --au-warn-bg:      #fef3c7;                /* warning surface — loading banner */
+  --au-warn-text:    #78350f;                /* warning text — loading banner */
 }
 
 #ppu-sorter-panel {
   position:fixed;min-width:280px;max-width:900px;
   max-height:calc(100vh - 100px);overflow:hidden;background:var(--au-surface);
-  border:1px solid var(--au-border);border-radius:8px;box-shadow:0 4px 24px rgba(26,16,53,0.18);
+  border:1px solid var(--au-border);border-radius:8px;box-shadow:0 4px 24px rgba(30,41,59,0.18);
   z-index:99999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:var(--au-text);
   transition:max-height 0.2s;display:flex;flex-direction:column;
   user-select:text;
@@ -61,7 +67,7 @@
 }
 #ppu-help:hover { opacity:1; }
 #ppu-footer-row {
-  flex-shrink:0;border-top:1px solid #c7d2fe;background:var(--au-footer);
+  flex-shrink:0;border-top:1px solid #fcc8c3;background:var(--au-footer);
 }
 #ppu-sort-note {
   padding:2px 14px 0;font-size:10px;color:#4b5563;font-style:italic;
@@ -75,10 +81,10 @@
   display:flex;gap:14px;align-items:center;
 }
 #ppu-feedback, #ppu-coffee {
-  font-size:12px;text-decoration:none;color:#6366f1;
+  font-size:12px;text-decoration:none;color:#f25d4e;
   transition:color 0.15s;white-space:nowrap;font-weight:500;
 }
-#ppu-feedback:hover, #ppu-coffee:hover { color:#3730a3; }
+#ppu-feedback:hover, #ppu-coffee:hover { color:#a02820; }
 
 /* Active filter count badge */
 .ppu-active-badge {
@@ -91,30 +97,30 @@
 #ppu-workflow-banner {
   display:flex;align-items:center;gap:8px;flex-shrink:0;
   padding:7px 10px 7px 12px;
-  background:#f0f2ff;border-bottom:1px solid #e0e4ff;
+  background:#fef2f0;border-bottom:1px solid #fde8e5;
 }
 #ppu-workflow-banner-dot {
-  width:6px;height:6px;border-radius:50%;background:#4f46e5;flex-shrink:0;margin-top:1px;
+  width:6px;height:6px;border-radius:50%;background:#f25d4e;flex-shrink:0;margin-top:1px;
   animation:ppu-pulse-dot 2.4s ease-in-out infinite;
 }
 @keyframes ppu-pulse-dot {
-  0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.5);}
-  60%{box-shadow:0 0 0 4px rgba(79,70,229,0);}
+  0%,100%{box-shadow:0 0 0 0 rgba(242,93,78,.5);}
+  60%{box-shadow:0 0 0 4px rgba(242,93,78,0);}
 }
 #ppu-workflow-banner-text {
-  flex:1;font-size:11.5px;color:#434376;line-height:1.48;
+  flex:1;font-size:11.5px;color:#7c2d12;line-height:1.48;
   user-select:text;cursor:text;
 }
-#ppu-workflow-banner-text strong { color:#1e1b72;font-weight:600; }
-#ppu-workflow-learn { color:#4f46e5;font-weight:500;text-decoration:none; }
+#ppu-workflow-banner-text strong { color:#7f1d1d;font-weight:600; }
+#ppu-workflow-learn { color:#f25d4e;font-weight:500;text-decoration:none; }
 #ppu-workflow-learn:hover { text-decoration:underline; }
 #ppu-workflow-dismiss {
   flex-shrink:0;background:none;border:none;cursor:pointer;
   font-size:13px;width:20px;height:20px;border-radius:4px;
   display:flex;align-items:center;justify-content:center;
-  color:#9898b8;transition:all .1s;
+  color:#94a3b8;transition:all .1s;
 }
-#ppu-workflow-dismiss:hover { color:#4f46e5;background:rgba(79,70,229,.1); }
+#ppu-workflow-dismiss:hover { color:#f25d4e;background:rgba(242,93,78,.1); }
 /* ── Controls wrapper ──────────────────────────────────────────────────── */
 #ppu-controls-wrap { flex-shrink:0;user-select:none;background:var(--au-surface);border-bottom:1px solid var(--au-border); }
 
@@ -135,9 +141,9 @@
 .ppu-collapsible-toggle {
   cursor:pointer;user-select:none;transition:background 0.15s;
 }
-.ppu-collapsible-toggle:hover { background:#f5f6ff; }
-.ppu-collapsible-toggle:hover span { color:#4f46e5; }
-.ppu-collapsible-toggle.collapsed { background:#f9fafb; }
+.ppu-collapsible-toggle:hover { background:#fef9f8; }
+.ppu-collapsible-toggle:hover span { color:#f25d4e; }
+.ppu-collapsible-toggle.collapsed { background:#f8fafc; }
 .ppu-chevron {
   transition:transform 0.2s;display:inline-flex;align-items:center;vertical-align:middle;
 }
@@ -153,21 +159,21 @@
   border:1px solid var(--au-border);
   background:var(--au-periwinkle);
   color:var(--au-text);
-  box-shadow:0 1px 2px rgba(26,16,53,0.1);
+  box-shadow:0 1px 2px rgba(30,41,59,0.1);
   transition:box-shadow 0.1s,background 0.1s,transform 0.1s;
   user-select:none;white-space:nowrap;font-weight:400;
 }
 .ppu-btn:hover {
   background:var(--au-periwinkle-h);
-  border-color:#c7d2fe;
+  border-color:#fcc8c3;
 }
 .ppu-btn:active, .ppu-btn.pressed {
   background:var(--au-periwinkle-h);
-  box-shadow:inset 0 1px 3px rgba(26,16,53,0.15);
+  box-shadow:inset 0 1px 3px rgba(30,41,59,0.15);
   transform:translateY(1px);
 }
 .ppu-btn.btn-teal {
-  border-color:#c7d2fe;color:var(--au-orchid-dark);
+  border-color:#fcc8c3;color:var(--au-orchid-dark);
   background:var(--au-periwinkle);
 }
 .ppu-btn.btn-teal:hover { background:var(--au-periwinkle-h); }
@@ -179,13 +185,13 @@
 .ppu-btn.ppu-btn-primary:hover { background:rgba(255,255,255,0.9);border-color:rgba(255,255,255,0.9); }
 .ppu-btn.btn-teal.pressed, .ppu-btn.btn-teal:active {
   background:var(--au-periwinkle-h);
-  box-shadow:inset 0 1px 3px rgba(107,96,224,0.2);
+  box-shadow:inset 0 1px 3px rgba(194,54,42,0.2);
 }
 .ppu-btn.btn-orange {
-  border-color:#c7d2fe;color:#ffffff;
+  border-color:#fcc8c3;color:#ffffff;
   background:var(--au-header);
 }
-.ppu-btn.btn-orange:hover { background:#4338ca; }
+.ppu-btn.btn-orange:hover { background:#c2362a; }
 .ppu-btn.btn-orange.pressed, .ppu-btn.btn-orange:active {
   background:oklch(62% 0.19 62);
   box-shadow:inset 0 1px 3px rgba(81,43,211,0.2);
@@ -196,8 +202,8 @@
 
 /* Sponsored button states */
 #ppu-btn-hide-sponsored { display:none; }
-#ppu-btn-hide-sponsored.mode-demote { border-color:#c7d2fe;color:var(--au-orchid-dark); }
-#ppu-btn-hide-sponsored.mode-hide   { border-color:#4338ca;color:#ffffff;background:#4f46e5; }
+#ppu-btn-hide-sponsored.mode-demote { border-color:#fcc8c3;color:var(--au-orchid-dark); }
+#ppu-btn-hide-sponsored.mode-hide   { border-color:#c2362a;color:#ffffff;background:#f25d4e; }
 
 /* ── Sort row ────────────────────────────────────────────────────────── */
 #ppu-controls {
@@ -213,7 +219,7 @@
   background-repeat:no-repeat;background-position:right 8px center;
   transition:border-color .12s,box-shadow .12s;
 }
-#ppu-sort:focus { border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.1); }
+#ppu-sort:focus { border-color:#f25d4e;box-shadow:0 0 0 3px rgba(242,93,78,.1); }
 #ppu-btn-resort       { display:none; }
 
 /* ── Pages slider row ────────────────────────────────────────────────── */
@@ -238,17 +244,17 @@
 #ppu-unit-pill-row .pill-label { font-size:11px;font-weight:500;color:#6b7280;white-space:nowrap; }
 .ppu-unit-pill {
   font-size:12px;padding:3px 10px;border-radius:10px;cursor:pointer;
-  border:1px solid #c7d2fe;
+  border:1px solid #fcc8c3;
   background:var(--au-periwinkle);
   color:var(--au-text);
-  box-shadow:0 1px 2px rgba(26,16,53,0.08);
+  box-shadow:0 1px 2px rgba(30,41,59,0.08);
   transition:all 0.12s;user-select:none;
 }
 .ppu-unit-pill:hover { border-color:var(--au-orchid-dark);color:var(--au-orchid-dark); }
 .ppu-unit-pill.active {
   background:var(--au-orchid);
-  color:#ffffff;border-color:#4338ca;font-weight:400;
-  box-shadow:inset 0 1px 3px rgba(26,16,53,0.2);
+  color:#ffffff;border-color:#c2362a;font-weight:400;
+  box-shadow:inset 0 1px 3px rgba(30,41,59,0.2);
 }
 .ppu-unit-pill.recommended { border-color:var(--au-orchid-dark);color:var(--au-orchid-dark); }
 .ppu-unit-pill.recommended::after { content:' ✓';font-size:10px; }
@@ -259,7 +265,7 @@
   display:flex;gap:6px;align-items:flex-start;flex-wrap:nowrap;
 }
 .ppu-kw-wrap { flex:1;min-width:0;display:flex;flex-direction:column;gap:3px; }
-.ppu-kw-label { font-size:11px;font-weight:600;color:#4f46e5;padding:0 2px; }
+.ppu-kw-label { font-size:11px;font-weight:600;color:#f25d4e;padding:0 2px; }
 .ppu-kw-input-row { position:relative; }
 .ppu-kw-hint { font-size:10px;color:#9ca3af;line-height:1.3;padding:0 2px; }
 #ppu-btn-reset-filters {
@@ -276,16 +282,16 @@
   transition:border-color .15s,box-shadow .15s,background .12s;line-height:1;
 }
 #ppu-keyword::placeholder { color:#b8b8c4;font-size:11.5px; }
-#ppu-keyword.active { background:#fff;border-color:rgba(79,70,229,.4); }
-#ppu-keyword:focus { background:#fff;border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.1); }
-#ppu-keyword.active:focus { box-shadow:0 0 0 3px rgba(79,70,229,.1); }
+#ppu-keyword.active { background:#fff;border-color:rgba(242,93,78,.4); }
+#ppu-keyword:focus { background:#fff;border-color:#f25d4e;box-shadow:0 0 0 3px rgba(242,93,78,.1); }
+#ppu-keyword.active:focus { box-shadow:0 0 0 3px rgba(242,93,78,.1); }
 #ppu-btn-clear-kw {
   position:absolute;right:7px;top:50%;transform:translateY(-50%);
   background:none;border:none;color:#b0b0bc;font-size:10px;
   width:17px;height:17px;border-radius:50%;padding:0;
   display:none;align-items:center;justify-content:center;cursor:pointer;transition:all .1s;line-height:1;
 }
-#ppu-btn-clear-kw:hover { background:#ededfb;color:#4f46e5; }
+#ppu-btn-clear-kw:hover { background:#fde8e5;color:#f25d4e; }
 
 /* ── Dual slider row (min reviews + min rating side by side) ─────────── */
 #ppu-sliders-row {
@@ -295,7 +301,7 @@
   flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;
 }
 .ppu-slider-half:first-child { padding-right:12px; }
-.ppu-slider-half:last-child  { padding-left:12px;border-left:1px solid #ebebf5; }
+.ppu-slider-half:last-child  { padding-left:12px;border-left:1px solid #fde8e5; }
 .ppu-slider-label { font-size:11px;font-weight:500;color:#6b7280;white-space:nowrap; }
 .ppu-slider-label em { font-style:normal;font-weight:700;color:#1a1a1a; }
 .ppu-slider-wrap { display:flex;align-items:center;gap:4px;flex:1; }
@@ -319,17 +325,17 @@ input[type=range].ppu-slider::-webkit-slider-thumb {
   -webkit-appearance:none;appearance:none;
   width:13px;height:13px;border-radius:50%;
   background:#ffffff;
-  border:2px solid #4f46e5;
-  box-shadow:0 1px 3px rgba(79,70,229,0.3);
+  border:2px solid #f25d4e;
+  box-shadow:0 1px 3px rgba(242,93,78,0.3);
   cursor:pointer;transition:transform 0.1s,box-shadow 0.1s;
 }
 input[type=range].ppu-slider::-webkit-slider-thumb:hover {
-  transform:scale(1.2);box-shadow:0 0 0 4px rgba(79,70,229,.12),0 1px 3px rgba(79,70,229,.3);
+  transform:scale(1.2);box-shadow:0 0 0 4px rgba(242,93,78,.12),0 1px 3px rgba(242,93,78,.3);
 }
 input[type=range].ppu-slider::-moz-range-thumb {
   width:13px;height:13px;border-radius:50%;
   background:#ffffff;
-  border:2px solid #4f46e5;box-shadow:0 1px 3px rgba(79,70,229,0.3);
+  border:2px solid #f25d4e;box-shadow:0 1px 3px rgba(242,93,78,0.3);
   cursor:pointer;
 }
 /* Tick marks */
@@ -350,7 +356,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
   font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;
   white-space:nowrap;line-height:1.4;
 }
-.ppu-dc-s { background:#eef2ff;color:#3730a3; }
+.ppu-dc-s { background:#fef2f0;color:#a02820; }
 .ppu-dc-k { background:#f5f3ff;color:#5b21b6; }
 .ppu-dc-f { background:#fefce8;color:#a16207; }
 .ppu-dc-p { background:#ecfeff;color:#0e7490; }
@@ -360,7 +366,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
   font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;
   display:inline-flex;align-items:center;letter-spacing:.01em;margin-left:4px;line-height:1.4;
 }
-.ppu-sec-chip-indigo { background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe; }
+.ppu-sec-chip-indigo { background:#fef2f0;color:#a02820;border:1px solid #fcc8c3; }
 .ppu-sec-chip-amber  { background:#fef3c7;color:#b45309;border:1px solid #fde68a; }
 /* ── Source pills row ────────────────────────────────────────────────── */
 #ppu-source-row {
@@ -371,49 +377,49 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-source-toggle {
   font-size:12px;padding:3px 10px;border-radius:10px;cursor:pointer;
   border:1px solid currentColor;transition:all 0.12s;user-select:none;font-weight:400;
-  box-shadow:0 1px 2px rgba(26,16,53,0.07);
+  box-shadow:0 1px 2px rgba(30,41,59,0.07);
 }
-.ppu-source-toggle.src-standard  { color:#ffffff;background:#4338ca;border-color:#4f46e5; }
-.ppu-source-toggle.src-fresh     { color:#111827;background:#c7d2fe;border-color:#a5b4fc; }
-.ppu-source-toggle.src-wf        { color:#111827;background:#c7d2fe;border-color:#c7d2fe; }
-.ppu-source-toggle.src-pharmacy  { color:#111827;background:#c2c5f7;border-color:#c7d2fe; }
+.ppu-source-toggle.src-standard  { color:#ffffff;background:#475569;border-color:#334155; }
+.ppu-source-toggle.src-fresh     { color:#1e293b;background:#e2e8f0;border-color:#cbd5e1; }
+.ppu-source-toggle.src-wf        { color:#1e293b;background:#e2e8f0;border-color:#e2e8f0; }
+.ppu-source-toggle.src-pharmacy  { color:#1e293b;background:#e2e8f0;border-color:#e2e8f0; }
 .ppu-source-toggle.src-partner   { color:#5c1a38;background:#FFA590;border-color:#e07a64; }
 .ppu-source-toggle.off {
   color:var(--au-text-muted);background:var(--au-surface);border-color:var(--au-border);
   text-decoration:line-through;font-weight:normal;
-  box-shadow:inset 0 1px 2px rgba(26,16,53,0.08);
+  box-shadow:inset 0 1px 2px rgba(30,41,59,0.08);
 }
 
 /* ── Shortlist bar ───────────────────────────────────────────────────── */
 #ppu-shortlist-bar {
   display:flex;align-items:center;gap:8px;
-  padding:8px 12px;background:#eef2ff;
+  padding:8px 12px;background:#fef2f0;
   position:sticky;top:0;z-index:10;flex-shrink:0;
-  border-top:3px solid #4f46e5;border-bottom:1px solid #e0e7ff;
+  border-top:3px solid #f25d4e;border-bottom:1px solid #fde8e5;
   transition:background 0.2s,border-color 0.2s;
 }
 #ppu-shortlist-bar.active {
-  background:#4f46e5;border-top-color:#3730a3;border-bottom-color:#3730a3;
+  background:#f25d4e;border-top-color:#a02820;border-bottom-color:#a02820;
 }
 #ppu-select-all-wrap {
   display:flex;align-items:center;position:relative;flex-shrink:0;
 }
 .ppu-select-box {
   display:inline-flex;align-items:center;justify-content:center;
-  width:16px;height:16px;border:1.5px solid #a5b4fc;border-radius:3px;
-  background:#ffffff;cursor:pointer;font-size:10px;font-weight:600;color:#4f46e5;
+  width:16px;height:16px;border:1.5px solid #f9a49d;border-radius:3px;
+  background:#ffffff;cursor:pointer;font-size:10px;font-weight:600;color:#f25d4e;
   user-select:none;flex-shrink:0;transition:background 0.1s,border-color 0.1s;
 }
-.ppu-select-box.checked    { background:#ffffff;border-color:#ffffff;color:#4f46e5; }
-.ppu-select-box.indeterminate { background:rgba(79,70,229,0.15);border-color:#a5b4fc;color:#4f46e5; }
+.ppu-select-box.checked    { background:#ffffff;border-color:#ffffff;color:#f25d4e; }
+.ppu-select-box.indeterminate { background:rgba(242,93,78,0.15);border-color:#f9a49d;color:#f25d4e; }
 #ppu-shortlist-bar.active .ppu-select-box { border-color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:#ffffff; }
-#ppu-shortlist-bar.active .ppu-select-box.checked { background:#ffffff;border-color:#ffffff;color:#4f46e5; }
+#ppu-shortlist-bar.active .ppu-select-box.checked { background:#ffffff;border-color:#ffffff;color:#f25d4e; }
 #ppu-shortlist-bar.active .ppu-select-box.indeterminate { background:rgba(255,255,255,0.3);border-color:#ffffff;color:#ffffff; }
 #ppu-select-all-arrow {
   font-size:8px;padding:0 3px;border:none;background:none;cursor:pointer;
-  color:#a5b4fc;line-height:1;flex-shrink:0;
+  color:#f9a49d;line-height:1;flex-shrink:0;
 }
-#ppu-select-all-arrow:hover { color:#4f46e5; }
+#ppu-select-all-arrow:hover { color:#f25d4e; }
 #ppu-shortlist-bar.active #ppu-select-all-arrow { color:rgba(255,255,255,0.4); }
 #ppu-shortlist-bar.active #ppu-select-all-arrow:hover { color:#ffffff; }
 #ppu-select-all-menu {
@@ -463,7 +469,7 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-meta  { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
 .ppu-price { font-weight:500;color:var(--au-text);font-size:14px; }
 .ppu-count { font-size:0.82rem;color:var(--au-text); }
-.ppu-badge { font-size:12px;font-weight:400;padding:2px 6px;border-radius:4px;background:var(--au-periwinkle);border:1px solid #a5b4fc;color:var(--au-text); }
+.ppu-badge { font-size:12px;font-weight:400;padding:2px 6px;border-radius:4px;background:var(--au-periwinkle);border:1px solid #f9a49d;color:var(--au-text); }
 .ppu-badge.best { background:var(--au-saffron-l);border-color:var(--au-saffron);color:var(--au-saffron); }
 .ppu-converted  { font-size:0.78rem;color:var(--au-text-muted);font-style:italic;margin-left:2px; }
 .ppu-delivery   { font-size:0.82rem;color:var(--au-success);margin-top:2px; }
@@ -476,14 +482,14 @@ input[type=range].ppu-slider::-moz-range-thumb {
 .ppu-note-sns  { color:var(--au-header); }
 .ppu-note-was  { color:var(--au-text-muted);font-weight:normal; }
 .ppu-src-tag  { font-size:0.78rem;padding:1px 4px;border-radius:3px;font-weight:400;margin-bottom:2px;display:inline-block; }
-.ppu-src-wf   { background:#c7d2fe;color:#111827;border:1px solid #a5b4fc; }
-.ppu-src-fr   { background:#c7d2fe;color:#111827;border:1px solid #a5b4fc; }
-.ppu-src-rx   { background:var(--au-periwinkle);color:var(--au-text);border:1px solid #c7d2fe; }
+.ppu-src-wf   { background:#e2e8f0;color:#1e293b;border:1px solid #cbd5e1; }
+.ppu-src-fr   { background:#e2e8f0;color:#1e293b;border:1px solid #cbd5e1; }
+.ppu-src-rx   { background:var(--au-periwinkle);color:var(--au-text);border:1px solid #fcc8c3; }
 .ppu-src-pt   { background:var(--au-coral);color:#5c2415;border:1px solid #F28B73; }
 .ppu-src-dup  { background:var(--au-surface);color:var(--au-text-muted);border:1px solid var(--au-border);font-weight:normal;font-style:italic; }
 .ppu-divider {
-  padding:5px 14px;background:var(--au-periwinkle);border-top:1px solid #c7d2fe;
-  border-bottom:1px solid #c7d2fe;font-size:0.82rem;font-weight:400;color:var(--au-text);
+  padding:5px 14px;background:var(--au-periwinkle);border-top:1px solid #fcc8c3;
+  border-bottom:1px solid #fcc8c3;font-size:0.82rem;font-weight:400;color:var(--au-text);
 }
 mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2px;padding:0 2px; }
 
@@ -495,25 +501,25 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 #ppu-btn-load-more {
   font-size:12px;padding:5px 14px;border:1px solid var(--au-border);border-radius:5px;
   background:var(--au-periwinkle);cursor:pointer;color:var(--au-text);width:100%;
-  box-shadow:0 1px 2px rgba(26,16,53,0.08);font-weight:400;
+  box-shadow:0 1px 2px rgba(30,41,59,0.08);font-weight:400;
 }
 #ppu-btn-load-more:hover { background:var(--au-periwinkle-h); }
 #ppu-btn-load-more:disabled { opacity:0.5;cursor:default; }
 
 #ppu-drag-handle {
   position:absolute;left:0;top:0;bottom:0;width:6px;cursor:ew-resize;
-  background:linear-gradient(to right,rgba(107,96,224,0.12),transparent);
+  background:linear-gradient(to right,rgba(194,54,42,0.12),transparent);
   border-radius:8px 0 0 8px;z-index:100;
 }
-#ppu-drag-handle:hover { background:linear-gradient(to right,rgba(107,96,224,0.2),transparent); }
+#ppu-drag-handle:hover { background:linear-gradient(to right,rgba(194,54,42,0.2),transparent); }
 
 /* ── Bottom resize handle (height) ──────────────────────────────────── */
 #ppu-bottom-handle {
   position:absolute;bottom:0;left:0;right:0;height:6px;cursor:ns-resize;
-  background:linear-gradient(to bottom,transparent,rgba(107,96,224,0.12));
+  background:linear-gradient(to bottom,transparent,rgba(194,54,42,0.12));
   border-radius:0 0 8px 8px;z-index:100;flex-shrink:0;
 }
-#ppu-bottom-handle:hover { background:linear-gradient(to bottom,transparent,rgba(107,96,224,0.2)); }
+#ppu-bottom-handle:hover { background:linear-gradient(to bottom,transparent,rgba(194,54,42,0.2)); }
 
 #ppu-delivery-note { font-size:0.82rem;color:var(--au-text-muted);font-style:italic;padding:3px 14px 4px;border-bottom:1px solid var(--au-border); }
 #ppu-wf-note { font-size:0.82rem;color:var(--au-text-muted);font-style:italic;padding:8px 14px;border-top:1px solid var(--au-border);background:var(--au-surface);flex-shrink:0;text-align:center; }
@@ -522,7 +528,7 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 
 #ppu-nudge {
   position:fixed;bottom:24px;right:16px;z-index:100000;width:340px;
-  background:var(--au-orchid);color:#ffffff;border-radius:8px;box-shadow:0 4px 20px rgba(26,16,53,0.3);
+  background:var(--au-orchid);color:#ffffff;border-radius:8px;box-shadow:0 4px 20px rgba(30,41,59,0.3);
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:1rem;animation:ppu-nudge-in 0.3s ease;
 }
 @keyframes ppu-nudge-in { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
@@ -543,7 +549,7 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 #ppu-product-panel {
   position:fixed;top:80px;right:16px;width:340px;min-width:260px;max-width:600px;
   max-height:calc(100vh - 100px);overflow:hidden;background:var(--au-surface);
-  border:1px solid var(--au-border);border-radius:8px;box-shadow:0 4px 24px rgba(26,16,53,0.18);
+  border:1px solid var(--au-border);border-radius:8px;box-shadow:0 4px 24px rgba(30,41,59,0.18);
   z-index:99999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px;color:var(--au-text);
   display:flex;flex-direction:column;user-select:none;
 }
@@ -553,7 +559,7 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 
 /* Context bar */
 #ppu-product-context {
-  padding:6px 14px;background:var(--au-periwinkle);border-bottom:1px solid #c7d2fe;
+  padding:6px 14px;background:var(--au-periwinkle);border-bottom:1px solid #fcc8c3;
   font-size:0.82rem;color:var(--au-text);
 }
 #ppu-product-context strong { font-weight:500; }
@@ -621,7 +627,7 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 .ppu-product-coupon { color:var(--au-success);font-weight:400; }
 .ppu-product-prime-badge {
   font-size:0.75rem;padding:1px 5px;border-radius:3px;
-  background:var(--au-periwinkle);color:var(--au-text);border:1px solid #c7d2fe;font-weight:400;
+  background:var(--au-periwinkle);color:var(--au-text);border:1px solid #fcc8c3;font-weight:400;
 }
 .ppu-product-warning {
   font-size:0.8rem;color:#8a6a00;margin-top:4px;line-height:1.4;
@@ -641,8 +647,8 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 .ppu-product-btn-small {
   font-size:11px;padding:4px 0;margin-top:4px;
 }
-.ppu-product-btn-active { background:#4f46e5;color:#fff; }
-.ppu-product-btn-active:hover { background:#4338ca; }
+.ppu-product-btn-active { background:#f25d4e;color:#fff; }
+.ppu-product-btn-active:hover { background:#c2362a; }
 
 .ppu-product-note-input {
   width:100%;box-sizing:border-box;font-size:12px;padding:5px 7px;
@@ -650,7 +656,7 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:var(--au-text);margin-top:4px;
   background:var(--au-bg);
 }
-.ppu-product-note-input:focus { border-color:var(--au-orchid);outline:none;box-shadow:0 0 0 2px rgba(107,96,224,0.2); }
+.ppu-product-note-input:focus { border-color:var(--au-orchid);outline:none;box-shadow:0 0 0 2px rgba(194,54,42,0.2); }
 
 .ppu-product-shortlist-status { font-size:0.8rem;color:var(--au-success);margin-top:4px;min-height:1em; }
 .ppu-product-shortlist-row { margin-bottom:2px; }
@@ -753,3 +759,55 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 
 /* Delivery hide row state */
 .ppu-row.delivery-hidden { display:none!important; }
+
+/* ── Phase 1 layout additions ────────────────────────────────────────── */
+
+/* Minimize button — inert in Phase 1; wired in Phase 4 */
+#ppu-minimize {
+  background:none;border:none;color:#ffffff;font-size:16px;cursor:default;
+  line-height:1;padding:0 3px;flex-shrink:0;opacity:0.7;
+}
+/* NOTE: ppu-minimize is intentionally non-functional in Phase 1.
+   Wire it up (collapse/expand panel) in Phase 4. */
+
+/* Sort row — now always-visible, not inside collapsible */
+#ppu-sort-row {
+  padding:5px 12px 4px;
+  display:flex;gap:6px;align-items:center;flex-wrap:nowrap;
+  border-bottom:1px solid var(--au-border);
+  background:var(--au-surface);flex-shrink:0;
+}
+#ppu-sort-row-label {
+  font-size:12px;color:var(--au-text-muted);white-space:nowrap;flex-shrink:0;
+}
+
+/* Pages row — now always-visible, not inside collapsible */
+#ppu-pages-standalone-row {
+  padding:4px 12px 5px;
+  display:flex;align-items:center;gap:8px;flex-wrap:nowrap;
+  border-bottom:1px solid var(--au-border);
+  background:var(--au-surface);flex-shrink:0;
+}
+#ppu-pages-standalone-label {
+  font-size:12px;color:var(--au-text-muted);white-space:nowrap;flex-shrink:0;
+}
+#ppu-pages-standalone-label b { font-weight:700;color:var(--au-text);font-style:normal; }
+#ppu-pages-standalone-label em { font-weight:700;color:var(--au-text);font-style:normal; }
+
+/* Shortlist bar — disabled state (empty, no items checked) */
+/* NOTE: ppu-btn-compare is non-clickable (pointer-events:none) when 0 items are checked.
+   Phase 2+ should wire this to show a tooltip or proper disabled state UX. */
+#ppu-btn-compare:disabled,
+#ppu-btn-compare.disabled {
+  opacity:0.4;cursor:default;pointer-events:none;
+}
+
+/* Workflow banner — coral wash palette */
+#ppu-workflow-banner {
+  background:var(--au-surface-accent);border-bottom:1px solid #fcc8c3;
+}
+#ppu-workflow-banner-dot { background:var(--au-header); }
+#ppu-workflow-banner-text { color:#7c2d12; }
+#ppu-workflow-banner-text strong { color:#7f1d1d; }
+#ppu-workflow-learn { color:var(--au-header); }
+#ppu-workflow-dismiss:hover { color:var(--au-header);background:rgba(242,93,78,.1); }
