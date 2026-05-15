@@ -962,3 +962,164 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 #ppu-workflow-banner-text strong { color:#7f1d1d; }
 #ppu-workflow-learn { color:var(--au-header); }
 #ppu-workflow-dismiss:hover { color:var(--au-header);background:rgba(242,93,78,.1); }
+
+/* ── Phase 5 — Settings view ─────────────────────────────────────────── */
+
+/* Gear icon button in expanded header */
+#ppu-settings-btn,
+#ppu-settings-back {
+  background:none;border:none;color:#ffffff;cursor:pointer;
+  line-height:1;padding:0 3px;flex-shrink:0;opacity:0.85;
+  transition:opacity 0.15s;
+  display:flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:4px;
+}
+#ppu-settings-btn:hover,
+#ppu-settings-back:hover { opacity:1; background:rgba(255,255,255,0.15); }
+
+/* Settings footer link */
+#ppu-settings-link {
+  font-size:12px;color:#f25d4e;font-weight:500;white-space:nowrap;
+  cursor:pointer;transition:color 0.15s;
+}
+#ppu-settings-link:hover { color:#a02820; }
+
+/* Settings view container */
+#ppu-settings-view {
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  background:var(--au-surface);
+  display:flex;flex-direction:column;
+}
+
+/* Settings internal header (shows "Settings" label) */
+#ppu-settings-header {
+  background:var(--au-header);
+  padding:7px 14px;
+  flex-shrink:0;
+}
+#ppu-settings-title {
+  color:#ffffff;font-size:12px;font-weight:500;letter-spacing:0.03em;opacity:0.9;
+}
+
+/* Settings section */
+.ppu-settings-section {
+  padding:10px 16px 12px;
+  border-bottom:1px solid var(--au-border);
+  flex-shrink:0;
+}
+.ppu-settings-reset-section {
+  border-bottom:none;
+  padding-top:16px;
+  display:flex;flex-direction:column;align-items:flex-start;gap:10px;
+}
+
+/* Section label — muted uppercase 11px */
+.ppu-settings-section-label {
+  font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.06em;
+  color:var(--au-text-muted);
+  margin-bottom:10px;
+}
+
+/* Control row */
+.ppu-settings-row {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px 16px;
+  align-items:start;
+  padding:7px 0;
+  border-top:1px solid var(--au-border);
+}
+.ppu-settings-row:first-of-type { border-top:none;padding-top:0; }
+
+/* Row label */
+.ppu-settings-row-label {
+  font-size:13px;font-weight:500;color:var(--au-text);
+  padding-top:2px;line-height:1.4;
+}
+
+/* Row control area */
+.ppu-settings-row-control {
+  display:flex;flex-direction:column;gap:4px;
+}
+
+/* Hint text */
+.ppu-settings-hint {
+  font-size:11px;color:var(--au-text-muted);line-height:1.45;
+}
+
+/* Select inputs in settings */
+.ppu-settings-row-control select {
+  font-size:12px;padding:5px 8px;
+  border:1px solid var(--au-border-outer);border-radius:5px;
+  background:#ffffff;color:var(--au-text);
+  max-width:220px;
+}
+.ppu-settings-row-control select:focus {
+  outline:none;border-color:var(--au-header);
+}
+
+/* Number inputs in settings */
+.ppu-settings-row-control input[type="number"] {
+  font-size:12px;padding:5px 8px;width:72px;
+  border:1px solid var(--au-border-outer);border-radius:5px;
+  background:#ffffff;color:var(--au-text);
+}
+.ppu-settings-row-control input[type="number"]:focus {
+  outline:none;border-color:var(--au-header);
+}
+
+/* Toggle switch */
+.ppu-set-toggle {
+  width:36px;height:20px;border-radius:10px;
+  background:var(--au-border-outer);
+  position:relative;cursor:pointer;flex-shrink:0;
+  transition:background 0.15s;
+  user-select:none;
+}
+.ppu-set-toggle.on { background:var(--au-header); }
+.ppu-set-toggle-knob {
+  position:absolute;top:2px;left:2px;
+  width:16px;height:16px;border-radius:50%;
+  background:#ffffff;
+  box-shadow:0 1px 3px rgba(0,0,0,0.2);
+  transition:transform 0.15s;
+  pointer-events:none;
+}
+.ppu-set-toggle.on .ppu-set-toggle-knob { transform:translateX(16px); }
+
+/* Radio group for card density */
+.ppu-set-radio-group {
+  display:flex;gap:12px;flex-wrap:wrap;
+}
+.ppu-set-radio-label {
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:12px;color:var(--au-text);cursor:pointer;
+}
+.ppu-set-radio-label input[type="radio"] {
+  accent-color:var(--au-header);cursor:pointer;
+}
+
+/* Shipping days sub-row */
+.ppu-set-shipping-days-wrap {
+  display:flex;flex-direction:column;gap:4px;
+  margin-top:4px;
+}
+.ppu-set-shipping-days-wrap.hidden { display:none; }
+
+/* Reset button */
+.ppu-set-reset-btn {
+  font-size:12px;padding:6px 14px;
+  border:1px solid var(--au-border-outer);border-radius:5px;
+  background:#ffffff;color:var(--au-header-deep);
+  cursor:pointer;transition:background 0.12s,border-color 0.12s;
+  font-weight:500;
+}
+.ppu-set-reset-btn:hover {
+  background:var(--au-surface-accent);border-color:#fcc8c3;
+}
+
+/* Version display */
+.ppu-settings-version {
+  font-size:11px;color:var(--au-text-muted);
+}

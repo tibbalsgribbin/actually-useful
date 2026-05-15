@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.82)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.83)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1456,6 +1456,27 @@ const ITEM_UNITS = [
   // auPanelSnapped: "left" | "right" | null — when set, overrides x at restore time.
   var panelMinimized = false;   // loaded from auPanelMinimized
   var panelSnapped   = null;    // loaded from auPanelSnapped: "left" | "right" | null
+
+  // ── Phase 5 — Settings state ──────────────────────────────────────────
+  // panelInSettings: true when the settings view is active (results view hidden).
+  // Does NOT persist across page loads — always starts in results view.
+  var panelInSettings = false;
+
+  // User-saved defaults — loaded from chrome.storage.local at startup.
+  // Used by updateActiveIndicators() and to initialize filter controls on fresh search loads.
+  // Falls back to built-in defaults when a key is not set.
+  var userDefaults = {
+    sort:              'ppu-asc',   // auDefaultSort
+    pages:             4,           // auDefaultPages
+    moveAdsToEnd:      true,        // auDefaultMoveAdsToEnd
+    minRating:         0,           // auDefaultMinRating
+    minReviews:        0,           // auDefaultMinReviews
+    moveAmazonBrands:  false,       // auDefaultMoveAmazonBrands
+    moveUnrecognized:  true,        // auDefaultMoveUnrecognized
+    hideSlowShipping:  false,       // auDefaultHideSlowShipping
+    slowShippingDays:  7,           // auDefaultSlowShippingDays
+    telemetry:         true         // au_telemetry_enabled
+  };
   var deliveryFilterActive = false;
   var deliveryFilterDays   = 7;   // default 7 days; presets: 2/3/5/7/10/14/21
   var isLiquidDominant = false;
@@ -1589,6 +1610,10 @@ const ITEM_UNITS = [
     }));
 
     // ── Restore filters for this search term ──────────────────────────────
+    // Session filters store per-search overrides (keyword, price range, source
+    // toggles, unit pill). Values that have user-saved defaults (sort, pages,
+    // min rating/reviews, brand/delivery toggles) always initialize from
+    // userDefaults so that changes in Settings take effect on the next load.
     var savedFilters = null;
     try {
       var fkey = getFilterStorageKey(searchTerm);
@@ -1596,34 +1621,29 @@ const ITEM_UNITS = [
       if (fraw) savedFilters = JSON.parse(fraw);
     } catch(e) {}
 
+    // Always initialize defaults-backed values from userDefaults
+    sortVal       = userDefaults.sort;
+    minReviews    = userDefaults.minReviews;
+    minRating     = userDefaults.minRating;
+    sponsoredMode = userDefaults.moveAdsToEnd ? 'demote' : 'show';
+    brandFilterActive        = userDefaults.moveUnrecognized;
+    amazonBrandsDemoteActive = userDefaults.moveAmazonBrands;
+    deliveryFilterActive     = userDefaults.hideSlowShipping;
+    deliveryFilterDays       = userDefaults.slowShippingDays;
+
     if (savedFilters) {
-      keyword       = savedFilters.keyword       || '';
-      sortVal       = savedFilters.sortVal       || 'ppu-asc';
-      minReviews    = savedFilters.minReviews    || 0;
-      minRating     = savedFilters.minRating     || 0;
-      minPrice      = savedFilters.minPrice      || '';
-      maxPrice      = savedFilters.maxPrice      || '';
-      sponsoredMode = savedFilters.sponsoredMode || 'show';
-      selectedUnit  = savedFilters.selectedUnit  || null;
-      brandFilterActive = !!savedFilters.brandFilterActive;
-      amazonBrandsDemoteActive = !!savedFilters.amazonBrandsDemoteActive;
-      deliveryFilterActive = !!savedFilters.deliveryFilterActive;
-      deliveryFilterDays   = savedFilters.deliveryFilterDays || 7;
+      // Restore only true per-search overrides
+      keyword      = savedFilters.keyword      || '';
+      minPrice     = savedFilters.minPrice     || '';
+      maxPrice     = savedFilters.maxPrice     || '';
+      selectedUnit = savedFilters.selectedUnit || null;
       // srcFilter restored after detectedRetailers is built below
     } else {
-      // Fresh search — reset all filters
-      keyword       = '';
-      sortVal       = 'ppu-asc';
-      minReviews    = 0;
-      minRating     = 0;
-      minPrice      = '';
-      maxPrice      = '';
-      sponsoredMode = 'show';
-      selectedUnit  = null;
-      brandFilterActive = false;
-      amazonBrandsDemoteActive = false;
-      deliveryFilterActive = false;
-      deliveryFilterDays   = 7;
+      // Completely fresh search — clear per-search state
+      keyword      = '';
+      minPrice     = '';
+      maxPrice     = '';
+      selectedUnit = null;
     }
 
     isLiquidDominant=inferLiquidDominant(allData);
@@ -1699,6 +1719,9 @@ const ITEM_UNITS = [
             '<h3>Actually Useful</h3>'+
           '</div>'+
           '<div id="ppu-header-btns">'+
+            '<button id="ppu-settings-btn" title="Settings" aria-label="Settings">'+
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'+
+            '</button>'+
             '<a id="ppu-help" href="https://actuallyuseful.net" target="_blank" title="Help &amp; instructions">?</a>'+
             '<button id="ppu-minimize" title="Minimize">\u2212</button>'+
             '<button id="ppu-close" title="Close (coming in a future update)">\u00d7</button>'+
@@ -1926,6 +1949,7 @@ const ITEM_UNITS = [
           '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">Give feedback</a>'+
           '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">Buy me a coffee</a>'+
           '<span id="ppu-blocklist-link" style="cursor:pointer;text-decoration:underline;color:#c2362a;font-size:11px;">My brand rules (0)</span>'+
+          '<span id="ppu-settings-link" style="cursor:pointer;text-decoration:underline;color:#c2362a;font-size:11px;">Settings</span>'+
         '</div>'+
       '</div>';
 
@@ -2090,7 +2114,7 @@ const ITEM_UNITS = [
       var snapSide = null; // snap side detected during current drag
 
       // Prevent drag from firing on icon buttons in title bar
-      var iconSelectors = '#ppu-minimize,#ppu-close,#ppu-help,#ppu-expand,#ppu-close-min';
+      var iconSelectors = '#ppu-minimize,#ppu-close,#ppu-help,#ppu-expand,#ppu-close-min,#ppu-settings-btn,#ppu-settings-back';
       hdr.querySelectorAll(iconSelectors).forEach(function(btn) {
         btn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
       });
@@ -2249,7 +2273,7 @@ const ITEM_UNITS = [
     // Guard: only fire if it wasn't a drag (handled by click vs drag disambiguation above)
     function addDoubleClickToggle(hdr) {
       if (!hdr) return;
-      var iconSel = '#ppu-minimize,#ppu-close,#ppu-help,#ppu-expand,#ppu-close-min';
+      var iconSel = '#ppu-minimize,#ppu-close,#ppu-help,#ppu-expand,#ppu-close-min,#ppu-settings-btn,#ppu-settings-back';
       hdr.addEventListener('dblclick', function(e) {
         if (e.target.closest(iconSel)) return;
         e.preventDefault();
@@ -2268,7 +2292,8 @@ const ITEM_UNITS = [
       var isDragResize = false, fixedRight;
       dh.addEventListener('mousedown', function(e) {
         isDragResize = true;
-        fixedRight = panel.getBoundingClientRect().right;
+        // Clamp fixedRight to viewport width so narrowing can't push panel off-screen
+        fixedRight = Math.min(panel.getBoundingClientRect().right, window.innerWidth - 4);
         document.body.style.userSelect = 'none';
         e.preventDefault();
       });
@@ -2280,7 +2305,9 @@ const ITEM_UNITS = [
         if (panelSnapped === 'right') {
           panel.style.left = (window.innerWidth - newWidth) + 'px';
         } else if (panelSnapped !== 'left') {
-          panel.style.left = (fixedRight - newWidth) + 'px';
+          // Keep right edge at fixedRight; clamp left so panel stays on-screen
+          var newLeft = Math.max(0, fixedRight - newWidth);
+          panel.style.left = newLeft + 'px';
         }
         // If snapped to left, left stays at 0; width just grows rightward
       });
@@ -2983,22 +3010,21 @@ const ITEM_UNITS = [
     function updateActiveIndicators() {
       // Active count pill in the filters trigger row.
       // Counts ALL non-default filter states.
-      // Phase 5 note: when Settings ships, swap the "default" comparisons below
-      // (currently hardcoded to built-in defaults) to compare against user-saved defaults.
-      // Each line is one swap — the structure is intentionally ready for it.
+      // Phase 5: comparisons are against user-saved defaults (userDefaults.*),
+      // falling back to built-in defaults when the user has not changed a setting.
       var activeCount = 0;
-      if (minReviews > 0) activeCount++;          // default: 0
-      if (minRating > 0) activeCount++;            // default: 0
-      if (minPrice) activeCount++;                 // default: '' (full range)
-      if (maxPrice) activeCount++;                 // default: '' (full range)
+      if (minReviews !== userDefaults.minReviews) activeCount++;
+      if (minRating  !== userDefaults.minRating)  activeCount++;
+      if (minPrice) activeCount++;                 // no user-default surface — always compare to ''
+      if (maxPrice) activeCount++;                 // no user-default surface — always compare to ''
       if (Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; })) activeCount++; // default: all on
-      if (snapOnly) activeCount++;                 // default: false
-      if (fsaHsaOnly) activeCount++;               // default: false
-      if (climatePledgeOnly) activeCount++;        // default: false
-      if (smallBusinessOnly) activeCount++;        // default: false
-      if (brandFilterActive) activeCount++;        // default: false
-      if (amazonBrandsDemoteActive) activeCount++; // default: false
-      if (deliveryFilterActive) activeCount++;     // default: false
+      if (snapOnly) activeCount++;                 // no user-default surface
+      if (fsaHsaOnly) activeCount++;               // no user-default surface
+      if (climatePledgeOnly) activeCount++;        // no user-default surface
+      if (smallBusinessOnly) activeCount++;        // no user-default surface
+      if (brandFilterActive !== userDefaults.moveUnrecognized) activeCount++;
+      if (amazonBrandsDemoteActive !== userDefaults.moveAmazonBrands) activeCount++;
+      if (deliveryFilterActive !== userDefaults.hideSlowShipping) activeCount++;
 
       var activePill = document.getElementById('ppu-filters-active-pill');
       if (activePill) {
@@ -3775,7 +3801,468 @@ const ITEM_UNITS = [
     var blocklistLink=document.getElementById('ppu-blocklist-link');
     if(blocklistLink) blocklistLink.addEventListener('click',function(e){e.stopPropagation();showBlocklistView();});
 
-    // ── Pages slider ─────────────────────────────────────────────────────
+    // ── Phase 5 — Settings view ───────────────────────────────────────────
+    //
+    // Settings is a top-level panel state. openSettings() hides the results
+    // content region and injects the settings view in its place. closeSettings()
+    // restores results state — filter values, checked items, keyword input are
+    // all preserved. Settings does NOT persist across page reloads.
+    //
+    // Gear icon: #ppu-settings-btn (expanded header)
+    // Footer link: #ppu-settings-link
+    // Back arrow: #ppu-settings-back (injected by openSettings)
+
+    function openSettings() {
+      // Close filters overlay first — no coexistence
+      var overlay = document.getElementById('ppu-filters-overlay');
+      var trigger = document.getElementById('ppu-filters-trigger');
+      var chevron = document.getElementById('ppu-filters-chevron');
+      if (overlay && overlay.style.maxHeight !== '0px' && overlay.style.maxHeight !== '') {
+        overlay.style.maxHeight = '0';
+        if (chevron) chevron.style.transform = '';
+        if (trigger) trigger.setAttribute('aria-expanded','false');
+      }
+
+      // Widen panel to 580px if narrower
+      var currentWidth = parseInt(panel.style.width, 10) || panel.offsetWidth || 390;
+      if (currentWidth < 580) {
+        panel.style.width = '580px';
+        panel.style.minWidth = '580px';
+      }
+
+      // Mark state
+      panelInSettings = true;
+
+      // Swap gear icon for back arrow in header
+      var settingsBtn = document.getElementById('ppu-settings-btn');
+      if (settingsBtn) {
+        settingsBtn.id = 'ppu-settings-back';
+        settingsBtn.title = 'Back to results';
+        settingsBtn.innerHTML =
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'+
+          '<polyline points="15 18 9 12 15 6"/></svg>';
+        settingsBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          closeSettings();
+        });
+      }
+
+      // Hide results content region — keep header visible
+      // Hide individual rows inside controls-wrap rather than the whole wrapper,
+      // so the header (and its drag affordance) stays rendered in settings view.
+      var contentRowIds = [
+        'ppu-workflow-banner','ppu-filter-row','ppu-unit-pill-row',
+        'ppu-sort-row','ppu-pages-standalone-row',
+        'ppu-filters-trigger','ppu-filters-overlay','ppu-dec-bar'
+      ];
+      contentRowIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      var scrollArea   = document.getElementById('ppu-scroll-area');
+      var wfNote       = document.getElementById('ppu-wf-note');
+      var mixedBanner  = document.getElementById('ppu-mixed-units-banner');
+      if (scrollArea)   scrollArea.style.display   = 'none';
+      if (wfNote)       wfNote.style.display       = 'none';
+      if (mixedBanner)  mixedBanner.style.display  = 'none';
+
+      // Build and inject settings view
+      var existing = document.getElementById('ppu-settings-view');
+      if (existing) existing.remove();
+
+      var sv = document.createElement('div');
+      sv.id = 'ppu-settings-view';
+
+      // Read current density for radio
+      var densityDense = (cardDensity !== 'comfortable');
+
+      // Read current telemetry for toggle
+      var telOn = userDefaults.telemetry;
+
+      // Version string from manifest
+      var manifestVer = '';
+      try { manifestVer = chrome.runtime.getManifest().version; } catch(e) {}
+      var verStr = manifestVer ? 'Actually Useful v' + manifestVer : 'Actually Useful v0.6.1.83';
+
+      sv.innerHTML =
+        '<div id="ppu-settings-header">'+
+          '<span id="ppu-settings-title">Settings</span>'+
+        '</div>'+
+
+        // §7.1 Defaults for every search
+        '<div class="ppu-settings-section">'+
+          '<div class="ppu-settings-section-label">Defaults for every search</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Default sort</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<select id="ppu-set-sort">'+
+                '<option value="ppu-asc">Best value \u2191</option>'+
+                '<option value="price-asc">Price low\u2192high</option>'+
+                '<option value="delivery-free">Soonest FREE delivery</option>'+
+                '<option value="delivery-any">Soonest ANY delivery</option>'+
+                '<option value="amazon-default">As Amazon listed</option>'+
+              '</select>'+
+              '<div class="ppu-settings-hint">How results are ordered when a search loads</div>'+
+            '</div>'+
+          '</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Pages to load by default</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<input id="ppu-set-pages" type="number" min="1" max="7" value="'+userDefaults.pages+'">'+
+              '<div class="ppu-settings-hint">Loading more pages takes longer \u2014 but it\u2019s also what gives you a complete picture before you start filtering. If you plan to send your shortlist to the comparison page, you\u2019ll probably want more pages, not fewer.</div>'+
+            '</div>'+
+          '</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Move ads to end of results</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<div class="ppu-set-toggle'+(userDefaults.moveAdsToEnd?' on':'')+'" id="ppu-set-ads-toggle" role="switch" aria-checked="'+(userDefaults.moveAdsToEnd?'true':'false')+'"><div class="ppu-set-toggle-knob"></div></div>'+
+              '<div class="ppu-settings-hint">Sponsored listings still visible, just at the bottom</div>'+
+            '</div>'+
+          '</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Card density</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<div class="ppu-set-radio-group">'+
+                '<label class="ppu-set-radio-label"><input type="radio" name="ppu-density" value="dense"'+(densityDense?' checked':'')+'>Dense</label>'+
+                '<label class="ppu-set-radio-label"><input type="radio" name="ppu-density" value="comfortable"'+(densityDense?'':' checked')+'>Comfortable</label>'+
+              '</div>'+
+              '<div class="ppu-settings-hint">How much space each result takes up</div>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+
+        // §7.2 Quality thresholds
+        '<div class="ppu-settings-section">'+
+          '<div class="ppu-settings-section-label">Quality thresholds</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Minimum rating</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<select id="ppu-set-rating">'+
+                '<option value="0">Any</option>'+
+                '<option value="3">3\u2605 and up</option>'+
+                '<option value="4">4\u2605 and up</option>'+
+                '<option value="4.5">4.5\u2605 and up</option>'+
+              '</select>'+
+              '<div class="ppu-settings-hint">Hide items below this rating</div>'+
+            '</div>'+
+          '</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Minimum reviews</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<input id="ppu-set-reviews" type="number" min="0" value="'+userDefaults.minReviews+'">'+
+              '<div class="ppu-settings-hint">Hide items with fewer reviews</div>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+
+        // §7.3 Brand & shipping
+        '<div class="ppu-settings-section">'+
+          '<div class="ppu-settings-section-label">Brand &amp; shipping</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Move Amazon brands to end</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<div class="ppu-set-toggle'+(userDefaults.moveAmazonBrands?' on':'')+'" id="ppu-set-amazon-brands-toggle" role="switch" aria-checked="'+(userDefaults.moveAmazonBrands?'true':'false')+'"><div class="ppu-set-toggle-knob"></div></div>'+
+              '<div class="ppu-settings-hint">AmazonBasics, Solimo, etc.</div>'+
+            '</div>'+
+          '</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Move unrecognized brands to end</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<div class="ppu-set-toggle'+(userDefaults.moveUnrecognized?' on':'')+'" id="ppu-set-unrecognized-toggle" role="switch" aria-checked="'+(userDefaults.moveUnrecognized?'true':'false')+'"><div class="ppu-set-toggle-knob"></div></div>'+
+              '<div class="ppu-settings-hint">Likely dropship junk \u2014 moved, not hidden. You can always include or exclude any specific brand from results using the \u22ef menu on a result, or the My brand rules page.</div>'+
+            '</div>'+
+          '</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Hide slow shipping</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<div class="ppu-set-toggle'+(userDefaults.hideSlowShipping?' on':'')+'" id="ppu-set-shipping-toggle" role="switch" aria-checked="'+(userDefaults.hideSlowShipping?'true':'false')+'"><div class="ppu-set-toggle-knob"></div></div>'+
+              '<div id="ppu-set-shipping-days-wrap" class="ppu-set-shipping-days-wrap'+(userDefaults.hideSlowShipping?'':' hidden')+'">'+
+                '<span class="ppu-settings-hint" style="margin-top:4px;">Hide items not arriving within</span>'+
+                '<select id="ppu-set-shipping-days">'+
+                  [3,5,7,10,14].map(function(d){return '<option value="'+d+'"'+(userDefaults.slowShippingDays===d?' selected':'')+'>'+d+' days</option>';}).join('')+
+                '</select>'+
+              '</div>'+
+              '<div class="ppu-settings-hint" id="ppu-set-shipping-hint"'+(userDefaults.hideSlowShipping?' style="display:none"':'')+'>Hide items not arriving within your window</div>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+
+        // §7.4 Privacy
+        '<div class="ppu-settings-section">'+
+          '<div class="ppu-settings-section-label">Privacy</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Share anonymous usage data</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<div class="ppu-set-toggle'+(telOn?' on':'')+'" id="ppu-set-telemetry-toggle" role="switch" aria-checked="'+(telOn?'true':'false')+'"><div class="ppu-set-toggle-knob"></div></div>'+
+              '<div class="ppu-settings-hint">Helps Actually Useful improve \u2014 no personal info, no purchase history</div>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+
+        // Reset to defaults
+        '<div class="ppu-settings-section ppu-settings-reset-section">'+
+          '<button id="ppu-set-reset-btn" class="ppu-set-reset-btn">Reset all settings to defaults</button>'+
+          '<div id="ppu-settings-version" class="ppu-settings-version">'+verStr+'</div>'+
+        '</div>';
+
+      // Insert settings view after footer row (it fills the panel between header and footer)
+      var footerRow = document.getElementById('ppu-footer-row');
+      if (footerRow) {
+        panel.insertBefore(sv, footerRow);
+      } else {
+        panel.appendChild(sv);
+      }
+
+      // Set select values after injection
+      var sortSel = document.getElementById('ppu-set-sort');
+      if (sortSel) sortSel.value = userDefaults.sort;
+
+      var ratingSel = document.getElementById('ppu-set-rating');
+      if (ratingSel) ratingSel.value = String(userDefaults.minRating);
+
+      // ── Wire settings controls ────────────────────────────────────────
+
+      // Helper: save a key and update userDefaults
+      function saveSetting(key, val) {
+        var obj = {};
+        obj[key] = val;
+        try { chrome.storage.local.set(obj); } catch(e) {}
+      }
+
+      // Helper: toggle element
+      function wireToggle(id, defaultsKey, storageKey, onChangeCb) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('click', function() {
+          var isOn = el.classList.toggle('on');
+          el.setAttribute('aria-checked', isOn ? 'true' : 'false');
+          userDefaults[defaultsKey] = isOn;
+          saveSetting(storageKey, isOn);
+          if (onChangeCb) onChangeCb(isOn);
+          updateActiveIndicators();
+        });
+      }
+
+      // Sort
+      if (sortSel) {
+        sortSel.addEventListener('change', function() {
+          userDefaults.sort = this.value;
+          saveSetting('auDefaultSort', this.value);
+          updateActiveIndicators();
+        });
+      }
+
+      // Pages
+      var pagesInput = document.getElementById('ppu-set-pages');
+      if (pagesInput) {
+        pagesInput.addEventListener('change', function() {
+          var v = Math.max(1, Math.min(7, parseInt(this.value, 10) || 4));
+          this.value = v;
+          userDefaults.pages = v;
+          saveSetting('auDefaultPages', v);
+          updateActiveIndicators();
+        });
+      }
+
+      // Move ads to end
+      wireToggle('ppu-set-ads-toggle', 'moveAdsToEnd', 'auDefaultMoveAdsToEnd', function(isOn) {
+        // Apply immediately to current search's sponsored mode
+        sponsoredMode = isOn ? 'demote' : 'show';
+        var btn = document.getElementById('ppu-btn-hide-sponsored');
+        if (btn) updateSponsoredBtn(btn, sponsoredMode);
+        render();
+      });
+
+      // Card density
+      var densityRadios = sv.querySelectorAll('input[name="ppu-density"]');
+      densityRadios.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+          cardDensity = this.value;
+          saveSetting('auCardDensity', cardDensity);
+          var listEl = document.getElementById('ppu-list');
+          if (listEl) {
+            listEl.classList.remove('density-dense','density-comfortable');
+            listEl.classList.add(cardDensity === 'comfortable' ? 'density-comfortable' : 'density-dense');
+          }
+        });
+      });
+
+      // Min rating
+      if (ratingSel) {
+        ratingSel.addEventListener('change', function() {
+          var v = parseFloat(this.value) || 0;
+          userDefaults.minRating = v;
+          saveSetting('auDefaultMinRating', v);
+          updateActiveIndicators();
+        });
+      }
+
+      // Min reviews
+      var reviewsInput = document.getElementById('ppu-set-reviews');
+      if (reviewsInput) {
+        reviewsInput.addEventListener('change', function() {
+          var v = Math.max(0, parseInt(this.value, 10) || 0);
+          this.value = v;
+          userDefaults.minReviews = v;
+          saveSetting('auDefaultMinReviews', v);
+          updateActiveIndicators();
+        });
+      }
+
+      // Move Amazon brands to end
+      wireToggle('ppu-set-amazon-brands-toggle', 'moveAmazonBrands', 'auDefaultMoveAmazonBrands', function() {
+        updateActiveIndicators();
+      });
+
+      // Move unrecognized brands to end
+      wireToggle('ppu-set-unrecognized-toggle', 'moveUnrecognized', 'auDefaultMoveUnrecognized', function() {
+        updateActiveIndicators();
+      });
+
+      // Hide slow shipping — toggle + day select
+      var shippingDaysWrap = document.getElementById('ppu-set-shipping-days-wrap');
+      var shippingHint     = document.getElementById('ppu-set-shipping-hint');
+      wireToggle('ppu-set-shipping-toggle', 'hideSlowShipping', 'auDefaultHideSlowShipping', function(isOn) {
+        if (shippingDaysWrap) shippingDaysWrap.classList.toggle('hidden', !isOn);
+        if (shippingHint) shippingHint.style.display = isOn ? 'none' : '';
+        updateActiveIndicators();
+      });
+
+      var shippingDaysSel = document.getElementById('ppu-set-shipping-days');
+      if (shippingDaysSel) {
+        shippingDaysSel.addEventListener('change', function() {
+          var v = parseInt(this.value, 10) || 7;
+          userDefaults.slowShippingDays = v;
+          saveSetting('auDefaultSlowShippingDays', v);
+          updateActiveIndicators();
+        });
+      }
+
+      // Telemetry
+      wireToggle('ppu-set-telemetry-toggle', 'telemetry', 'au_telemetry_enabled', null);
+
+      // Reset to defaults — two-click confirmation
+      var resetBtn = document.getElementById('ppu-set-reset-btn');
+      var resetTimer = null;
+      if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+          if (resetBtn.dataset.confirm === '1') {
+            // Second click — confirmed
+            clearTimeout(resetTimer);
+            resetBtn.dataset.confirm = '0';
+            resetBtn.textContent = 'Reset all settings to defaults';
+
+            // Clear all auDefault* keys and auCardDensity from storage
+            var keysToRemove = [
+              'auDefaultSort','auDefaultPages','auDefaultMoveAdsToEnd',
+              'auDefaultMinRating','auDefaultMinReviews',
+              'auDefaultMoveAmazonBrands','auDefaultMoveUnrecognized',
+              'auDefaultHideSlowShipping','auDefaultSlowShippingDays',
+              'au_telemetry_enabled','auCardDensity'
+            ];
+            try { chrome.storage.local.remove(keysToRemove); } catch(e) {}
+
+            // Reset userDefaults to built-in values
+            userDefaults.sort             = 'ppu-asc';
+            userDefaults.pages            = 4;
+            userDefaults.moveAdsToEnd     = true;
+            userDefaults.minRating        = 0;
+            userDefaults.minReviews       = 0;
+            userDefaults.moveAmazonBrands = false;
+            userDefaults.moveUnrecognized = true;
+            userDefaults.hideSlowShipping = false;
+            userDefaults.slowShippingDays = 7;
+            userDefaults.telemetry        = true;
+            cardDensity = 'dense';
+
+            // Re-open settings to refresh all controls
+            closeSettings();
+            openSettings();
+          } else {
+            // First click — ask for confirmation
+            resetBtn.dataset.confirm = '1';
+            resetBtn.textContent = 'Click again to confirm';
+            resetTimer = setTimeout(function() {
+              if (resetBtn) {
+                resetBtn.dataset.confirm = '0';
+                resetBtn.textContent = 'Reset all settings to defaults';
+              }
+            }, 3000);
+          }
+        });
+      }
+    } // end openSettings()
+
+    function closeSettings() {
+      panelInSettings = false;
+
+      // Remove settings view
+      var sv = document.getElementById('ppu-settings-view');
+      if (sv) sv.remove();
+
+      // Swap back arrow back to gear icon
+      var backBtn = document.getElementById('ppu-settings-back');
+      if (backBtn) {
+        backBtn.id = 'ppu-settings-btn';
+        backBtn.title = 'Settings';
+        backBtn.innerHTML =
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+        // Re-wire gear button
+        backBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          openSettings();
+        });
+      }
+
+      // Restore results content region
+      var contentRowIds = [
+        'ppu-workflow-banner','ppu-filter-row','ppu-unit-pill-row',
+        'ppu-sort-row','ppu-pages-standalone-row',
+        'ppu-filters-trigger','ppu-filters-overlay','ppu-dec-bar'
+      ];
+      contentRowIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = '';
+      });
+      var controlsWrap = document.getElementById('ppu-controls-wrap');
+      var scrollArea   = document.getElementById('ppu-scroll-area');
+      if (controlsWrap) controlsWrap.style.display = '';
+      if (scrollArea)   scrollArea.style.display   = '';
+
+      // Re-render to reflect any changes made in settings
+      render();
+      updateActiveIndicators();
+    } // end closeSettings()
+
+    // Wire gear button (initial, before any settings open)
+    var settingsBtn = document.getElementById('ppu-settings-btn');
+    if (settingsBtn) {
+      settingsBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      settingsBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (panelInSettings) { closeSettings(); } else { openSettings(); }
+      });
+    }
+
+    // Wire footer Settings link
+    var settingsLink = document.getElementById('ppu-settings-link');
+    if (settingsLink) {
+      settingsLink.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (panelInSettings) { closeSettings(); } else { openSettings(); }
+      });
+    }
+
     // ── Pages slider ─────────────────────────────────────────────────────
     if(pagesSlider){
       updatePagesSliderFill(pagesSlider);
@@ -3815,6 +4302,48 @@ const ITEM_UNITS = [
         }
         loadNext(target-loadedPages);
       });
+
+      // Auto-load on build: if userDefaults.pages > 1 and more pages exist,
+      // start loading immediately — same logic as slider change handler.
+      if(userDefaults.pages > 1 && nextPageUrl){
+        var autoTarget = userDefaults.pages;
+        var autoStatusEl = document.getElementById('ppu-pages-status');
+        if(autoStatusEl){autoStatusEl.style.display='block';autoStatusEl.textContent='Loading\u2026';}
+        pagesSlider.value = autoTarget;
+        pagesSlider.disabled = true;
+        updatePagesSliderFill(pagesSlider);
+        updatePagesLabel();
+        function autoLoadNext(remaining){
+          if(remaining===0||!nextPageUrl){
+            pagesSlider.disabled=false;
+            if(autoStatusEl) autoStatusEl.style.display='none';
+            needsResort=false; updateLoadMoreRow(); render(); return;
+          }
+          var fp=loadedPages+1,si=allData.length;
+          if(autoStatusEl) autoStatusEl.textContent='Loading page '+fp+'\u2026';
+          fetchPage(nextPageUrl,fp,si).then(function(result){
+            allData=allData.concat(result.rows);loadedPages=fp;nextPageUrl=result.nextUrl;
+            isLiquidDominant=inferLiquidDominant(allData);
+            if(isLiquidDominant) applyLiquidCtConversion(result.rows);
+            isLiquidDominant=inferLiquidDominant(allData);
+            isWeightDominant=inferWeightDominant(allData);
+            unitPills=generateUnitPills(allData,isLiquidDominant,isWeightDominant);
+            pagesSlider.value=loadedPages;
+            updatePagesSliderFill(pagesSlider);
+            updatePagesLabel();
+            if(result.nextUrl&&remaining>1){
+              setTimeout(function(){autoLoadNext(remaining-1);},750);
+            } else {
+              autoLoadNext(result.nextUrl?remaining-1:0);
+            }
+          }).catch(function(err){
+            console.log('[PPU] Auto-load failed:',err);
+            pagesSlider.disabled=false;
+            if(autoStatusEl){autoStatusEl.textContent='Load failed \u2014 try Re-sync';setTimeout(function(){autoStatusEl.style.display='none';},3000);}
+          });
+        }
+        autoLoadNext(autoTarget - loadedPages);
+      }
     }
 
     // ── Bottom load-more button ───────────────────────────────────────────
@@ -3863,6 +4392,32 @@ const ITEM_UNITS = [
       document.getElementById('ppu-close-err').addEventListener('click',function(){errPanel.remove();});
       document.getElementById('ppu-err-refresh').addEventListener('click',function(){location.reload();});
     }
+  }
+
+  // ── Phase 5 — Load user-saved defaults ───────────────────────────────
+  function loadUserDefaults(cb) {
+    try {
+      var keys = [
+        'auDefaultSort','auDefaultPages','auDefaultMoveAdsToEnd',
+        'auDefaultMinRating','auDefaultMinReviews',
+        'auDefaultMoveAmazonBrands','auDefaultMoveUnrecognized',
+        'auDefaultHideSlowShipping','auDefaultSlowShippingDays',
+        'au_telemetry_enabled'
+      ];
+      chrome.storage.local.get(keys, function(res) {
+        if (res.auDefaultSort      !== undefined) userDefaults.sort             = res.auDefaultSort;
+        if (res.auDefaultPages     !== undefined) userDefaults.pages            = res.auDefaultPages;
+        if (res.auDefaultMoveAdsToEnd !== undefined) userDefaults.moveAdsToEnd  = res.auDefaultMoveAdsToEnd;
+        if (res.auDefaultMinRating !== undefined) userDefaults.minRating        = res.auDefaultMinRating;
+        if (res.auDefaultMinReviews!== undefined) userDefaults.minReviews       = res.auDefaultMinReviews;
+        if (res.auDefaultMoveAmazonBrands !== undefined) userDefaults.moveAmazonBrands = res.auDefaultMoveAmazonBrands;
+        if (res.auDefaultMoveUnrecognized !== undefined) userDefaults.moveUnrecognized  = res.auDefaultMoveUnrecognized;
+        if (res.auDefaultHideSlowShipping !== undefined) userDefaults.hideSlowShipping  = res.auDefaultHideSlowShipping;
+        if (res.auDefaultSlowShippingDays !== undefined) userDefaults.slowShippingDays  = res.auDefaultSlowShippingDays;
+        if (res.au_telemetry_enabled !== undefined) userDefaults.telemetry = (res.au_telemetry_enabled !== false);
+        cb();
+      });
+    } catch(e) { cb(); }
   }
 
   function loadAmazonBrandsList(cb){
@@ -3955,7 +4510,9 @@ const ITEM_UNITS = [
             loadPersonalAllowlist(function(){
               loadCardDensity(function(){
                 loadPanelMinimized(function(){
-                  setTimeout(function(){tryBuild(15);},1500);
+                  loadUserDefaults(function(){
+                    setTimeout(function(){tryBuild(15);},1500);
+                  });
                 });
               });
             });
