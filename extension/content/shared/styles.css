@@ -442,10 +442,16 @@ input[type=range].ppu-slider::-moz-range-thumb {
 
 #ppu-list { padding:4px 0; }
 .ppu-row {
-  padding:6px 10px 6px 8px;border-bottom:1px solid var(--au-border);
+  padding:8px 14px;border-bottom:1px solid var(--au-border);
   transition:opacity 0.15s;display:flex;gap:8px;align-items:flex-start;
   background:#ffffff;
 }
+/* Phase 3 — Card density preference.
+   Default is dense (rule above). Comfortable doubles vertical padding.
+   Density class is applied to #ppu-list in search.js render(). Storage key:
+   auCardDensity. No UI to change it yet — that comes in Phase 5 (Settings)
+   and Phase 6 (onboarding wizard). */
+#ppu-list.density-comfortable .ppu-row { padding:16px 14px; }
 .ppu-row:last-child         { border-bottom:none; }
 .ppu-row.kw-mismatch        { opacity:0.28; }
 .ppu-row.src-hidden         { display:none; }

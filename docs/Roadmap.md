@@ -4,7 +4,7 @@
 
 ---
 
-## Current version: v0.6.1.79 (overall) · v0.6.1 (manifest) · v0.6.1.79 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 66 · v0.6.1.17 (background.js) · styles.css updated Chat 67 · welcome.html updated Chat 66 · index.html updated Chat 66 · privacy.html updated Chat 66
+## Current version: v0.6.1.80 (overall) · v0.6.1 (manifest) · v0.6.1.80 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 66 · v0.6.1.17 (background.js) · styles.css updated Chat 68 · welcome.html updated Chat 66 · index.html updated Chat 66 · privacy.html updated Chat 66
 
 ---
 
@@ -58,7 +58,7 @@
 **Brand list sync rule:** brand_blocklist.txt and amazon_brands.txt must be updated concurrently in extension/data/ AND repo root data/. Both files must always match.
 
 **Version numbering:**
-- Overall / canonical: v0.6.1.79 (search.js number)
+- Overall / canonical: v0.6.1.80 (search.js number)
 - Per-file versions differ intentionally — files change at different rates
 - v1.0 = Web Store public launch
 
@@ -87,7 +87,7 @@
 
 ## Next session priorities
 
-**Phase 3 of panel redesign — Card redesign (brand row → plain text + ⋯ menu, density preference).** Brief: Panel_Redesign_Spec.md in the Claude Project.
+**Phase 4 of panel redesign — Panel chrome (minimize, drag, resize, snap).** Also wire the inert `#ppu-minimize` button. Brief: Panel_Redesign_Spec.md in the Claude Project.
 
 Deferred coding work (returns after redesign complete):
 - $/serving for protein powder — design session required
@@ -119,7 +119,14 @@ Full spec: Panel_Redesign_Spec.md (in Claude Project).
   - Brand & delivery inline expansion ("Adjust for this search →")
   - Compare button "Nothing checked yet" tooltip (native title attr; pointer-events:none removed)
   - `au-filters-open` localStorage key no longer used
-- [ ] **Phase 3 — Card redesign (brand row → plain text + ⋯ menu, density preference)**
+- [x] **Phase 3 — Card redesign** (Chat 68) ✅
+  - Brand row: pill buttons replaced with plain text + ⋯ menu popover
+  - Popover actions: "Always show [brand]" / "Always hide [brand]" (same allowlist/blocklist logic as before)
+  - Popover close: ESC · click outside · click another card's ⋯ · click same ⋯ again · select an action
+  - Card padding updated to spec: dense `8px 14px` (was `6px 10px 6px 8px`); comfortable `16px 14px`
+  - Card density preference: storage key `auCardDensity` (`'dense'` | `'comfortable'`, default `'dense'`)
+  - Density class applied to `#ppu-list` at render time (`.density-dense` / `.density-comfortable`)
+  - Storage plumbed via `loadCardDensity(cb)` in startup chain; no UI to change it yet (Phase 5 / Phase 6)
 - [ ] **Phase 4 — Panel chrome (minimize, drag, resize, snap)** — also wire `#ppu-minimize`
 - [ ] **Phase 5 — Settings page**
 - [ ] **Phase 6 — Onboarding refresh (welcome.html content rewrite, Personalize wizard, first-search brand hint)**
@@ -188,7 +195,7 @@ Full spec: Panel_Redesign_Spec.md (in Claude Project).
 - [x] Panel redesign — §10 open items locked; Phase 1 brief; onboarding mockups (Chat 65)
 - [x] **Phase 1 — Palette migration + layout scaffold** (Chat 66) ✅
 - [x] **Phase 2 — Filters overlay (Option C)** (Chat 67) ✅
-- [ ] Phase 3 of panel redesign — card redesign
+- [x] **Phase 3 — Card redesign** (Chat 68) ✅
 - [ ] Phase 4 of panel redesign — panel chrome (also: wire `#ppu-minimize`)
 - [ ] Phase 5 of panel redesign — settings page
 - [ ] Phase 6 of panel redesign — onboarding refresh

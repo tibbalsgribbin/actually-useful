@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.79)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.80)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1448,6 +1448,7 @@ const ITEM_UNITS = [
   var personalAllowlist= [];   // loaded from chrome.storage.local (auAllowlistBrands)
   var amazonBrandsDemoteActive = false;
   var amazonBrandsList = [];   // loaded from amazon_brands.txt at startup
+  var cardDensity = 'dense';   // 'dense' | 'comfortable' — loaded from chrome.storage.local (auCardDensity); default dense. Phase 3 plumbing only — no UI to change it yet (Settings = Phase 5, onboarding = Phase 6).
   var deliveryFilterActive = false;
   var deliveryFilterDays   = 7;   // default 7 days; presets: 2/3/5/7/10/14/21
   var isLiquidDominant = false;
@@ -1947,10 +1948,16 @@ const ITEM_UNITS = [
         '#ppu-high-noise-banner{display:none;padding:7px 28px 7px 14px;background:#fff7ed;border-left:3px solid #f59e0b;font-size:11px;color:#92400e;line-height:1.5;position:relative;}' +
         '.ppu-noise-msg{display:block;user-select:text;}' +
         '.ppu-noise-dismiss{position:absolute;top:5px;right:6px;background:none;border:none;font-size:14px;color:#a78060;cursor:pointer;padding:0;line-height:1;}' +
-        '.ppu-brand-row{font-size:12px;color:#6b7280;margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;user-select:text;}' +
-        '.ppu-brand-allow-btn,.ppu-brand-block-btn{font-size:11px;padding:1px 7px;border-radius:4px;border:1px solid #d1d5db;background:#f9f9fc;color:#c2362a;cursor:pointer;white-space:nowrap;}' +
-        '.ppu-brand-allow-btn:hover{background:#fef2f0;border-color:#fcc8c3;}' +
-        '.ppu-brand-block-btn:hover{background:#fff1f2;border-color:#fecdd3;color:#be123c;}';
+        // Phase 3 — brand row: plain text + ⋯ menu (was: "Always show" / "Always hide" pill buttons)
+        '.ppu-brand-row{font-size:11px;color:#6b7280;margin-top:3px;display:flex;align-items:center;gap:6px;user-select:text;}' +
+        '.ppu-brand-name{user-select:text;}' +
+        '.ppu-brand-menu-btn{font-size:14px;line-height:1;padding:0 4px;border:none;background:none;color:#9ca3af;cursor:pointer;border-radius:3px;}' +
+        '.ppu-brand-menu-btn:hover,.ppu-brand-menu-btn:focus{color:#6b7280;background:#f3f4f6;outline:none;}' +
+        '.ppu-brand-menu-btn.is-open{color:#c2362a;background:#fef2f0;}' +
+        // Phase 3 — brand ⋯ popover (anchored via position:fixed in JS)
+        '.ppu-brand-popover{min-width:180px;background:#ffffff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.12);padding:4px 0;font-family:inherit;}' +
+        '.ppu-brand-popover-item{display:block;width:100%;text-align:left;padding:7px 12px;background:none;border:none;font-size:12px;color:#1f2937;cursor:pointer;white-space:nowrap;}' +
+        '.ppu-brand-popover-item:hover,.ppu-brand-popover-item:focus{background:#fef2f0;color:#c2362a;outline:none;}';
       document.head.appendChild(styleEl);
     }
 
@@ -2471,10 +2478,11 @@ const ITEM_UNITS = [
           }
         }
         var safeBrand=r.brand?r.brand.replace(/"/g,'&quot;').replace(/'/g,'&#39;'):'';
+        // Phase 3 — brand row: plain text + ⋯ menu (was: "Always show" / "Always hide" pill buttons)
         var brandMenuHtml=r.brand?
-          '<div class="ppu-brand-row">'+escapeHtml(r.brand)+':'+
-          ' <button class="ppu-brand-allow-btn" data-brand="'+safeBrand+'">Always show</button>'+
-          ' <button class="ppu-brand-block-btn" data-brand="'+safeBrand+'">Always hide</button>'+
+          '<div class="ppu-brand-row">'+
+            '<span class="ppu-brand-name">'+escapeHtml(r.brand)+'</span>'+
+            '<button class="ppu-brand-menu-btn" type="button" data-brand="'+safeBrand+'" aria-label="Brand options" title="Brand options">\u22ef</button>'+
           '</div>':'';
         var rowHtml =
           '<div class="ppu-row'+dimC+srcC+sponC+revC+ratingC+priceC+snapC+fsaC+climateC+sbC+brandC+deliveryC+chkC+wfC+'" data-asin="'+safeAsin+'">'+
@@ -2509,7 +2517,11 @@ const ITEM_UNITS = [
       }
 
       if(hasKw&&matchCt===0){html='<div class="ppu-empty-kw">No results match your keyword(s)</div>'+html;}
-      document.getElementById('ppu-list').innerHTML=html;
+      var listEl=document.getElementById('ppu-list');
+      listEl.innerHTML=html;
+      // Phase 3 — card density preference (Phase 5/6 will add UI to change it)
+      listEl.classList.remove('density-dense','density-comfortable');
+      listEl.classList.add(cardDensity==='comfortable'?'density-comfortable':'density-dense');
       document.querySelectorAll('.ppu-cb').forEach(function(cb){
         cb.addEventListener('change',function(){
           var row=this.closest('.ppu-row'),asin=row.getAttribute('data-asin');
@@ -2546,69 +2558,150 @@ const ITEM_UNITS = [
         });
       });
 
-      // ── Brand always-show / always-hide buttons ───────────────────────
-      document.querySelectorAll('.ppu-brand-allow-btn').forEach(function(btn){
+      // ── Phase 3 — Brand row ⋯ menu popover ────────────────────────────
+      // Replaces the previous "Always show" / "Always hide" per-card pill buttons.
+      // Click ⋯ → small popover with two actions. ESC, click outside, or clicking
+      // another card's ⋯ closes the open one. Selecting an action takes it and closes.
+
+      // Action functions — same allowlist/blocklist logic as before, just triggered
+      // from inside the popover instead of standalone pill buttons.
+      function applyBrandAllow(brand){
+        if(!brand) return;
+        var bUp=brand.toUpperCase();
+        if(personalAllowlist.indexOf(bUp)===-1) personalAllowlist.push(bUp);
+        personalBlocklist=personalBlocklist.filter(function(x){return x.toUpperCase()!==bUp;});
+        try{
+          chrome.storage.local.get(['auAllowlistBrands','auBlocklistBrands'],function(res){
+            var allow=(res&&res.auAllowlistBrands&&Array.isArray(res.auAllowlistBrands))?res.auAllowlistBrands:[];
+            var block=(res&&res.auBlocklistBrands&&Array.isArray(res.auBlocklistBrands))?res.auBlocklistBrands:[];
+            if(allow.map(function(b){return b.toUpperCase();}).indexOf(bUp)===-1) allow.push(brand);
+            block=block.filter(function(x){return x.toUpperCase()!==bUp;});
+            chrome.storage.local.set({auAllowlistBrands:allow,auBlocklistBrands:block});
+          });
+        }catch(ex){}
+        allData.forEach(function(r){
+          if(r.brand&&r.brand.toUpperCase()===bUp){
+            var fresh=detectGibberishBrand(r.brand);
+            r.brandFlagged=fresh.flagged;
+            r.brandDetection=fresh;
+          }
+        });
+        render();
+      }
+      function applyBrandBlock(brand){
+        if(!brand) return;
+        var bUp=brand.toUpperCase();
+        if(personalBlocklist.indexOf(bUp)===-1) personalBlocklist.push(bUp);
+        personalAllowlist=personalAllowlist.filter(function(x){return x.toUpperCase()!==bUp;});
+        try{
+          chrome.storage.local.get(['auBlocklistBrands','auAllowlistBrands'],function(res){
+            var block=(res&&res.auBlocklistBrands&&Array.isArray(res.auBlocklistBrands))?res.auBlocklistBrands:[];
+            var allow=(res&&res.auAllowlistBrands&&Array.isArray(res.auAllowlistBrands))?res.auAllowlistBrands:[];
+            var blockUp=block.map(function(b){return b.toUpperCase();});
+            if(blockUp.indexOf(bUp)===-1) block.push(brand);
+            allow=allow.filter(function(x){return x.toUpperCase()!==bUp;});
+            chrome.storage.local.set({auBlocklistBrands:block,auAllowlistBrands:allow});
+          });
+        }catch(ex){}
+        allData.forEach(function(r){
+          if(r.brand&&r.brand.toUpperCase()===bUp){
+            r.brandFlagged=true;
+            r.brandDetection={signals:['personalBlocklist'],score:1,flagged:true};
+          }
+        });
+        brandFilterActive=true;
+        var chk=document.getElementById('ppu-brand-filter-on');
+        if(chk) chk.checked=true;
+        render();
+      }
+
+      function closeBrandPopover(){
+        var existing=document.getElementById('ppu-brand-popover');
+        if(existing) existing.remove();
+        document.querySelectorAll('.ppu-brand-menu-btn.is-open').forEach(function(b){
+          b.classList.remove('is-open');
+        });
+      }
+
+      function openBrandPopover(btn){
+        var brand=btn.getAttribute('data-brand');
+        if(!brand) return;
+        closeBrandPopover();
+        btn.classList.add('is-open');
+
+        var pop=document.createElement('div');
+        pop.id='ppu-brand-popover';
+        pop.className='ppu-brand-popover';
+        pop.setAttribute('role','menu');
+
+        var showBtn=document.createElement('button');
+        showBtn.type='button';
+        showBtn.className='ppu-brand-popover-item';
+        showBtn.setAttribute('role','menuitem');
+        showBtn.textContent='Always show '+brand;
+        showBtn.addEventListener('click',function(e){
+          e.stopPropagation();
+          closeBrandPopover();
+          applyBrandAllow(brand);
+        });
+
+        var hideBtn=document.createElement('button');
+        hideBtn.type='button';
+        hideBtn.className='ppu-brand-popover-item';
+        hideBtn.setAttribute('role','menuitem');
+        hideBtn.textContent='Always hide '+brand;
+        hideBtn.addEventListener('click',function(e){
+          e.stopPropagation();
+          closeBrandPopover();
+          applyBrandBlock(brand);
+        });
+
+        pop.appendChild(showBtn);
+        pop.appendChild(hideBtn);
+
+        // Position relative to the ⋯ button using viewport coords. Position:fixed
+        // so the popover doesn't get clipped by the scrolling list container.
+        var rect=btn.getBoundingClientRect();
+        pop.style.position='fixed';
+        pop.style.top=(rect.bottom+4)+'px';
+        pop.style.left=Math.max(8,rect.right-180)+'px'; // right-align to button, min 8px from viewport edge
+        pop.style.zIndex='2147483646';
+
+        document.body.appendChild(pop);
+      }
+
+      document.querySelectorAll('.ppu-brand-menu-btn').forEach(function(btn){
         btn.addEventListener('click',function(e){
           e.stopPropagation();
-          var brand=this.getAttribute('data-brand');
-          if(!brand) return;
-          var bUp=brand.toUpperCase();
-          // Add to allowlist; remove from personal blocklist if present
-          if(personalAllowlist.indexOf(bUp)===-1) personalAllowlist.push(bUp);
-          personalBlocklist=personalBlocklist.filter(function(x){return x.toUpperCase()!==bUp;});
-          try{
-            chrome.storage.local.get(['auAllowlistBrands','auBlocklistBrands'],function(res){
-              var allow=(res&&res.auAllowlistBrands&&Array.isArray(res.auAllowlistBrands))?res.auAllowlistBrands:[];
-              var block=(res&&res.auBlocklistBrands&&Array.isArray(res.auBlocklistBrands))?res.auBlocklistBrands:[];
-              if(allow.map(function(b){return b.toUpperCase();}).indexOf(bUp)===-1) allow.push(brand);
-              block=block.filter(function(x){return x.toUpperCase()!==bUp;});
-              chrome.storage.local.set({auAllowlistBrands:allow,auBlocklistBrands:block});
-            });
-          }catch(ex){}
-          // Re-detect all items with this brand and re-render
-          allData.forEach(function(r){
-            if(r.brand&&r.brand.toUpperCase()===bUp){
-              var fresh=detectGibberishBrand(r.brand);
-              r.brandFlagged=fresh.flagged;
-              r.brandDetection=fresh;
-            }
-          });
-          render();
+          // If this button's popover is already open, clicking ⋯ closes it.
+          if(this.classList.contains('is-open')){
+            closeBrandPopover();
+            return;
+          }
+          openBrandPopover(this);
         });
       });
-      document.querySelectorAll('.ppu-brand-block-btn').forEach(function(btn){
-        btn.addEventListener('click',function(e){
-          e.stopPropagation();
-          var brand=this.getAttribute('data-brand');
-          if(!brand) return;
-          var bUp=brand.toUpperCase();
-          // Add to blocklist; remove from allowlist if present
-          if(personalBlocklist.indexOf(bUp)===-1) personalBlocklist.push(bUp);
-          personalAllowlist=personalAllowlist.filter(function(x){return x.toUpperCase()!==bUp;});
-          try{
-            chrome.storage.local.get(['auBlocklistBrands','auAllowlistBrands'],function(res){
-              var block=(res&&res.auBlocklistBrands&&Array.isArray(res.auBlocklistBrands))?res.auBlocklistBrands:[];
-              var allow=(res&&res.auAllowlistBrands&&Array.isArray(res.auAllowlistBrands))?res.auAllowlistBrands:[];
-              var blockUp=block.map(function(b){return b.toUpperCase();});
-              if(blockUp.indexOf(bUp)===-1) block.push(brand);
-              allow=allow.filter(function(x){return x.toUpperCase()!==bUp;});
-              chrome.storage.local.set({auBlocklistBrands:block,auAllowlistBrands:allow});
-            });
-          }catch(ex){}
-          // Re-flag all items with this brand
-          allData.forEach(function(r){
-            if(r.brand&&r.brand.toUpperCase()===bUp){
-              r.brandFlagged=true;
-              r.brandDetection={signals:['personalBlocklist'],score:1,flagged:true};
-            }
-          });
-          // Force filter on so the change is immediately visible
-          brandFilterActive=true;
-          var chk=document.getElementById('ppu-brand-filter-on');
-          if(chk) chk.checked=true;
-          render();
+
+      // Document-level close handlers (idempotent — safe to attach repeatedly,
+      // but we guard with a flag so only one set is ever active).
+      if(!window.__ppuBrandPopoverListenersAttached){
+        window.__ppuBrandPopoverListenersAttached=true;
+        document.addEventListener('keydown',function(e){
+          if(e.key==='Escape'){
+            var existing=document.getElementById('ppu-brand-popover');
+            if(existing) closeBrandPopover();
+          }
         });
-      });
+        document.addEventListener('click',function(e){
+          var pop=document.getElementById('ppu-brand-popover');
+          if(!pop) return;
+          // Don't close if click is inside the popover itself or on a ⋯ trigger
+          // (trigger clicks are already handled by their own listener with stopPropagation).
+          if(pop.contains(e.target)) return;
+          if(e.target.classList && e.target.classList.contains('ppu-brand-menu-btn')) return;
+          closeBrandPopover();
+        });
+      }
 
       // ── Note add/edit links (rendered via innerHTML — need explicit wiring) ─
       document.querySelectorAll('.ppu-note-add-link').forEach(function(link) {
@@ -3568,6 +3661,19 @@ const ITEM_UNITS = [
     }catch(e){cb();}
   }
 
+  function loadCardDensity(cb){
+    try{
+      chrome.storage.local.get('auCardDensity',function(res){
+        if(res&&res.auCardDensity==='comfortable'){
+          cardDensity='comfortable';
+        } else {
+          cardDensity='dense';
+        }
+        cb();
+      });
+    }catch(e){cb();}
+  }
+
   function tryBuild(n){
     var cards=document.querySelectorAll('[data-component-type="s-search-result"]');
     if(cards.length>0) buildPanel();
@@ -3585,7 +3691,9 @@ const ITEM_UNITS = [
         loadBundledBlocklist(function(){
           loadPersonalBlocklist(function(){
             loadPersonalAllowlist(function(){
-              setTimeout(function(){tryBuild(15);},1500);
+              loadCardDensity(function(){
+                setTimeout(function(){tryBuild(15);},1500);
+              });
             });
           });
         });

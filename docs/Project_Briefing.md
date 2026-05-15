@@ -1,7 +1,7 @@
 # Actually Useful — Project Briefing
 *"Actually Useful: Amazon but better."*
-*Current version: v0.6.1.79 (overall) · v0.6.1 (manifest) · v0.6.1.79 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 66 · v0.6.1.17 (background.js)*
-*Updated May 14, 2026 (Chat 67 — Phase 2 panel redesign: Filters overlay)*
+*Current version: v0.6.1.80 (overall) · v0.6.1 (manifest) · v0.6.1.80 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 66 · v0.6.1.17 (background.js)*
+*Updated May 14, 2026 (Chat 68 — Phase 3 panel redesign: Card redesign)*
 
 ---
 
@@ -107,8 +107,8 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 
 ## 6. Version Numbering
 
-- **Overall / canonical version:** v0.6.1.79 (search.js number — the main file)
-- **Per-file versions:** search.js v0.6.1.79 · core.js v0.6.1.53 · compare.html updated Chat 66 · background.js v0.6.1.17 · manifest v0.6.1 · styles.css updated Chat 67 · welcome.html updated Chat 66 · index.html updated Chat 66 · privacy.html updated Chat 66
+- **Overall / canonical version:** v0.6.1.80 (search.js number — the main file)
+- **Per-file versions:** search.js v0.6.1.80 · core.js v0.6.1.53 · compare.html updated Chat 66 · background.js v0.6.1.17 · manifest v0.6.1 · styles.css updated Chat 68 · welcome.html updated Chat 66 · index.html updated Chat 66 · privacy.html updated Chat 66
 - Per-file versions differ intentionally — files change at different rates
 - Web Store public launch = **v1.0**
 - Chrome manifests support three-part version numbers only; internal version carries a fourth segment
@@ -133,8 +133,8 @@ Free always. Revenue from Amazon Associates affiliate commissions + Ko-fi tips. 
 - `manifest.json` — v0.6.1; content scripts declared here
 - `background.js` — v0.6.1.17; onInstalled listener (opens welcome.html); search context relay
 - `content/core.js` — v0.6.1.53; shortlist storage, nudge state, shared constants. Loaded first.
-- `content/search.js` — v0.6.1.79; all panel logic. One large file by design (selector resilience refactor post-alpha).
-- `content/styles.css` — updated Chat 67; all panel styles
+- `content/search.js` — v0.6.1.80; all panel logic. One large file by design (selector resilience refactor post-alpha).
+- `content/styles.css` — updated Chat 68; all panel styles
 - `content/product.js` — disabled during alpha (manifest commented out)
 
 **Data files:**
@@ -158,7 +158,7 @@ No PII. No product titles, ASINs, or prices logged.
 
 Heuristic scoring system. Each brand gets a score based on: review count signal, title-brand match, known-brand list membership, blocklist membership. Brands scoring above threshold get demoted to end of results when "Move unrecognized brands to end" is checked.
 
-**Personal brand rules:** Per-session allowlist (`auAllowlistBrands`) and blocklist (`auBlocklistBrands`) stored in `chrome.storage.local`. Managed via "My brand rules" overlay (⋯ per-card menu).
+**Personal brand rules:** Per-session allowlist (`auAllowlistBrands`) and blocklist (`auBlocklistBrands`) stored in `chrome.storage.local`. Managed via the per-card ⋯ menu on each card's brand row (Phase 3, Chat 68) and the "My brand rules" overlay at the bottom of the panel.
 
 ---
 
@@ -260,7 +260,7 @@ Full boolean search model with the following operators:
 
 ---
 
-## 18. Panel Redesign — phase status (as of Chat 67)
+## 18. Panel Redesign — phase status (as of Chat 68)
 
 Full spec: Panel_Redesign_Spec.md in the Claude Project.
 
@@ -268,7 +268,7 @@ Full spec: Panel_Redesign_Spec.md in the Claude Project.
 - [x] Chat 65 — all §10 open items locked, Step 0 workflow model, Phase 1 brief produced, onboarding mockups built
 - [x] **Phase 1 — Palette migration + layout scaffold** (Chat 66) ✅
 - [x] **Phase 2 — Filters overlay (Option C)** (Chat 67) ✅
-- [ ] Phase 3 — Card redesign (brand row → plain text + ⋯ menu, density preference)
+- [x] **Phase 3 — Card redesign** (Chat 68) ✅
 - [ ] Phase 4 — Panel chrome (minimize, drag, resize, snap) — also: wire `#ppu-minimize`
 - [ ] Phase 5 — Settings page
 - [ ] Phase 6 — Onboarding refresh (welcome.html content rewrite, Personalize wizard, first-search brand hint)
@@ -276,7 +276,25 @@ Full spec: Panel_Redesign_Spec.md in the Claude Project.
 
 ---
 
-## 19. Working Rules (standing)
+## 19. Card layout — Phase 3 (Chat 68)
+
+**Card padding:** dense default `8px 14px` (was `6px 10px 6px 8px` pre-redesign). Comfortable variant `16px 14px` — doubled vertical, same horizontal. Density class applied to `#ppu-list` at render time (`.density-dense` or `.density-comfortable`).
+
+**Brand row:** plain text + ⋯ menu (replaces previous per-card "Always show" / "Always hide" pill buttons).
+- Brand name in muted slate (11px)
+- ⋯ menu button to the right (disabled-color, hover lifts contrast, "is-open" state shows coral tint)
+- Clicking ⋯ opens a small popover anchored below the button (position:fixed) with two actions:
+  - "Always show [brand]" — adds brand to `auAllowlistBrands`, removes from blocklist, re-renders
+  - "Always hide [brand]" — adds brand to `auBlocklistBrands`, removes from allowlist, force-enables brand filter, re-renders
+- Popover close: ESC · click outside · click another card's ⋯ · click the same ⋯ again · select an action
+- Document-level listeners attached once (guarded by `window.__ppuBrandPopoverListenersAttached` flag)
+- Row hidden entirely if no brand was detected (unchanged)
+
+**Card density preference:** Storage key `auCardDensity` in `chrome.storage.local`. Values: `'dense'` (default) or `'comfortable'`. Loaded at startup via `loadCardDensity(cb)` in the same callback chain as the other `load*` functions. **No UI to change it yet** — Settings page (Phase 5) and onboarding wizard (Phase 6) will add the control surfaces.
+
+---
+
+## 20. Working Rules (standing)
 
 - **Single agent.** Claude only. No Replit, Gemini, Figma, or other tools touching code files directly.
 - **Confirm before coding.** Always align on scope before touching files. Do not code without explicit approval.
