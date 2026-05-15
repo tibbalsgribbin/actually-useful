@@ -56,8 +56,12 @@
 }
 #ppu-header h3  { margin:0;font-size:13.5px;font-weight:600;letter-spacing:-.022em;flex-shrink:0; }
 #ppu-header-btns{ display:flex;gap:6px;align-items:center;flex-shrink:0; }
-#ppu-collapse,#ppu-close {
+#ppu-collapse {
   background:none;border:none;color:#ffffff;font-size:16px;cursor:pointer;line-height:1;padding:0 3px;flex-shrink:0;
+}
+/* ppu-close: intentionally inert in Phase 4 pending session-hide design */
+#ppu-close {
+  background:none;border:none;color:#ffffff;font-size:16px;cursor:default;line-height:1;padding:0 3px;flex-shrink:0;opacity:0.4;
 }
 #ppu-help {
   font-size:13px;font-weight:500;text-decoration:none;color:#ffffff;
@@ -768,13 +772,39 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 
 /* ── Phase 1 layout additions ────────────────────────────────────────── */
 
-/* Minimize button — inert in Phase 1; wired in Phase 4 */
+/* Minimize button — wired in Phase 4 */
 #ppu-minimize {
-  background:none;border:none;color:#ffffff;font-size:16px;cursor:default;
-  line-height:1;padding:0 3px;flex-shrink:0;opacity:0.7;
+  background:none;border:none;color:#ffffff;font-size:16px;cursor:pointer;
+  line-height:1;padding:0 3px;flex-shrink:0;opacity:0.85;transition:opacity 0.15s;
 }
-/* NOTE: ppu-minimize is intentionally non-functional in Phase 1.
-   Wire it up (collapse/expand panel) in Phase 4. */
+#ppu-minimize:hover { opacity:1; }
+
+/* ── Phase 4 — Minimized header ──────────────────────────────────────── */
+#ppu-header-minimized {
+  background:var(--au-header);color:#ffffff;padding:6px 10px;border-radius:8px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  user-select:none;white-space:nowrap;cursor:move;
+}
+#ppu-header-mark-min {
+  width:26px;height:24px;border-radius:6px;flex-shrink:0;
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;color:#fff;letter-spacing:-.01em;
+}
+#ppu-header-title-min { margin:0;font-size:13.5px;font-weight:600;letter-spacing:-.022em;flex-shrink:0; }
+#ppu-min-summary { font-size:11px;color:rgba(255,255,255,0.8);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:center; }
+#ppu-header-btns-min { display:flex;gap:6px;align-items:center;flex-shrink:0; }
+#ppu-expand {
+  background:none;border:none;color:#ffffff;font-size:18px;cursor:pointer;
+  line-height:1;padding:0 3px;flex-shrink:0;opacity:0.85;transition:opacity 0.15s;
+}
+#ppu-expand:hover { opacity:1; }
+#ppu-close-min {
+  background:none;border:none;color:#ffffff;font-size:16px;cursor:default;
+  line-height:1;padding:0 3px;flex-shrink:0;opacity:0.4;
+}
+/* ppu-close-min: intentionally inert in Phase 4 pending session-hide design */
+
 
 /* Sort row — always-visible */
 #ppu-sort-row {

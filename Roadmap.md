@@ -4,7 +4,7 @@
 
 ---
 
-## Current version: v0.6.1.80 (overall) · v0.6.1 (manifest) · v0.6.1.80 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 66 · v0.6.1.17 (background.js) · styles.css updated Chat 68 · welcome.html updated Chat 66 · index.html updated Chat 66 · privacy.html updated Chat 66
+## Current version: v0.6.1.82 (overall) · v0.6.1 (manifest) · v0.6.1.82 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 66 · v0.6.1.17 (background.js) · styles.css updated Chat 70 · welcome.html updated Chat 66 · index.html updated Chat 66 · privacy.html updated Chat 66
 
 ---
 
@@ -34,6 +34,8 @@
 - **Amazon Basics brand column shows — on compare.html** — needs investigation.
 - **Dumbbells showing $/lb** — pre-existing outlier PPU issue; isMultiPackWeight correctly returns false for dumbbells, but weight-from-title still fires for single items. Needs design session.
 - **Coral vs Amazon orange** — verify coral (#f25d4e) doesn't clash with Amazon's orange (#ff9900) on a real search page. Flag and adjust hex if needed.
+- **Left-edge resize handle awkward when panel is on left side of viewport** — Phase 4 design choice to keep handle on left edge always. Revisit if users report difficulty resizing a left-docked panel.
+- **Close button (×) inert** — `#ppu-close` and `#ppu-close-min` not wired pending session-hide / toolbar-icon design. Address in Phase 5 planning.
 
 ---
 
@@ -108,13 +110,11 @@ All documents are produced as complete files. No snippets, no merge instructions
 
 ## Next session priorities
 
-**Phase 4+5 bundle of panel redesign — Panel chrome + Settings page.**
+**Phase 5 — Settings page.** Needs a planning session with Opus before any coding starts.
 
-Phase 4 covers: minimize button (wire the inert `#ppu-minimize`), drag, resize, snap-to-edge, position persistence via `chrome.storage.local`.
+Phase 5 scope (per Panel_Redesign_Spec.md): Settings panel (accessed via gear icon in header), every default wired to existing behavior, every existing behavior overrideable. Card density UI added here. Active count pill swaps from hardcoded defaults to user-saved defaults (one-line change per field in `updateActiveIndicators`).
 
-Phase 5 covers: Settings page (panel-state with back-arrow return), every default wired to existing behavior, every existing behavior overrideable, card density UI added here.
-
-Brief: Panel_Redesign_Spec.md in the Claude Project. Phase 4+5 kickoff brief to be produced in the next Opus planning session before any coding starts.
+**Open design question for Opus before Phase 5:** Close button (×) — currently inert in Phase 4. Is close button in scope for Phase 5? If so, the toolbar-icon restore path needs design first.
 
 Deferred coding work (returns after redesign complete):
 - $/serving for protein powder — design session required
@@ -136,7 +136,7 @@ Full spec: Panel_Redesign_Spec.md (in Claude Project).
   - Default pages = 4
   - "As Amazon listed" sort option (`amazon-default`)
   - Empty-state compare bar copy per §10.1; active copy per §10.4
-  - Minimize button (−) present but inert — wire in Phase 4
+  - Minimize button (−) present but inert — wired in Phase 4
   - Compare button disabled state when 0 items — tooltip added in Phase 2
 - [x] **Phase 2 — Filters overlay (Option C)** (Chat 67) ✅
   - Filters collapsible replaced with trigger row (`#ppu-filters-trigger`) + slide-down overlay (`#ppu-filters-overlay`)
@@ -154,9 +154,23 @@ Full spec: Panel_Redesign_Spec.md (in Claude Project).
   - Card density preference: storage key `auCardDensity` (`'dense'` | `'comfortable'`, default `'dense'`)
   - Density class applied to `#ppu-list` at render time (`.density-dense` / `.density-comfortable`)
   - Storage plumbed via `loadCardDensity(cb)` in startup chain; no UI to change it yet (Phase 5 / Phase 6)
-- [ ] **Phase 4+5 bundle — Panel chrome + Settings page**
-  - Phase 4: minimize (wire `#ppu-minimize`), drag, resize, snap-to-edge, position persistence
-  - Phase 5: Settings page (panel state), defaults wired to existing behavior, card density UI added
+- [x] **Phase 4 — Panel chrome** (Chat 70) ✅
+  - Minimize wired (`#ppu-minimize` button + double-click title bar); expand via chevron or double-click
+  - Minimized header: logo · title · summary ("N items · N selected") · expand · close (inert)
+  - Drag to move: both expanded and minimized headers; click vs drag disambiguation (4px/200ms)
+  - Left-edge resize: width clamped 320–600px; snap-aware
+  - Snap-to-edge: 30px zone, coral stripe indicator, docks flush, persists across reload
+  - Three new `chrome.storage.local` keys: `auPanelPosition`, `auPanelMinimized`, `auPanelSnapped`
+  - `loadPanelMinimized(cb)` added to startup chain
+  - Compare arrow removed from minimized title bar (was unintuitive)
+  - Compare bar copy flipped: pitch on unselected, short confirmation on selected
+  - Close buttons (×) inert — pending session-hide / toolbar-icon design
+- [ ] **Phase 5 — Settings page** (next — Opus planning session required)
+  - Settings panel accessible via gear icon added to expanded header
+  - Every default wired to existing behavior; every existing behavior overrideable
+  - Card density UI added
+  - Active count pill swaps to user-saved defaults
+  - Close button design question to resolve before this phase
 - [ ] **Phase 6+7 bundle — Onboarding refresh + website polish**
   - Phase 6: welcome.html content rewrite (four-step model), Personalize wizard, first-search brand hint
   - Phase 7: remaining website palette work and polish
@@ -225,7 +239,8 @@ Full spec: Panel_Redesign_Spec.md (in Claude Project).
 - [x] **Phase 1 — Palette migration + layout scaffold** (Chat 66) ✅
 - [x] **Phase 2 — Filters overlay (Option C)** (Chat 67) ✅
 - [x] **Phase 3 — Card redesign** (Chat 68) ✅
-- [ ] **Phase 4+5 bundle of panel redesign** — panel chrome + settings page
+- [x] **Phase 4 — Panel chrome** (Chat 70) ✅
+- [ ] **Phase 5 — Settings page** (Opus planning session first)
 - [ ] **Phase 6+7 bundle of panel redesign** — onboarding refresh + website polish
 - [ ] $/serving for protein powder — design session required (deferred during redesign)
 - [ ] Prime scraping — investigate selector change (deferred during redesign)

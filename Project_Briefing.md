@@ -2,7 +2,7 @@
 *"Actually Useful: Amazon but better."*
 
 *Stable core last touched: Chat 69 (restructure into stable + volatile sections — no content changes)*
-*Volatile state last updated: Chat 68 (Phase 3 panel redesign: Card redesign) — see PART TWO for current versions*
+*Volatile state last updated: Chat 70 (Phase 4 panel redesign: Panel chrome) — see PART TWO for current versions*
 
 ---
 
@@ -245,16 +245,18 @@ Full boolean search model with the following operators:
 
 *Everything below this line is current-snapshot information. Rewritten at end of each phase bundle.*
 
+*Note: Phase 4+5 is one bundle. This update is mid-bundle (Phase 4 complete, Phase 5 pending). PART TWO version numbers and phase status updated; §17–§18 unchanged; §19 carries forward.*
+
 ---
 
-## 14. Current versions (as of Chat 68)
+## 14. Current versions (as of Chat 70)
 
-- **Overall / canonical version:** v0.6.1.80 (search.js)
+- **Overall / canonical version:** v0.6.1.82 (search.js)
 - **manifest:** v0.6.1
-- **search.js:** v0.6.1.80
+- **search.js:** v0.6.1.82
 - **core.js:** v0.6.1.53
 - **background.js:** v0.6.1.17
-- **styles.css:** updated Chat 68
+- **styles.css:** updated Chat 70
 - **compare.html:** updated Chat 66
 - **welcome.html:** updated Chat 66
 - **index.html:** updated Chat 66
@@ -305,6 +307,11 @@ Sort and Pages are **always-visible standalone rows** (`#ppu-sort-row`, `#ppu-pa
 
 **Pages default:** 4 (new installs). Slider resets to this on each fresh search. Stored values not applicable — pages slider is not persisted.
 
+**Compare bar copy (updated Chat 70):**
+- Unselected: "Check items below to send to the full comparison table — that's where Actually Useful really earns its name."
+- Selected: "Take X items to the full comparison table"
+- Sub-line (always visible): "Filter, sort, share, save with Actually Useful's research workspace"
+
 ---
 
 ## 18. Card layout — Phase 3 (Chat 68)
@@ -322,6 +329,37 @@ Sort and Pages are **always-visible standalone rows** (`#ppu-sort-row`, `#ppu-pa
 - Row hidden entirely if no brand was detected (unchanged)
 
 **Card density preference:** Storage key `auCardDensity` in `chrome.storage.local`. Values: `'dense'` (default) or `'comfortable'`. Loaded at startup via `loadCardDensity(cb)` in the same callback chain as the other `load*` functions. **No UI to change it yet** — Settings page (Phase 5) and onboarding wizard (Phase 6) will add the control surfaces.
+
+---
+
+## 18b. Panel chrome — Phase 4 (Chat 70)
+
+**Minimize/expand:**
+- `#ppu-minimize` button (− in expanded header) now wired; double-click title bar also works
+- Minimized header (`#ppu-header-minimized`): logo · title · summary text · expand chevron · close (inert)
+- Summary text: "N items" or "N items · N selected" — updates live via `updateMinSummary()` called from `render()`
+- Expanded header unchanged: logo · title · help (?) · minimize (−) · close (×)
+- `#ppu-close` and `#ppu-close-min` both inert (pending session-hide design)
+
+**Drag:** title bar is drag handle in both states. Icon buttons stop mousedown propagation. Click vs drag disambiguation: 4px / 200ms threshold.
+
+**Resize:** left-edge handle (`#ppu-drag-handle`). Width clamped **320–600px**. Snap-aware. Handle stays on left edge of panel always (Phase 4 design choice — revisit if awkward).
+
+**Snap-to-edge:** 30px snap zone. Coral indicator stripe (`#ppu-snap-indicator`) appended to body during drag in snap zone. Snaps flush on release. Clears on drag away.
+
+**Viewport resize:** snapped panels re-anchor on `window resize`. Unsnapped: clamped at next page load.
+
+**Storage keys (new, Phase 4):**
+
+| Key | Type | Default |
+|---|---|---|
+| `auPanelPosition` | `{ x, y, width }` | none |
+| `auPanelMinimized` | boolean | `false` |
+| `auPanelSnapped` | `"left" \| "right" \| null` | `null` |
+
+Old key `au_search_panel_pos` no longer written. Existing saved positions silently ignored on first load after update — panel defaults to right-side position.
+
+**Startup chain:** `loadPanelMinimized(cb)` added after `loadCardDensity`, before `tryBuild`.
 
 ---
 
@@ -352,7 +390,7 @@ Page at actuallyuseful.net/welcome. Opens on fresh install via chrome.runtime.on
 
 ---
 
-## Panel Redesign — phase status (as of Chat 68)
+## Panel Redesign — phase status (as of Chat 70)
 
 Full spec: Panel_Redesign_Spec.md in the Claude Project.
 
@@ -361,7 +399,8 @@ Full spec: Panel_Redesign_Spec.md in the Claude Project.
 - [x] **Phase 1 — Palette migration + layout scaffold** (Chat 66) ✅
 - [x] **Phase 2 — Filters overlay (Option C)** (Chat 67) ✅
 - [x] **Phase 3 — Card redesign** (Chat 68) ✅
-- [ ] **Phase 4+5 bundle — Panel chrome + Settings page** (next coding bundle)
+- [x] **Phase 4 — Panel chrome** (Chat 70) ✅
+- [ ] **Phase 5 — Settings page** (next — needs Opus planning session before coding)
 - [ ] **Phase 6+7 bundle — Onboarding refresh + website polish**
 
 ---

@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.80)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.82)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1449,6 +1449,13 @@ const ITEM_UNITS = [
   var amazonBrandsDemoteActive = false;
   var amazonBrandsList = [];   // loaded from amazon_brands.txt at startup
   var cardDensity = 'dense';   // 'dense' | 'comfortable' — loaded from chrome.storage.local (auCardDensity); default dense. Phase 3 plumbing only — no UI to change it yet (Settings = Phase 5, onboarding = Phase 6).
+
+  // ── Phase 4 — Panel chrome state ─────────────────────────────────────
+  // auPanelPosition: { x, y, width } — saved on mouseup; loaded at startup.
+  // auPanelMinimized: boolean — persists across sessions.
+  // auPanelSnapped: "left" | "right" | null — when set, overrides x at restore time.
+  var panelMinimized = false;   // loaded from auPanelMinimized
+  var panelSnapped   = null;    // loaded from auPanelSnapped: "left" | "right" | null
   var deliveryFilterActive = false;
   var deliveryFilterDays   = 7;   // default 7 days; presets: 2/3/5/7/10/14/21
   var isLiquidDominant = false;
@@ -1693,8 +1700,23 @@ const ITEM_UNITS = [
           '</div>'+
           '<div id="ppu-header-btns">'+
             '<a id="ppu-help" href="https://actuallyuseful.net" target="_blank" title="Help &amp; instructions">?</a>'+
-            '<button id="ppu-minimize" title="Minimize (coming in Phase 4)">\u2212</button>'+
-            '<button id="ppu-close" title="Close">\u00d7</button>'+
+            '<button id="ppu-minimize" title="Minimize">\u2212</button>'+
+            '<button id="ppu-close" title="Close (coming in a future update)">\u00d7</button>'+
+            '<!-- ppu-close: intentionally inert in Phase 4 pending session-hide design -->'+
+          '</div>'+
+        '</div>'+
+        '<div id="ppu-header-minimized" style="display:none;">'+
+          '<div id="ppu-header-brand">'+
+            '<span id="ppu-header-mark-min">AU</span>'+
+            '<h3 id="ppu-header-title-min">Actually Useful</h3>'+
+          '</div>'+
+          '<span id="ppu-min-summary"></span>'+
+          '<div id="ppu-header-btns-min">'+
+            '<button id="ppu-expand" title="Expand">'+
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'+
+            '</button>'+
+            '<button id="ppu-close-min" title="Close (coming in a future update)">\u00d7</button>'+
+            '<!-- ppu-close-min: intentionally inert in Phase 4 pending session-hide design -->'+
           '</div>'+
         '</div>'+
         (localStorage.getItem('au-banner-dismissed')==='1' ? '' :
@@ -1961,62 +1983,286 @@ const ITEM_UNITS = [
       document.head.appendChild(styleEl);
     }
 
-    // ── Position panel ────────────────────────────────────────────────────
-    var DEFAULT_WIDTH  = 390;
-    var DEFAULT_HEIGHT = null; // null = natural height (max-height from CSS)
-    var DEFAULT_TOP    = 80;
-    var MIN_HEIGHT     = 200;
+    // ── Phase 4 — Panel chrome: position, drag, resize, snap, minimize ───
+    //
+    // Storage keys:
+    //   auPanelPosition  { x, y, width } — saved on mouseup; loaded at startup.
+    //   auPanelMinimized boolean          — loaded via loadPanelMinimized().
+    //   auPanelSnapped   "left"|"right"|null — when set, overrides x at restore.
+    //
+    // Resize handle stays on the left edge of the panel always (Phase 4 choice).
+    // If it feels awkward when panel is on the left side, revisit in a later session.
 
-    function applyPosition(top, left, width, height) {
-      panel.style.top   = top   + 'px';
-      panel.style.left  = left  + 'px';
-      panel.style.width = width + 'px';
-      if (height) {
-        panel.style.maxHeight = height + 'px';
-        panel.style.height    = height + 'px';
-      }
-    }
+    var DEFAULT_WIDTH = 390;
+    var DEFAULT_TOP   = 80;
+    var MIN_WIDTH     = 320;
+    var MAX_WIDTH     = 600;
+    var SNAP_ZONE     = 30; // px from viewport edge to trigger snap indicator
 
     function defaultLeft() { return window.innerWidth - DEFAULT_WIDTH - 16; }
 
-    chrome.storage.local.get('au_search_panel_pos', function(result) {
-      var pos = result['au_search_panel_pos'];
-      if (pos && typeof pos.top === 'number' && typeof pos.left === 'number' && typeof pos.width === 'number') {
-        applyPosition(pos.top, pos.left, pos.width, pos.height || null);
-      } else {
-        applyPosition(DEFAULT_TOP, defaultLeft(), DEFAULT_WIDTH, null);
-      }
-    });
+    // Clamp panel to keep at least 80px of title bar reachable
+    function clampX(x, w) {
+      w = w || panel.offsetWidth;
+      return Math.max(0, Math.min(x, window.innerWidth - 80));
+    }
+    function clampY(y) {
+      return Math.max(0, Math.min(y, window.innerHeight - 40));
+    }
 
-    // ── Drag to move (header) ─────────────────────────────────────────────
-    var header = document.getElementById('ppu-header');
-    if (header) {
-      var isDragMove = false, moveStartX, moveStartY, moveStartLeft, moveStartTop;
-      header.addEventListener('mousedown', function(e) {
-        if (e.target.closest('button,a')) return;
-        isDragMove = true;
-        var rect = panel.getBoundingClientRect();
-        moveStartX=e.clientX; moveStartY=e.clientY; moveStartLeft=rect.left; moveStartTop=rect.top;
-        document.body.style.userSelect = 'none';
-        e.preventDefault();
-      });
-      document.addEventListener('mousemove', function(e) {
-        if (!isDragMove) return;
-        var newLeft = Math.max(-panel.offsetWidth + 60, Math.min(moveStartLeft + (e.clientX - moveStartX), window.innerWidth - 60));
-        var newTop  = Math.max(0, Math.min(moveStartTop + (e.clientY - moveStartY), window.innerHeight - 40));
-        panel.style.left = newLeft + 'px';
-        panel.style.top  = newTop  + 'px';
-      });
-      document.addEventListener('mouseup', function(e) {
-        if (!isDragMove) return;
-        isDragMove = false; panelMoved = true; document.body.style.userSelect = '';
-        var rect = panel.getBoundingClientRect();
-        var curHeight = panel.style.height ? panel.offsetHeight : null;
-        chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth, height: curHeight } });
+    function savePosition() {
+      panelMoved = true;
+      var rect = panel.getBoundingClientRect();
+      chrome.storage.local.set({
+        auPanelPosition: { x: rect.left, y: rect.top, width: panel.offsetWidth },
+        auPanelSnapped: panelSnapped
       });
     }
 
-    // ── Drag to resize (left edge handle) ────────────────────────────────
+    function applySnap(side) {
+      panelSnapped = side;
+      if (side === 'left') {
+        panel.style.left = '0px';
+      } else if (side === 'right') {
+        panel.style.left = (window.innerWidth - panel.offsetWidth) + 'px';
+      }
+    }
+
+    // Re-anchor snapped panel on viewport resize
+    window.addEventListener('resize', function() {
+      if (panelSnapped === 'left') {
+        panel.style.left = '0px';
+      } else if (panelSnapped === 'right') {
+        panel.style.left = (window.innerWidth - panel.offsetWidth) + 'px';
+      }
+    });
+
+    // Load and apply saved position
+    chrome.storage.local.get(['auPanelPosition', 'auPanelSnapped'], function(result) {
+      var savedSnap = result['auPanelSnapped'] || null;
+      var pos       = result['auPanelPosition'];
+      var w = (pos && pos.width) ? Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, pos.width)) : DEFAULT_WIDTH;
+      panel.style.width = w + 'px';
+
+      if (savedSnap === 'left' || savedSnap === 'right') {
+        panelSnapped = savedSnap;
+        var y = (pos && typeof pos.y === 'number') ? clampY(pos.y) : DEFAULT_TOP;
+        panel.style.top  = y + 'px';
+        applySnap(savedSnap);
+      } else if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+        panel.style.top  = clampY(pos.y) + 'px';
+        panel.style.left = clampX(pos.x, w) + 'px';
+      } else {
+        panel.style.top  = DEFAULT_TOP + 'px';
+        panel.style.left = defaultLeft() + 'px';
+      }
+
+      // Apply minimized state (panelMinimized already loaded via loadPanelMinimized)
+      if (panelMinimized) {
+        panel.classList.add('au-minimized');
+        applyMinimizedState();
+      }
+    });
+
+    // ── Snap indicator stripe (shown during drag near viewport edges) ─────
+    var snapIndicator = document.createElement('div');
+    snapIndicator.id  = 'ppu-snap-indicator';
+    snapIndicator.style.cssText = 'display:none;position:fixed;top:0;bottom:0;width:4px;z-index:2147483646;background:#c2362a;pointer-events:none;';
+    document.body.appendChild(snapIndicator);
+
+    function showSnapIndicator(side) {
+      snapIndicator.style.display = 'block';
+      if (side === 'left')  { snapIndicator.style.left = '0'; snapIndicator.style.right = ''; }
+      if (side === 'right') { snapIndicator.style.right = '0'; snapIndicator.style.left  = ''; }
+    }
+    function hideSnapIndicator() { snapIndicator.style.display = 'none'; }
+
+    // ── Drag to move (title bar / header) ────────────────────────────────
+    // Click vs drag: if mousedown→mouseup within 4px and 200ms → treat as click.
+    var header    = document.getElementById('ppu-header');
+    var headerMin = document.getElementById('ppu-header-minimized');
+
+    function setupHeaderDrag(hdr) {
+      if (!hdr) return;
+      var dragStartX, dragStartY, dragStartLeft, dragStartTop;
+      var mouseDownTime, mouseDownX, mouseDownY;
+      var dragging = false;
+      var snapSide = null; // snap side detected during current drag
+
+      // Prevent drag from firing on icon buttons in title bar
+      var iconSelectors = '#ppu-minimize,#ppu-close,#ppu-help,#ppu-expand,#ppu-close-min';
+      hdr.querySelectorAll(iconSelectors).forEach(function(btn) {
+        btn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      });
+
+      hdr.addEventListener('mousedown', function(e) {
+        if (e.target.closest(iconSelectors)) return;
+        mouseDownTime = Date.now();
+        mouseDownX = e.clientX;
+        mouseDownY = e.clientY;
+        var rect = panel.getBoundingClientRect();
+        dragStartLeft = rect.left;
+        dragStartTop  = rect.top;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        dragging = false;
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+
+        function onMove(ev) {
+          var dx = ev.clientX - dragStartX;
+          var dy = ev.clientY - dragStartY;
+          if (!dragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) dragging = true;
+          if (!dragging) return;
+
+          var newLeft = dragStartLeft + dx;
+          var newTop  = clampY(dragStartTop + dy);
+
+          // Snap zone detection
+          if (ev.clientX <= SNAP_ZONE) {
+            snapSide = 'left';
+            showSnapIndicator('left');
+          } else if (ev.clientX >= window.innerWidth - SNAP_ZONE) {
+            snapSide = 'right';
+            showSnapIndicator('right');
+          } else {
+            snapSide = null;
+            hideSnapIndicator();
+          }
+
+          panel.style.left = newLeft + 'px';
+          panel.style.top  = newTop  + 'px';
+        }
+
+        function onUp(ev) {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          document.body.style.userSelect = '';
+          hideSnapIndicator();
+
+          var elapsed = Date.now() - mouseDownTime;
+          var moved   = Math.abs(ev.clientX - mouseDownX) > 4 || Math.abs(ev.clientY - mouseDownY) > 4;
+
+          if (!moved && elapsed < 200) {
+            // This is a click — drag already guarded; do nothing here.
+            // Double-click handler is separate.
+            return;
+          }
+
+          if (snapSide) {
+            applySnap(snapSide);
+          } else {
+            // Dragged out of a snapped state — clear snap
+            panelSnapped = null;
+            var rect = panel.getBoundingClientRect();
+            panel.style.left = clampX(rect.left, panel.offsetWidth) + 'px';
+          }
+          snapSide = null;
+          savePosition();
+        }
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    }
+
+    setupHeaderDrag(header);
+    setupHeaderDrag(headerMin);
+
+    // ── Minimize / expand ────────────────────────────────────────────────
+    function applyMinimizedState() {
+      if (header)    header.style.display    = 'none';
+      if (headerMin) headerMin.style.display = 'flex';
+      // Hide all panel-level siblings except controls-wrap (which holds the headers)
+      // and the drag/bottom handles
+      Array.from(panel.children).forEach(function(child) {
+        var id = child.id;
+        if (id === 'ppu-controls-wrap' ||
+            id === 'ppu-drag-handle'   ||
+            id === 'ppu-bottom-handle') return;
+        child.style.display = 'none';
+      });
+      // Inside controls-wrap, hide everything except the two headers
+      var controlsWrap = document.getElementById('ppu-controls-wrap');
+      if (controlsWrap) {
+        Array.from(controlsWrap.children).forEach(function(child) {
+          var id = child.id;
+          if (id === 'ppu-header' || id === 'ppu-header-minimized') return;
+          child.style.display = 'none';
+        });
+      }
+      updateMinSummary();
+    }
+
+    function applyExpandedState() {
+      if (header)    header.style.display    = '';
+      if (headerMin) headerMin.style.display = 'none';
+      // Restore all panel-level children
+      Array.from(panel.children).forEach(function(child) {
+        child.style.display = '';
+      });
+      // Restore all controls-wrap children except minimized header
+      var controlsWrap = document.getElementById('ppu-controls-wrap');
+      if (controlsWrap) {
+        Array.from(controlsWrap.children).forEach(function(child) {
+          if (child.id === 'ppu-header-minimized') return;
+          child.style.display = '';
+        });
+      }
+    }
+
+    function updateMinSummary() {
+      var summaryEl = document.getElementById('ppu-min-summary');
+      if (!summaryEl) return;
+      var total = allData.length;
+      var cc    = Object.keys(checkedAsins).length;
+      summaryEl.textContent = total + ' items' + (cc > 0 ? ' \u00b7 ' + cc + ' selected' : '');
+    }
+
+    function doMinimize() {
+      panelMinimized = true;
+      panel.classList.add('au-minimized');
+      chrome.storage.local.set({ auPanelMinimized: true });
+      applyMinimizedState();
+    }
+
+    function doExpand() {
+      panelMinimized = false;
+      panel.classList.remove('au-minimized');
+      chrome.storage.local.set({ auPanelMinimized: false });
+      applyExpandedState();
+    }
+
+    // Wire minimize button (− in expanded header)
+    var minimizeBtn = document.getElementById('ppu-minimize');
+    if (minimizeBtn) {
+      minimizeBtn.addEventListener('click', function(e) { e.stopPropagation(); doMinimize(); });
+    }
+
+    // Wire expand button (chevron in minimized header)
+    var expandBtn = document.getElementById('ppu-expand');
+    if (expandBtn) {
+      expandBtn.addEventListener('click', function(e) { e.stopPropagation(); doExpand(); });
+    }
+
+    // Double-click title bar to toggle minimize/expand
+    // Guard: only fire if it wasn't a drag (handled by click vs drag disambiguation above)
+    function addDoubleClickToggle(hdr) {
+      if (!hdr) return;
+      var iconSel = '#ppu-minimize,#ppu-close,#ppu-help,#ppu-expand,#ppu-close-min';
+      hdr.addEventListener('dblclick', function(e) {
+        if (e.target.closest(iconSel)) return;
+        e.preventDefault();
+        if (panelMinimized) doExpand(); else doMinimize();
+      });
+    }
+    addDoubleClickToggle(header);
+    addDoubleClickToggle(headerMin);
+
+    // ppu-close / ppu-close-min: intentionally inert in Phase 4 pending session-hide design.
+    // Do NOT wire these until the toolbar-icon restore path is designed.
+
+    // ── Left-edge resize handle ───────────────────────────────────────────
     var dh = document.getElementById('ppu-drag-handle');
     if (dh) {
       var isDragResize = false, fixedRight;
@@ -2028,41 +2274,46 @@ const ITEM_UNITS = [
       });
       document.addEventListener('mousemove', function(e) {
         if (!isDragResize) return;
-        var newWidth = Math.min(900, Math.max(280, fixedRight - e.clientX));
+        var newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, fixedRight - e.clientX));
         panel.style.width = newWidth + 'px';
-        panel.style.left  = (fixedRight - newWidth) + 'px';
+        // If snapped to right, keep right edge flush
+        if (panelSnapped === 'right') {
+          panel.style.left = (window.innerWidth - newWidth) + 'px';
+        } else if (panelSnapped !== 'left') {
+          panel.style.left = (fixedRight - newWidth) + 'px';
+        }
+        // If snapped to left, left stays at 0; width just grows rightward
       });
       document.addEventListener('mouseup', function() {
         if (!isDragResize) return;
-        isDragResize = false; document.body.style.userSelect = '';
-        var rect = panel.getBoundingClientRect();
-        var curHeight = panel.style.height ? panel.offsetHeight : null;
-        chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth, height: curHeight } });
+        isDragResize = false;
+        document.body.style.userSelect = '';
+        savePosition();
       });
     }
 
-    // ── Drag to resize (bottom edge handle — height) ──────────────────────
+    // ── Bottom resize handle (height) — unchanged from Phase 3 ───────────
     var bh = document.getElementById('ppu-bottom-handle');
     if (bh) {
-      var isDragBottom = false, fixedTop, startHeight;
+      var isDragBottom = false, fixedTop2, MIN_HEIGHT = 200;
       bh.addEventListener('mousedown', function(e) {
         isDragBottom = true;
-        fixedTop = panel.getBoundingClientRect().top;
-        startHeight = panel.offsetHeight;
+        fixedTop2 = panel.getBoundingClientRect().top;
         document.body.style.userSelect = 'none';
         e.preventDefault();
       });
       document.addEventListener('mousemove', function(e) {
         if (!isDragBottom) return;
-        var newHeight = Math.min(window.innerHeight - fixedTop - 10, Math.max(MIN_HEIGHT, e.clientY - fixedTop));
-        panel.style.height    = newHeight + 'px';
-        panel.style.maxHeight = newHeight + 'px';
+        var newH = Math.min(window.innerHeight - fixedTop2 - 10, Math.max(MIN_HEIGHT, e.clientY - fixedTop2));
+        panel.style.height    = newH + 'px';
+        panel.style.maxHeight = newH + 'px';
       });
       document.addEventListener('mouseup', function() {
         if (!isDragBottom) return;
-        isDragBottom = false; document.body.style.userSelect = '';
-        var rect = panel.getBoundingClientRect();
-        chrome.storage.local.set({ 'au_search_panel_pos': { top: rect.top, left: rect.left, width: panel.offsetWidth, height: panel.offsetHeight } });
+        isDragBottom = false;
+        document.body.style.userSelect = '';
+        // Bottom resize doesn't affect position/snap — save x/y/width only
+        savePosition();
       });
     }
 
@@ -2162,11 +2413,13 @@ const ITEM_UNITS = [
       if(compareBtn){ compareBtn.classList.toggle('disabled', cc===0); compareBtn.title = cc===0 ? 'Nothing checked yet' : ''; }
       if(compareHint){ compareHint.style.display='block'; }
       if(shortlistBar){ shortlistBar.classList.toggle('active',cc>0); }
+      // Update minimized header summary if panel is minimized
+      if(panelMinimized) updateMinSummary();
       // Update compare bar copy based on checked item count (§10.4 / §10.1)
       var mainEl=document.getElementById('ppu-compare-main');
       if(mainEl){
-        if(cc>0){ mainEl.textContent='Take '+cc+' item'+(cc===1?'':'s')+' to the full comparison table — that’s where Actually Useful really earns its name.'; }
-        else { mainEl.textContent='Check items below to send to the full comparison table'; }
+        if(cc>0){ mainEl.textContent='Take '+cc+' item'+(cc===1?'':'s')+' to the full comparison table'; }
+        else { mainEl.textContent='Check items below to send to the full comparison table — that’s where Actually Useful really earns its name.'; }
       }
       var sortLabels={'ppu-asc':'best value','price-asc':'price','delivery-free':'soonest free delivery','delivery-any':'soonest delivery','amazon-default':'Amazon order'};
 
@@ -2551,8 +2804,8 @@ const ITEM_UNITS = [
           if(shortlistBar){ shortlistBar.classList.toggle('active',cnt>0); }
           var mainEl2=document.getElementById('ppu-compare-main');
           if(mainEl2){
-            if(cnt>0){ mainEl2.textContent='Take '+cnt+' item'+(cnt===1?'':'s')+' to the full comparison table — that’s where Actually Useful really earns its name.'; }
-            else { mainEl2.textContent='Check items below to send to the full comparison table'; }
+            if(cnt>0){ mainEl2.textContent='Take '+cnt+' item'+(cnt===1?'':'s')+' to the full comparison table'; }
+            else { mainEl2.textContent='Check items below to send to the full comparison table — that’s where Actually Useful really earns its name.'; }
           }
           updateActiveIndicators();
         });
@@ -3282,9 +3535,8 @@ const ITEM_UNITS = [
     // Dec-bar is always visible now (no collapse state to hide it)
     (function(){ var db=document.getElementById('ppu-dec-bar'); if(db) db.style.display=''; })();
 
-    // ppu-minimize: intentionally inert in Phase 1. Wire collapse/expand logic in Phase 4.
-    // ppu-close: functional — removes panel from DOM.
-    document.getElementById('ppu-close').addEventListener('click',function(e){e.stopPropagation();panel.remove();});
+    // ppu-minimize, ppu-expand, ppu-close, ppu-close-min:
+    // All wired in the Phase 4 panel chrome block above.
     var workflowDismiss=document.getElementById('ppu-workflow-dismiss');
     if(workflowDismiss){
       workflowDismiss.addEventListener('click',function(){
@@ -3674,6 +3926,16 @@ const ITEM_UNITS = [
     }catch(e){cb();}
   }
 
+  // Phase 4 — load minimized state before buildPanel so applyMinimizedState fires correctly
+  function loadPanelMinimized(cb){
+    try{
+      chrome.storage.local.get('auPanelMinimized',function(res){
+        panelMinimized = !!(res && res.auPanelMinimized);
+        cb();
+      });
+    }catch(e){cb();}
+  }
+
   function tryBuild(n){
     var cards=document.querySelectorAll('[data-component-type="s-search-result"]');
     if(cards.length>0) buildPanel();
@@ -3692,7 +3954,9 @@ const ITEM_UNITS = [
           loadPersonalBlocklist(function(){
             loadPersonalAllowlist(function(){
               loadCardDensity(function(){
-                setTimeout(function(){tryBuild(15);},1500);
+                loadPanelMinimized(function(){
+                  setTimeout(function(){tryBuild(15);},1500);
+                });
               });
             });
           });
