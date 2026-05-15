@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.78)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.79)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1679,7 +1679,7 @@ const ITEM_UNITS = [
 
     // Collapsed state — persisted in localStorage after first interaction
     // Default true (expanded) if never set
-    var filtersOpen = localStorage.getItem('au-filters-open') !== '0';
+    // filtersOpen removed in Phase 2 — overlay always starts closed (no persistence).
 
     panel.innerHTML=
       '<div id="ppu-drag-handle"></div>'+
@@ -1743,91 +1743,132 @@ const ITEM_UNITS = [
           '<span id="ppu-pages-status"></span>'+
           '<button id="ppu-btn-refresh" class="ppu-btn" style="margin-left:6px;flex-shrink:0;" title="Re-syncs with the Amazon page. Use this if you changed Amazon\u2019s filters or categories. Extra pages loaded will be lost.">\u21ba Re-sync</button>'+
         '</div>'+
-        '<div class="ppu-section-divider ppu-collapsible-toggle" id="ppu-filters-toggle" data-target="ppu-filters-collapsible">'+
-          '<span><span id="ppu-filters-section-label">'+(filtersOpen?'Filters':'Click to filter by price, delivery, brand, and more')+'</span> <span id="ppu-filters-count" style="display:none"></span><span class="ppu-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></span>'+
+        // ── Filters trigger row (Phase 2) ────────────────────────────────
+        // Replaces the old collapsible toggle. Clicking opens the overlay below.
+        // Active count pill counts ALL non-default filter states (see updateActiveIndicators).
+        // When Settings ships (Phase 5), swap the defaults comparison in updateActiveIndicators.
+        '<div id="ppu-filters-trigger">'+
+          '<div id="ppu-filters-trigger-left">'+
+            '<svg id="ppu-filters-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>'+
+            '<span id="ppu-filters-label">Filters</span>'+
+            '<span id="ppu-filters-active-pill" style="display:none"></span>'+
+          '</div>'+
+          '<span class="ppu-chevron" id="ppu-filters-chevron"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>'+
         '</div>'+
-        '<div id="ppu-filters-collapsible" class="ppu-collapsible-section">'+
-          '<div id="ppu-sliders-row">'+
-            '<div class="ppu-slider-half">'+
-              '<span class="ppu-slider-label" title="Hide products with fewer reviews">Minimum reviews: <em id="ppu-min-reviews-val">'+(minReviews||0)+'</em></span>'+
-              '<div class="ppu-slider-wrap">'+
-                '<span class="ppu-slider-startlabel">0</span>'+
-                '<div class="ppu-slider-track-wrap">'+
-                  '<input id="ppu-min-reviews-slider" type="range" class="ppu-slider" min="0" max="1000" step="100" value="'+(minReviews||0)+'">'+
-                  '<div class="ppu-slider-ticks">'+
-                    '<span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
-                    '<span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
+        // ── Filters overlay (Phase 2) ─────────────────────────────────────
+        // Slides down from trigger row. max-height transition: 0 → 800px, 150ms ease-out.
+        // Closed on: trigger row click, × button, ESC, tap-outside.
+        // Overlay does NOT float — it pushes content below it down.
+        '<div id="ppu-filters-overlay">'+
+          // Overlay header: just a × close button, no title (trigger row already says "Filters")
+          '<div id="ppu-filters-overlay-header">'+
+            '<button id="ppu-filters-overlay-close" title="Close filters">\u00d7</button>'+
+          '</div>'+
+          // Mini-section 1: Quality
+          '<div class="ppu-filter-section">'+
+            '<div class="ppu-filter-section-label">Quality</div>'+
+            '<div id="ppu-sliders-row">'+
+              '<div class="ppu-slider-half">'+
+                '<span class="ppu-slider-label" title="Hide products with fewer reviews">Minimum reviews: <em id="ppu-min-reviews-val">'+(minReviews||0)+'</em></span>'+
+                '<div class="ppu-slider-wrap">'+
+                  '<span class="ppu-slider-startlabel">0</span>'+
+                  '<div class="ppu-slider-track-wrap">'+
+                    '<input id="ppu-min-reviews-slider" type="range" class="ppu-slider" min="0" max="1000" step="100" value="'+(minReviews||0)+'">'+
+                    '<div class="ppu-slider-ticks">'+
+                      '<span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
+                      '<span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
+                    '</div>'+
                   '</div>'+
+                  '<span class="ppu-slider-endlabel">1000</span>'+
                 '</div>'+
-                '<span class="ppu-slider-endlabel">1000</span>'+
               '</div>'+
-            '</div>'+
-            '<div class="ppu-slider-half">'+
-              '<span class="ppu-slider-label" title="Hide products below this star rating">Minimum rating: <em id="ppu-min-rating-val">'+(minRating>0?(minRating+'\u2605'):'Any')+'</em></span>'+
-              '<div class="ppu-slider-wrap">'+
-                '<span class="ppu-slider-startlabel">0</span>'+
-                '<div class="ppu-slider-track-wrap">'+
-                  '<input id="ppu-min-rating-slider" type="range" class="ppu-slider" min="0" max="5" step="0.5" value="'+(minRating||0)+'">'+
-                  '<div class="ppu-slider-ticks">'+
-                    '<span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
-                    '<span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
+              '<div class="ppu-slider-half">'+
+                '<span class="ppu-slider-label" title="Hide products below this star rating">Minimum rating: <em id="ppu-min-rating-val">'+(minRating>0?(minRating+'\u2605'):'Any')+'</em></span>'+
+                '<div class="ppu-slider-wrap">'+
+                  '<span class="ppu-slider-startlabel">0</span>'+
+                  '<div class="ppu-slider-track-wrap">'+
+                    '<input id="ppu-min-rating-slider" type="range" class="ppu-slider" min="0" max="5" step="0.5" value="'+(minRating||0)+'">'+
+                    '<div class="ppu-slider-ticks">'+
+                      '<span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
+                      '<span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span><span class="minor"></span><span class="major"></span>'+
+                    '</div>'+
                   '</div>'+
+                  '<span class="ppu-slider-endlabel">5\u2605</span>'+
                 '</div>'+
-                '<span class="ppu-slider-endlabel">5\u2605</span>'+
               '</div>'+
             '</div>'+
           '</div>'+
-          '<div id="ppu-price-range-row">'+
-            '<span class="ppu-slider-label" title="Filter products by price range">Price</span>'+
-            '<div class="ppu-price-slider-wrap">'+
-              '<div class="ppu-price-track-bg"><div id="ppu-price-track-fill" class="ppu-price-track-fill"></div></div>'+
-              '<input id="ppu-price-lo" type="range" class="ppu-price-thumb" step="1" value="0" min="0" max="1000">'+
-              '<input id="ppu-price-hi" type="range" class="ppu-price-thumb" step="1" value="1000" min="0" max="1000">'+
+          // Mini-section 2: Price
+          '<div class="ppu-filter-section">'+
+            '<div class="ppu-filter-section-label">Price</div>'+
+            '<div id="ppu-price-range-row">'+
+              '<div class="ppu-price-slider-wrap">'+
+                '<div class="ppu-price-track-bg"><div id="ppu-price-track-fill" class="ppu-price-track-fill"></div></div>'+
+                '<input id="ppu-price-lo" type="range" class="ppu-price-thumb" step="1" value="0" min="0" max="1000">'+
+                '<input id="ppu-price-hi" type="range" class="ppu-price-thumb" step="1" value="1000" min="0" max="1000">'+
+              '</div>'+
+              '<span id="ppu-price-label" class="ppu-price-label"></span>'+
             '</div>'+
-            '<span id="ppu-price-label" class="ppu-price-label"></span>'+
           '</div>'+
-          ((hasSnap||hasFsaHsa||hasClimatePledge||hasSmallBusiness)?
-            '<div id="ppu-badge-filter-row">'+
-              (hasSnap?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-snap-only"'+(snapOnly?' checked':'')+'>SNAP EBT eligible only</label>':'')+
-              (hasFsaHsa?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-fsa-only"'+(fsaHsaOnly?' checked':'')+'>FSA or HSA eligible only</label>':'')+
-              (hasClimatePledge?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-climate-only"'+(climatePledgeOnly?' checked':'')+'>Climate Pledge Friendly only</label>':'')+
-              (hasSmallBusiness?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-sb-only"'+(smallBusinessOnly?' checked':'')+'>Small Business only</label>':'')+
-            '</div>':'')+
+          // Mini-section 3: Sources (only rendered when multiple sources present)
           (hasNonStandard?
-            '<div id="ppu-source-row">'+
-              '<span class="label">Sources:</span>'+
-              Object.keys(detectedRetailers).map(function(k){
-                var label=detectedRetailers[k];
-                var cls='ppu-source-toggle'+
-                  (k==='standard'?' src-standard':k==='fresh'?' src-fresh':k==='whole-foods'?' src-wf':k==='pharmacy'?' src-pharmacy':' src-partner')+
-                  (!srcFilter[k]?' off':'');
-                return '<span class="'+cls+'" data-src="'+k+'">'+label+'</span>';
-              }).join('')+
+            '<div class="ppu-filter-section">'+
+              '<div class="ppu-filter-section-label">Sources</div>'+
+              '<div id="ppu-source-row">'+
+                Object.keys(detectedRetailers).map(function(k){
+                  var label=detectedRetailers[k];
+                  var cls='ppu-source-toggle'+
+                    (k==='standard'?' src-standard':k==='fresh'?' src-fresh':k==='whole-foods'?' src-wf':k==='pharmacy'?' src-pharmacy':' src-partner')+
+                    (!srcFilter[k]?' off':'');
+                  return '<span class="'+cls+'" data-src="'+k+'">'+label+'</span>';
+                }).join('')+
+              '</div>'+
             '</div>':'')+
-          '<div id="ppu-amazon-brands-row">'+
-            '<label class="ppu-filter-toggle-label">'+
-              '<input type="checkbox" id="ppu-amazon-brands-on"'+(amazonBrandsDemoteActive?' checked':'')+'>'+
-              ' Move Amazon brands to end'+
-            '</label>'+
-          '</div>'+
-          '<div id="ppu-brand-filter-row">'+
-            '<label class="ppu-filter-toggle-label">'+
-              '<input type="checkbox" id="ppu-brand-filter-on"'+(brandFilterActive?' checked':'')+'>'+
-              ' Move unrecognized brands to end'+
-            '</label>'+
-          '</div>'+
-          '<div id="ppu-delivery-filter-row">'+
-            '<label class="ppu-filter-toggle-label">'+
-              '<input type="checkbox" id="ppu-delivery-filter-on"'+(deliveryFilterActive?' checked':'')+'>'+
-              ' Hide slow shipping'+
-            '</label>'+
-            '<div id="ppu-delivery-slider-wrap" class="'+(deliveryFilterActive?'':'ppu-delivery-slider-hidden')+'">'+
-              '<span class="ppu-delivery-slider-label" id="ppu-delivery-days-label">Arriving within '+deliveryFilterDays+' days</span>'+
-              '<div class="ppu-delivery-presets">'+
-                [2,3,5,7,10,14,21].map(function(d){return '<button class="ppu-delivery-preset-btn'+(deliveryFilterDays===d?' active':'')+'" data-days="'+d+'">'+d+'</button>';}).join('')+
+          // Mini-section 4: Badges (only rendered when badges present)
+          ((hasSnap||hasFsaHsa||hasClimatePledge||hasSmallBusiness)?
+            '<div class="ppu-filter-section">'+
+              '<div class="ppu-filter-section-label">Badges</div>'+
+              '<div id="ppu-badge-filter-row">'+
+                (hasSnap?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-snap-only"'+(snapOnly?' checked':'')+'>SNAP EBT eligible only</label>':'')+
+                (hasFsaHsa?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-fsa-only"'+(fsaHsaOnly?' checked':'')+'>FSA or HSA eligible only</label>':'')+
+                (hasClimatePledge?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-climate-only"'+(climatePledgeOnly?' checked':'')+'>Climate Pledge Friendly only</label>':'')+
+                (hasSmallBusiness?'<label class="ppu-badge-label"><input type="checkbox" id="ppu-sb-only"'+(smallBusinessOnly?' checked':'')+'>Small Business only</label>':'')+
+              '</div>'+
+            '</div>':'')+
+          // Mini-section 5: Brand & delivery
+          // "Adjust for this search →" link toggles inline expansion with the 3 brand/delivery controls.
+          // Expansion starts closed each time the overlay opens (no persistence).
+          '<div class="ppu-filter-section ppu-filter-section-last">'+
+            '<div class="ppu-filter-section-label">Brand &amp; delivery</div>'+
+            '<div id="ppu-brand-delivery-summary">'+
+              'Using your default settings. <a href="#" id="ppu-brand-delivery-adjust" tabindex="0">Adjust for this search \u2192</a>'+
+            '</div>'+
+            '<div id="ppu-brand-delivery-expand" style="display:none;">'+
+              '<div id="ppu-amazon-brands-row">'+
+                '<label class="ppu-filter-toggle-label">'+
+                  '<input type="checkbox" id="ppu-amazon-brands-on"'+(amazonBrandsDemoteActive?' checked':'')+'>'+
+                  ' Move Amazon brands to end'+
+                '</label>'+
+              '</div>'+
+              '<div id="ppu-brand-filter-row">'+
+                '<label class="ppu-filter-toggle-label">'+
+                  '<input type="checkbox" id="ppu-brand-filter-on"'+(brandFilterActive?' checked':'')+'>'+
+                  ' Move unrecognized brands to end'+
+                '</label>'+
+              '</div>'+
+              '<div id="ppu-delivery-filter-row">'+
+                '<label class="ppu-filter-toggle-label">'+
+                  '<input type="checkbox" id="ppu-delivery-filter-on"'+(deliveryFilterActive?' checked':'')+'>'+
+                  ' Hide slow shipping'+
+                '</label>'+
+                '<div id="ppu-delivery-slider-wrap" class="'+(deliveryFilterActive?'':'ppu-delivery-slider-hidden')+'">'+
+                  '<span class="ppu-delivery-slider-label" id="ppu-delivery-days-label">Arriving within '+deliveryFilterDays+' days</span>'+
+                  '<div class="ppu-delivery-presets">'+
+                    [2,3,5,7,10,14,21].map(function(d){return '<button class="ppu-delivery-preset-btn'+(deliveryFilterDays===d?' active':'')+'" data-days="'+d+'">'+d+'</button>';}).join('')+
+                  '</div>'+
+                '</div>'+
               '</div>'+
             '</div>'+
-          '</div>'+
           '</div>'+
         '</div>'+
       '<div id="ppu-dec-bar">'+
@@ -1845,7 +1886,7 @@ const ITEM_UNITS = [
             '</div>'+
           '</div>'+
           '<span id="ppu-compare-hint"><span id="ppu-compare-main">Check items below to send to the full comparison table</span><span id="ppu-compare-sub" style="display:block;font-size:10px;margin-top:1px;font-weight:400;">Filter, sort, share, save with Actually Useful\'s research workspace</span></span>'+
-          '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary disabled" title="Check items to compare">Compare (0)</button>'+
+          '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary disabled" title="Nothing checked yet">Compare (0)</button>'+
         '</div>'+
         '<div id="ppu-high-noise-banner" style="display:none"><span class="ppu-noise-msg"></span><button class="ppu-noise-dismiss" title="Dismiss">\u00d7</button></div>'+
         '<div id="ppu-list"></div>'+
@@ -1874,7 +1915,7 @@ const ITEM_UNITS = [
       styleEl.id = 'ppu-extra-styles';
       styleEl.textContent =
         '.price-hidden{display:none!important}' +
-        '#ppu-price-range-row{display:flex;align-items:center;gap:8px;padding:4px 14px 6px;}' +
+        '#ppu-price-range-row{display:flex;align-items:center;gap:8px;padding:2px 0 4px;}' +
         '.ppu-price-slider-wrap{position:relative;flex:1;height:18px;}' +
         '.ppu-price-track-bg{position:absolute;top:50%;left:0;right:0;height:4px;background:#d1d5db;border-radius:2px;transform:translateY(-50%);}' +
         '.ppu-price-track-fill{position:absolute;top:0;height:4px;background:#f25d4e;border-radius:2px;}' +
@@ -2111,7 +2152,7 @@ const ITEM_UNITS = [
       // Empty-state compare bar: button is non-clickable when 0 items checked.
       // NOTE: ppu-btn-compare pointer-events:none when cc===0 is intentional in Phase 1.
       // Phase 2+ should add tooltip or improved disabled UX.
-      if(compareBtn){ compareBtn.classList.toggle('disabled', cc===0); }
+      if(compareBtn){ compareBtn.classList.toggle('disabled', cc===0); compareBtn.title = cc===0 ? 'Nothing checked yet' : ''; }
       if(compareHint){ compareHint.style.display='block'; }
       if(shortlistBar){ shortlistBar.classList.toggle('active',cc>0); }
       // Update compare bar copy based on checked item count (§10.4 / §10.1)
@@ -2493,7 +2534,7 @@ const ITEM_UNITS = [
             selectAllBox.className = 'ppu-select-box'+(cnt===0?' empty':cnt===total?' checked':' indeterminate');
           }
           if(compareBtn){ compareBtn.textContent=cnt>0?'Compare ('+cnt+')':'Compare (0)'; }
-          if(compareBtn){ compareBtn.classList.toggle('disabled', cnt===0); }
+          if(compareBtn){ compareBtn.classList.toggle('disabled', cnt===0); compareBtn.title = cnt===0 ? 'Nothing checked yet' : ''; }
           if(compareHint){ compareHint.style.display='block'; }
           if(shortlistBar){ shortlistBar.classList.toggle('active',cnt>0); }
           var mainEl2=document.getElementById('ppu-compare-main');
@@ -2594,20 +2635,32 @@ const ITEM_UNITS = [
 
     // ── Active state indicators ──────────────────────────────────────────
     function updateActiveIndicators() {
-      // Filter count chip (shows when section is collapsed)
+      // Active count pill in the filters trigger row.
+      // Counts ALL non-default filter states.
+      // Phase 5 note: when Settings ships, swap the "default" comparisons below
+      // (currently hardcoded to built-in defaults) to compare against user-saved defaults.
+      // Each line is one swap — the structure is intentionally ready for it.
       var activeCount = 0;
-      if (minReviews > 0) activeCount++;
-      if (minRating > 0) activeCount++;
-      if (minPrice) activeCount++;
-      if (maxPrice) activeCount++;
-      var filterCount = document.getElementById('ppu-filters-count');
-      if (filterCount) {
+      if (minReviews > 0) activeCount++;          // default: 0
+      if (minRating > 0) activeCount++;            // default: 0
+      if (minPrice) activeCount++;                 // default: '' (full range)
+      if (maxPrice) activeCount++;                 // default: '' (full range)
+      if (Object.keys(srcFilter).some(function(k){ return !srcFilter[k]; })) activeCount++; // default: all on
+      if (snapOnly) activeCount++;                 // default: false
+      if (fsaHsaOnly) activeCount++;               // default: false
+      if (climatePledgeOnly) activeCount++;        // default: false
+      if (smallBusinessOnly) activeCount++;        // default: false
+      if (brandFilterActive) activeCount++;        // default: false
+      if (amazonBrandsDemoteActive) activeCount++; // default: false
+      if (deliveryFilterActive) activeCount++;     // default: false
+
+      var activePill = document.getElementById('ppu-filters-active-pill');
+      if (activePill) {
         if (activeCount > 0) {
-          filterCount.textContent = activeCount + ' active';
-          filterCount.className = 'ppu-sec-chip ppu-sec-chip-amber';
-          filterCount.style.display = 'inline-flex';
+          activePill.textContent = activeCount + ' active';
+          activePill.style.display = 'inline-flex';
         } else {
-          filterCount.style.display = 'none';
+          activePill.style.display = 'none';
         }
       }
       // Active decisions bar
@@ -2858,6 +2911,9 @@ const ITEM_UNITS = [
 
     if(compareBtn){
       compareBtn.addEventListener('click',function(){
+        // Phase 2: pointer-events:none removed from .disabled CSS rule (tooltip requires it).
+        // Block click in JS instead when 0 items checked.
+        if (compareBtn.classList.contains('disabled')) return;
         var asins=Object.keys(checkedAsins);
         var items=asins.map(function(asin){
           var r=allData.find(function(d){return d.asin===asin;});
@@ -3015,6 +3071,8 @@ const ITEM_UNITS = [
     });
 
     // ── Collapsible section dividers ──────────────────────────────────────
+    // setupCollapsible superseded in Phase 2 by openFiltersOverlay/closeFiltersOverlay.
+    // Kept here in case other collapsibles are added in future phases.
     function setupCollapsible(toggleId, sectionId, openFlag) {
       var toggle  = document.getElementById(toggleId);
       var section = document.getElementById(sectionId);
@@ -3047,9 +3105,89 @@ const ITEM_UNITS = [
         }
       });
     }
-    setupCollapsible('ppu-filters-toggle', 'ppu-filters-collapsible', filtersOpen);
-    // Sync dec-bar visibility with initial filters open state
-    (function(){ var db=document.getElementById('ppu-dec-bar'); if(db) db.style.display=filtersOpen?'':'none'; })();
+    // ── Filters overlay open/close (Phase 2) ───────────────────────────────────
+    // Replaces setupCollapsible. Overlay starts closed each session.
+    // Chevron rotates 180° when open; rotates back when closed.
+    // Tap-outside and ESC close the overlay.
+    //
+    // ⚠️ Compare button pointer-events note (Phase 2):
+    // pointer-events:none was REMOVED from the .disabled CSS rule so the native browser
+    // title tooltip ("Nothing checked yet") fires on hover. Clicks are blocked in JS
+    // (see compareBtn click handler). If pointer-events:none is reinstated in CSS,
+    // the title tooltip will stop appearing.
+    var filtersOverlayOpen = false;
+
+    function openFiltersOverlay() {
+      var overlay = document.getElementById('ppu-filters-overlay');
+      var chevron = document.getElementById('ppu-filters-chevron');
+      if (!overlay) return;
+      filtersOverlayOpen = true;
+      overlay.style.maxHeight = '800px';
+      if (chevron) chevron.style.transform = 'rotate(180deg)';
+    }
+
+    function closeFiltersOverlay() {
+      var overlay = document.getElementById('ppu-filters-overlay');
+      var chevron = document.getElementById('ppu-filters-chevron');
+      if (!overlay) return;
+      filtersOverlayOpen = false;
+      overlay.style.maxHeight = '0';
+      if (chevron) chevron.style.transform = '';
+    }
+
+    // Trigger row click: toggle overlay
+    var filtersTrigger = document.getElementById('ppu-filters-trigger');
+    if (filtersTrigger) {
+      filtersTrigger.addEventListener('click', function() {
+        if (filtersOverlayOpen) closeFiltersOverlay();
+        else openFiltersOverlay();
+      });
+    }
+
+    // × close button inside overlay
+    var overlayCloseBtn = document.getElementById('ppu-filters-overlay-close');
+    if (overlayCloseBtn) {
+      overlayCloseBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeFiltersOverlay();
+      });
+    }
+
+    // ESC closes overlay (document-level, only when open)
+    document.addEventListener('keydown', function(e) {
+      if ((e.key === 'Escape' || e.keyCode === 27) && filtersOverlayOpen) {
+        closeFiltersOverlay();
+      }
+    });
+
+    // Tap-outside closes overlay.
+    // Check that click target is outside both the overlay and the trigger row.
+    // Clicks inside the overlay (sliders, pills, etc.) do NOT trigger close.
+    document.addEventListener('click', function(e) {
+      if (!filtersOverlayOpen) return;
+      var overlay = document.getElementById('ppu-filters-overlay');
+      var trigger = document.getElementById('ppu-filters-trigger');
+      if (!overlay || !trigger) return;
+      if (!overlay.contains(e.target) && !trigger.contains(e.target)) {
+        closeFiltersOverlay();
+      }
+    });
+
+    // Brand & delivery "Adjust for this search →" inline expansion toggle.
+    // Expansion starts closed each time (no persistence by design).
+    var brandDeliveryAdjust = document.getElementById('ppu-brand-delivery-adjust');
+    var brandDeliveryExpand = document.getElementById('ppu-brand-delivery-expand');
+    if (brandDeliveryAdjust && brandDeliveryExpand) {
+      brandDeliveryAdjust.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var isOpen = brandDeliveryExpand.style.display !== 'none';
+        brandDeliveryExpand.style.display = isOpen ? 'none' : 'block';
+      });
+    }
+
+    // Dec-bar is always visible now (no collapse state to hide it)
+    (function(){ var db=document.getElementById('ppu-dec-bar'); if(db) db.style.display=''; })();
 
     // ppu-minimize: intentionally inert in Phase 1. Wire collapse/expand logic in Phase 4.
     // ppu-close: functional — removes panel from DOM.

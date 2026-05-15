@@ -770,7 +770,7 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 /* NOTE: ppu-minimize is intentionally non-functional in Phase 1.
    Wire it up (collapse/expand panel) in Phase 4. */
 
-/* Sort row — now always-visible, not inside collapsible */
+/* Sort row — always-visible */
 #ppu-sort-row {
   padding:5px 12px 4px;
   display:flex;gap:6px;align-items:center;flex-wrap:nowrap;
@@ -781,7 +781,7 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
   font-size:12px;color:var(--au-text-muted);white-space:nowrap;flex-shrink:0;
 }
 
-/* Pages row — now always-visible, not inside collapsible */
+/* Pages row — always-visible */
 #ppu-pages-standalone-row {
   padding:4px 12px 5px;
   display:flex;align-items:center;gap:8px;flex-wrap:nowrap;
@@ -794,13 +794,128 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
 #ppu-pages-standalone-label b { font-weight:700;color:var(--au-text);font-style:normal; }
 #ppu-pages-standalone-label em { font-weight:700;color:var(--au-text);font-style:normal; }
 
+/* ── Phase 2 layout additions — Filters overlay ──────────────────────── */
+
+/* Filters trigger row */
+#ppu-filters-trigger {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:11px 14px;
+  border-bottom:1px solid var(--au-border);
+  background:var(--au-surface);
+  cursor:pointer;
+  user-select:none;
+  flex-shrink:0;
+  transition:background 0.12s;
+}
+#ppu-filters-trigger:hover { background:var(--au-row-hover); }
+#ppu-filters-trigger-left {
+  display:flex;align-items:center;gap:6px;
+}
+#ppu-filters-icon { color:var(--au-text-muted);flex-shrink:0; }
+#ppu-filters-label {
+  font-size:13px;font-weight:500;color:var(--au-text);
+}
+
+/* Active count pill — visible only when count > 0 */
+#ppu-filters-active-pill {
+  display:inline-flex;align-items:center;
+  font-size:11px;font-weight:600;
+  padding:1px 7px;border-radius:9px;
+  background:var(--au-surface-accent);
+  color:var(--au-header-deep);
+  border:1px solid var(--au-header);
+  white-space:nowrap;
+  line-height:1.5;
+}
+
+/* Trigger row chevron — rotates 180deg when overlay is open */
+#ppu-filters-chevron {
+  color:var(--au-text-muted);
+  display:inline-flex;align-items:center;
+  transition:transform 0.2s ease;
+  flex-shrink:0;
+}
+
+/* Filters overlay — slides down from trigger row */
+/* Closed: max-height:0, overflow:hidden. Open: max-height:800px.
+   Transition time is ~150ms; actual speed varies slightly with content height. */
+#ppu-filters-overlay {
+  max-height:0;
+  overflow:hidden;
+  transition:max-height 0.15s ease-out;
+  background:#ffffff;
+  border-bottom:1px solid var(--au-border);
+  flex-shrink:0;
+}
+
+/* Overlay header — just a close button, no title */
+#ppu-filters-overlay-header {
+  display:flex;justify-content:flex-end;
+  padding:6px 10px 0;
+}
+#ppu-filters-overlay-close {
+  background:none;border:none;cursor:pointer;
+  font-size:16px;color:var(--au-text-muted);
+  width:24px;height:24px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  line-height:1;transition:color 0.1s,background 0.1s;
+}
+#ppu-filters-overlay-close:hover { color:var(--au-text);background:var(--au-surface); }
+
+/* Mini-section wrapper */
+.ppu-filter-section {
+  padding:8px 14px 10px;
+  border-bottom:1px solid var(--au-border);
+}
+.ppu-filter-section-last { border-bottom:none; }
+
+/* Mini-section label — muted, uppercase, 11px */
+.ppu-filter-section-label {
+  font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.05em;
+  color:var(--au-text-muted);
+  margin-bottom:6px;
+}
+
+/* Price range row inside overlay — remove old label column */
+#ppu-filters-overlay #ppu-price-range-row {
+  display:flex;align-items:center;gap:8px;padding:2px 0 4px;
+}
+
+/* Brand & delivery summary line */
+#ppu-brand-delivery-summary {
+  font-size:12px;color:var(--au-text);line-height:1.5;
+}
+#ppu-brand-delivery-adjust {
+  color:var(--au-header-deep);text-decoration:none;font-weight:500;
+  cursor:pointer;
+}
+#ppu-brand-delivery-adjust:hover { text-decoration:underline; }
+
+/* Brand & delivery inline expansion */
+#ppu-brand-delivery-expand {
+  margin-top:6px;
+}
+#ppu-brand-delivery-expand #ppu-amazon-brands-row,
+#ppu-brand-delivery-expand #ppu-brand-filter-row,
+#ppu-brand-delivery-expand #ppu-delivery-filter-row {
+  padding-left:0;
+}
+
+/* Source row inside overlay */
+#ppu-filters-overlay #ppu-source-row {
+  padding:2px 0 4px;
+}
+
 /* Shortlist bar — disabled state (empty, no items checked) */
-/* NOTE: ppu-btn-compare is non-clickable (pointer-events:none) when 0 items are checked.
-   Phase 2+ should wire this to show a tooltip or proper disabled state UX. */
+/* Phase 2 note: pointer-events:none was REMOVED so the native browser title tooltip fires.
+   Clicks are blocked in JS (search.js compareBtn click handler) instead.
+   If you reinstate pointer-events:none here, the title tooltip will stop working. */
 #ppu-btn-compare:disabled,
 #ppu-btn-compare.disabled {
-  opacity:0.4;cursor:default;pointer-events:none;
+  opacity:0.4;cursor:default;
 }
+
 
 /* Workflow banner — coral wash palette */
 #ppu-workflow-banner {
