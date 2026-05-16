@@ -1449,6 +1449,7 @@ const ITEM_UNITS = [
   var amazonBrandsDemoteActive = false;
   var amazonBrandsList = [];   // loaded from amazon_brands.txt at startup
   var cardDensity = 'dense';   // 'dense' | 'comfortable' — loaded from chrome.storage.local (auCardDensity); default dense. Phase 3 plumbing only — no UI to change it yet (Settings = Phase 5, onboarding = Phase 6).
+  var reportMode  = false;     // Phase 7A — true while user is selecting an item to report
 
   // ── Phase 4 — Panel chrome state ─────────────────────────────────────
   // auPanelPosition: { x, y, width } — saved on mouseup; loaded at startup.
@@ -1925,7 +1926,7 @@ const ITEM_UNITS = [
         '<span class="ppu-dc-none">No filters or custom sort applied</span>'+
       '</div>'+
       '</div>'+
-      '<div id="ppu-hint-slot"></div>'+
+
       '<div id="ppu-scroll-area">'+
         '<div id="ppu-shortlist-bar">'+
           '<div id="ppu-select-all-wrap">'+
@@ -1954,6 +1955,7 @@ const ITEM_UNITS = [
           '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">Give feedback</a>'+
           '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">Buy me a coffee</a>'+
           '<span id="ppu-blocklist-link">My brand rules (0)</span>'+
+          '<span id="ppu-report-link">Report an issue</span>'+
           '<span id="ppu-settings-link">Settings</span>'+
         '</div>'+
       '</div>';
@@ -2010,8 +2012,6 @@ const ITEM_UNITS = [
         '.ppu-brand-popover{min-width:180px;background:#ffffff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.12);padding:4px 0;font-family:inherit;}' +
         '.ppu-brand-popover-item{display:block;width:100%;text-align:left;padding:7px 12px;background:none;border:none;font-size:12px;color:#1f2937;cursor:pointer;white-space:nowrap;}' +
         '.ppu-brand-popover-item:hover,.ppu-brand-popover-item:focus{background:#fef2f0;color:#c2362a;outline:none;}' +
-        '.ppu-brand-popover-item--report{border-top:1px solid #f3f4f6;margin-top:2px;color:#6b7280;}' +
-        '.ppu-brand-popover-item--report:hover,.ppu-brand-popover-item--report:focus{background:#fef2f0;color:#c2362a;}' +
         // Phase 7A — Bug report overlay
         '#ppu-bug-overlay{position:absolute;inset:0;background:var(--au-surface-accent,#fef2f0);z-index:100;display:flex;flex-direction:column;font-family:inherit;}' +
         '#ppu-bug-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid #fcc8c3;flex-shrink:0;background:var(--au-surface-accent,#fef2f0);}' +
@@ -2929,33 +2929,6 @@ const ITEM_UNITS = [
       var listEl=document.getElementById('ppu-list');
       listEl.innerHTML=html;
 
-      // Re-inject brand hint if not yet dismissed — lives in #ppu-hint-slot above the scroll area
-      // so it stays visible regardless of scroll position or render() innerHTML replacement.
-      if(!hasSeenBrandHint){
-        var _hintSlot = document.getElementById('ppu-hint-slot');
-        if(_hintSlot && !document.getElementById('ppu-brand-hint-inline')){
-          var _hintNode = document.createElement('div');
-          _hintNode.id = 'ppu-brand-hint-inline';
-          _hintNode.innerHTML =
-            '<div class="ppu-brand-hint-body">'+
-              '<strong>Brand controls</strong> \u2014 click the \u22ef next to any brand name to always show or always hide that brand. Manage your rules from <span class="ppu-brand-hint-link" id="ppu-brand-hint-rules-link">My brand rules</span> at the bottom.'+
-            '</div>'+
-            '<button class="ppu-brand-hint-gotit" id="ppu-brand-hint-gotit">Got it</button>'+
-            '<button class="ppu-brand-hint-x" id="ppu-brand-hint-x" title="Dismiss">\u00d7</button>';
-          _hintSlot.appendChild(_hintNode);
-          var _ghBtn = document.getElementById('ppu-brand-hint-gotit');
-          var _xBtn  = document.getElementById('ppu-brand-hint-x');
-          if(_ghBtn) _ghBtn.addEventListener('click', function(){ dismissBrandHint(); });
-          if(_xBtn)  _xBtn.addEventListener('click',  function(){ dismissBrandHint(); });
-          var _rl = document.getElementById('ppu-brand-hint-rules-link');
-          if(_rl) _rl.addEventListener('click', function(){
-            dismissBrandHint();
-            var bl = document.getElementById('ppu-blocklist-link');
-            if(bl) bl.click();
-          });
-        }
-      }
-
       // Phase 3 — card density preference (Phase 5/6 will add UI to change it)
       listEl.classList.remove('density-dense','density-comfortable');
       listEl.classList.add(cardDensity==='comfortable'?'density-comfortable':'density-dense');
@@ -3095,22 +3068,6 @@ const ITEM_UNITS = [
 
         pop.appendChild(showBtn);
         pop.appendChild(hideBtn);
-
-        // 4th option — bug report
-        var reportBtn=document.createElement('button');
-        reportBtn.type='button';
-        reportBtn.className='ppu-brand-popover-item ppu-brand-popover-item--report';
-        reportBtn.setAttribute('role','menuitem');
-        reportBtn.textContent='Report an issue with this item';
-        reportBtn.addEventListener('click',function(e){
-          e.stopPropagation();
-          closeBrandPopover();
-          var row=btn.closest('.ppu-row');
-          var asin=row?row.getAttribute('data-asin'):null;
-          var item=asin?allData.find(function(d){return d.asin===asin;}):null;
-          if(item) openBugReportOverlay(item);
-        });
-        pop.appendChild(reportBtn);
 
         // Position relative to the ⋯ button using viewport coords. Position:fixed
         // so the popover doesn't get clipped by the scrolling list container.
@@ -3853,6 +3810,23 @@ const ITEM_UNITS = [
     var coffeeLink=document.getElementById('ppu-coffee');
     if(coffeeLink) coffeeLink.addEventListener('click',function(){sendLog({event:'kofi_click'});});
 
+    // Phase 7A — Report mode: intercept card clicks when reportMode is active
+    (function(){
+      var scrollArea = document.getElementById('ppu-scroll-area');
+      if(!scrollArea) return;
+      scrollArea.addEventListener('click', function(e){
+        if(!reportMode) return;
+        var row = e.target.closest('.ppu-row');
+        if(!row) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var asin = row.getAttribute('data-asin');
+        var item = asin ? allData.find(function(d){ return d.asin === asin; }) : null;
+        exitReportMode();
+        if(item) openBugReportOverlay(item);
+      }, true); // capture phase — fires before card's own handlers
+    })();
+
     // ── Brand rules link — update count + open management view ─────────────
     function updateBlocklistLinkCount(){
       var el=document.getElementById('ppu-blocklist-link');
@@ -3993,6 +3967,48 @@ const ITEM_UNITS = [
     // all preserved. Settings does NOT persist across page reloads.
     //
     // Gear icon: #ppu-settings-btn (expanded header)
+    // Footer link: #ppu-report-link — Phase 7A
+    (function(){
+      var reportLink = document.getElementById('ppu-report-link');
+      if(!reportLink) return;
+      reportLink.addEventListener('click', function(){ enterReportMode(); });
+    })();
+
+    function enterReportMode(){
+      reportMode = true;
+      // Insert sticky banner at top of scroll area
+      var scrollArea = document.getElementById('ppu-scroll-area');
+      if(!scrollArea) return;
+      var existing = document.getElementById('ppu-report-banner');
+      if(existing) existing.remove();
+      var banner = document.createElement('div');
+      banner.id = 'ppu-report-banner';
+      banner.innerHTML =
+        // <!-- SUGGESTED COPY: report mode banner -->
+        '<span>Click an item to report an issue.</span>'+
+        '<button id="ppu-report-cancel">Cancel</button>';
+      scrollArea.insertBefore(banner, scrollArea.firstChild);
+      // Outline all cards
+      document.querySelectorAll('.ppu-row').forEach(function(r){ r.classList.add('report-mode-target'); });
+      // Cancel button
+      var cancelBtn = document.getElementById('ppu-report-cancel');
+      if(cancelBtn) cancelBtn.addEventListener('click', exitReportMode);
+      // ESC key
+      document.addEventListener('keydown', onReportEsc);
+    }
+
+    function exitReportMode(){
+      reportMode = false;
+      var banner = document.getElementById('ppu-report-banner');
+      if(banner) banner.remove();
+      document.querySelectorAll('.ppu-row.report-mode-target').forEach(function(r){ r.classList.remove('report-mode-target'); });
+      document.removeEventListener('keydown', onReportEsc);
+    }
+
+    function onReportEsc(e){
+      if(e.key === 'Escape') exitReportMode();
+    }
+
     // Footer link: #ppu-settings-link
     // Back arrow: #ppu-settings-back (injected by openSettings)
 
@@ -4597,10 +4613,6 @@ const ITEM_UNITS = [
       });
     }
 
-    // dismissBrandHint is declared here in the enclosing scope so render()'s brand hint
-    // re-injection can reference it. Overwritten by the IIFE below when hint is active.
-    var dismissBrandHint = function(){};
-
     render();
 
     // ── Phase 7A — Bug reporting tool ────────────────────────────────────
@@ -4729,65 +4741,6 @@ const ITEM_UNITS = [
         }
       });
     }
-
-    // ── Phase 6 — First-search brand-controls hint ────────────────────────
-    // Shows inline note above results + tooltip on first ⋯ with a detected brand.
-    // Fires once per install (auHasSeenBrandHint gate). Both surfaces share one flag.
-    // Dismissed by: "Got it", ×, clicking any ⋯ menu, or 30-second auto-dismiss.
-    // DOM injection is handled inside render() so the hint survives innerHTML replacement.
-    (function(){
-      if(hasSeenBrandHint) return;
-
-      dismissBrandHint = function(){
-        if(hasSeenBrandHint) return;
-        hasSeenBrandHint = true;
-        try{ chrome.storage.local.set({auHasSeenBrandHint:true}); }catch(e){}
-        var note = document.getElementById('ppu-brand-hint-inline');
-        var tip  = document.getElementById('ppu-brand-hint-tooltip');
-        var dots = document.querySelector('.ppu-brand-hint-highlighted');
-        if(note){ note.style.transition='opacity 200ms'; note.style.opacity='0'; setTimeout(function(){if(note.parentNode)note.parentNode.removeChild(note);},210); }
-        if(tip) { tip.style.transition='opacity 200ms'; tip.style.opacity='0'; setTimeout(function(){if(tip.parentNode)tip.parentNode.removeChild(tip);},210); }
-        if(dots){ dots.classList.remove('ppu-brand-hint-highlighted'); }
-      };
-
-      // Find first ⋯ button on a card with a detected brand, add tooltip
-      // Edge case: if no detected brands, skip tooltip silently — inline note still shows
-      setTimeout(function(){
-        if(hasSeenBrandHint) return; // dismissed before timeout fired
-        var allDots = document.querySelectorAll('.ppu-brand-menu-btn');
-        var targetDots = null;
-        for(var i=0;i<allDots.length;i++){
-          // Only highlight ⋯ on cards with a real detected brand (not generic/unknown)
-          var row = allDots[i].closest('.ppu-row');
-          if(row && row.querySelector('.ppu-brand-name')){
-            targetDots = allDots[i];
-            break;
-          }
-        }
-        if(targetDots){
-          targetDots.classList.add('ppu-brand-hint-highlighted');
-          var tip = document.createElement('div');
-          tip.id = 'ppu-brand-hint-tooltip';
-          // <!-- SUGGESTED COPY: brand hint tooltip -->
-          tip.innerHTML =
-            '<strong>Always show or always hide this brand.</strong> '+
-            'Your rule applies to every search until you change it.'+
-            '<button class="ppu-brand-hint-tip-gotit" id="ppu-brand-hint-tip-gotit">Got it</button>';
-          targetDots.style.position = 'relative';
-          targetDots.appendChild(tip);
-          document.getElementById('ppu-brand-hint-tip-gotit').addEventListener('click', function(e){
-            e.stopPropagation();
-            dismissBrandHint();
-          });
-        }
-
-        // 30-second auto-dismiss
-        setTimeout(function(){
-          dismissBrandHint();
-        }, 30000);
-      }, 300); // short delay so render() has painted cards
-
-    })();
 
     } catch(err) {
       var existing=document.getElementById(PANEL_ID);

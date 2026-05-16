@@ -40,7 +40,6 @@
 }
 #ppu-sorter-panel.collapsed { width:420px !important; max-height:41px; }
 #ppu-scroll-area   { flex:1;overflow-y:auto;overflow-x:hidden; }
-#ppu-hint-slot     { flex-shrink:0;background:var(--au-surface,#fff);overflow:hidden; }
 #ppu-header {
   background:var(--au-header);color:#ffffff;padding:8px 10px;border-radius:8px 8px 0 0;
   display:flex;align-items:center;justify-content:space-between;
@@ -143,71 +142,6 @@
   font-size:10px;color:#78350f;line-height:18px;padding:0 8px;
   white-space:nowrap;
 }
-
-/* ── Phase 6 — First-search brand-controls hint ────────────────────────── */
-/* Inline note above results list */
-#ppu-brand-hint-inline {
-  display:flex;align-items:center;gap:8px;
-  padding:7px 8px 7px 10px;
-  background:#fff7ed;border-bottom:1px solid #fdba74;
-  font-size:11px;color:#9a3412;line-height:1.48;
-  flex-shrink:0;
-}
-.ppu-brand-hint-body { flex:1; user-select:text; cursor:text; }
-.ppu-brand-hint-body strong { font-weight:600; }
-.ppu-brand-hint-link { color:#9a3412;text-decoration:underline;cursor:pointer; }
-.ppu-brand-hint-link:hover { color:#7c2d12; }
-.ppu-brand-hint-gotit {
-  flex-shrink:0;
-  background:#9a3412;color:#fff;border:none;cursor:pointer;
-  font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;
-  white-space:nowrap;transition:background .1s;
-}
-.ppu-brand-hint-gotit:hover { background:#7c2d12; }
-.ppu-brand-hint-x {
-  flex-shrink:0;background:none;border:none;cursor:pointer;
-  font-size:13px;width:18px;height:18px;border-radius:4px;
-  display:flex;align-items:center;justify-content:center;
-  color:#9a3412;opacity:0.6;transition:opacity .1s;padding:0;
-}
-.ppu-brand-hint-x:hover { opacity:1; }
-
-/* Highlighted ⋯ button (first card with detected brand) */
-.ppu-brand-menu-btn.ppu-brand-hint-highlighted {
-  color:#9a3412 !important;
-  background:#fff7ed !important;
-  border:1px solid #fdba74 !important;
-  animation:ppu-hint-pulse 1.8s ease-in-out infinite;
-}
-@keyframes ppu-hint-pulse {
-  0%,100% { box-shadow:0 0 0 0 rgba(253,186,116,0.6); }
-  60%      { box-shadow:0 0 0 4px rgba(253,186,116,0); }
-}
-
-/* Tooltip anchored to highlighted ⋯ */
-#ppu-brand-hint-tooltip {
-  position:absolute;right:100%;top:50%;transform:translateY(-50%);
-  margin-right:8px;
-  background:#1e293b;color:#fff;
-  font-size:11px;line-height:1.5;
-  padding:8px 10px;border-radius:6px;
-  width:200px;z-index:10001;
-  box-shadow:0 4px 14px rgba(0,0,0,0.18);
-}
-#ppu-brand-hint-tooltip strong { color:#fff;font-weight:600; }
-#ppu-brand-hint-tooltip::after {
-  content:'';position:absolute;
-  top:50%;right:-6px;transform:translateY(-50%);
-  border:6px solid transparent;border-right:none;
-  border-left-color:#1e293b;
-}
-.ppu-brand-hint-tip-gotit {
-  display:block;margin-top:7px;
-  background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);
-  font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;cursor:pointer;
-  transition:background .1s;
-}
-.ppu-brand-hint-tip-gotit:hover { background:rgba(255,255,255,0.25); }
 
 /* ── Controls wrapper ──────────────────────────────────────────────────── */
 #ppu-controls-wrap { flex-shrink:0;user-select:none;background:var(--au-surface);border-bottom:1px solid var(--au-border); }
@@ -1067,6 +1001,28 @@ mark.ppu-kw-highlight { background:#fff176;color:var(--au-text);border-radius:2p
   cursor:pointer;transition:color 0.15s;text-decoration:none;
 }
 #ppu-settings-link:hover { color:#a02820;text-decoration:underline; }
+
+/* Phase 7A — Report issue footer link */
+#ppu-report-link {
+  font-size:11px;color:#c2362a;font-weight:400;white-space:nowrap;
+  cursor:pointer;transition:color 0.15s;text-decoration:none;
+}
+#ppu-report-link:hover { color:#a02820;text-decoration:underline; }
+
+/* Phase 7A — Report mode: banner + card outlines */
+#ppu-report-banner {
+  position:sticky;top:0;z-index:10;
+  background:#fef2f0;border-bottom:1px solid #fcc8c3;
+  padding:8px 14px;font-size:12px;color:#c2362a;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+#ppu-report-cancel {
+  background:none;border:none;color:#c2362a;font-size:12px;
+  cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;
+}
+#ppu-report-cancel:hover { color:#a02820; }
+.report-mode-target { box-shadow:inset 0 0 0 2px #fcc8c3;cursor:pointer; }
+.report-mode-target:hover { box-shadow:inset 0 0 0 2px #c2362a; }
 
 /* Settings view container */
 #ppu-settings-view {
