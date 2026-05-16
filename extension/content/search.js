@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.85)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.2.0)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1925,6 +1925,7 @@ const ITEM_UNITS = [
         '<span class="ppu-dc-none">No filters or custom sort applied</span>'+
       '</div>'+
       '</div>'+
+      '<div id="ppu-hint-slot"></div>'+
       '<div id="ppu-scroll-area">'+
         '<div id="ppu-shortlist-bar">'+
           '<div id="ppu-select-all-wrap">'+
@@ -1952,8 +1953,8 @@ const ITEM_UNITS = [
         '<div id="ppu-footer-links">'+
           '<a id="ppu-feedback" href="' + auFeedbackUrl() + '" target="_blank">Give feedback</a>'+
           '<a id="ppu-coffee" href="https://ko-fi.com/butactuallyuseful" target="_blank">Buy me a coffee</a>'+
-          '<span id="ppu-blocklist-link" style="cursor:pointer;text-decoration:underline;color:#c2362a;font-size:11px;">My brand rules (0)</span>'+
-          '<span id="ppu-settings-link" style="cursor:pointer;text-decoration:underline;color:#c2362a;font-size:11px;">Settings</span>'+
+          '<span id="ppu-blocklist-link">My brand rules (0)</span>'+
+          '<span id="ppu-settings-link">Settings</span>'+
         '</div>'+
       '</div>';
 
@@ -2000,14 +2001,44 @@ const ITEM_UNITS = [
         '.ppu-noise-dismiss{position:absolute;top:5px;right:6px;background:none;border:none;font-size:14px;color:#a78060;cursor:pointer;padding:0;line-height:1;}' +
         // Phase 3 — brand row: plain text + ⋯ menu (was: "Always show" / "Always hide" pill buttons)
         '.ppu-brand-row{font-size:11px;color:#6b7280;margin-top:3px;display:flex;align-items:center;gap:6px;user-select:text;}' +
-        '.ppu-brand-name{user-select:text;}' +
+        '.ppu-brand-name{user-select:text;cursor:pointer;}' +
+        '.ppu-brand-name:hover{color:#c2362a;}' +
         '.ppu-brand-menu-btn{font-size:14px;line-height:1;padding:0 4px;border:none;background:none;color:#9ca3af;cursor:pointer;border-radius:3px;}' +
         '.ppu-brand-menu-btn:hover,.ppu-brand-menu-btn:focus{color:#6b7280;background:#f3f4f6;outline:none;}' +
         '.ppu-brand-menu-btn.is-open{color:#c2362a;background:#fef2f0;}' +
         // Phase 3 — brand ⋯ popover (anchored via position:fixed in JS)
         '.ppu-brand-popover{min-width:180px;background:#ffffff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.12);padding:4px 0;font-family:inherit;}' +
         '.ppu-brand-popover-item{display:block;width:100%;text-align:left;padding:7px 12px;background:none;border:none;font-size:12px;color:#1f2937;cursor:pointer;white-space:nowrap;}' +
-        '.ppu-brand-popover-item:hover,.ppu-brand-popover-item:focus{background:#fef2f0;color:#c2362a;outline:none;}';
+        '.ppu-brand-popover-item:hover,.ppu-brand-popover-item:focus{background:#fef2f0;color:#c2362a;outline:none;}' +
+        '.ppu-brand-popover-item--report{border-top:1px solid #f3f4f6;margin-top:2px;color:#6b7280;}' +
+        '.ppu-brand-popover-item--report:hover,.ppu-brand-popover-item--report:focus{background:#fef2f0;color:#c2362a;}' +
+        // Phase 7A — Bug report overlay
+        '#ppu-bug-overlay{position:absolute;inset:0;background:var(--au-surface-accent,#fef2f0);z-index:100;display:flex;flex-direction:column;font-family:inherit;}' +
+        '#ppu-bug-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid #fcc8c3;flex-shrink:0;background:var(--au-surface-accent,#fef2f0);}' +
+        '#ppu-bug-title{font-size:13px;font-weight:600;color:#1f2937;}' +
+        '#ppu-bug-close{background:none;border:none;font-size:16px;color:#9ca3af;cursor:pointer;padding:0;line-height:1;}' +
+        '#ppu-bug-close:hover{color:#1f2937;}' +
+        '#ppu-bug-item-ctx{font-size:13px;font-weight:500;color:#1f2937;padding:8px 14px;border-bottom:1px solid #fcc8c3;flex-shrink:0;line-height:1.4;}' +
+        '#ppu-bug-body{flex:1;overflow-y:auto;padding:10px 14px 14px;display:flex;flex-direction:column;gap:4px;}' +
+        '.ppu-bug-choose-label{font-size:12px;font-weight:600;color:#374151;margin-top:4px;padding:0 8px 0 0;}' +
+        '.ppu-bug-choose-label.error-highlight{background:#fef08a;font-weight:700;border-radius:3px;padding:1px 4px;}' +
+        '.ppu-bug-notes-label{font-size:12px;font-weight:600;color:#374151;margin-top:8px;}' +
+        '.ppu-bug-optional{font-weight:400;color:#9ca3af;}' +
+        '.ppu-bug-radio{display:flex;align-items:center;gap:6px;font-size:12px;color:#1f2937;padding:2px 0;cursor:pointer;user-select:none;}' +
+        '.ppu-bug-radio input{accent-color:#c2362a;cursor:pointer;}' +
+        '#ppu-bug-notes{width:100%;box-sizing:border-box;border:1px solid #fcc8c3;border-radius:4px;padding:6px 8px;font-size:12px;font-family:inherit;color:#1f2937;background:#fff;resize:vertical;margin-top:2px;user-select:text;}' +
+        '#ppu-bug-notes:focus{outline:none;border-color:#c2362a;}' +
+        '#ppu-bug-transparency{font-size:12px;color:#1f2937;line-height:1.4;margin-top:8px;padding-top:8px;border-top:1px solid #fcc8c3;}' +
+        '#ppu-bug-actions{display:flex;align-items:center;gap:12px;margin-top:10px;}' +
+        '.ppu-bug-send-btn{background:#c2362a;color:#fff;border:none;border-radius:5px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}' +
+        '.ppu-bug-send-btn:hover{background:#a02820;}' +
+        '.ppu-bug-send-btn:disabled{opacity:0.6;cursor:default;}' +
+        '.ppu-bug-cancel-btn{background:none;border:none;font-size:12px;color:#c2362a;cursor:pointer;font-family:inherit;padding:0;text-decoration:none;}' +
+        '.ppu-bug-cancel-btn:hover{color:#a02820;text-decoration:none;}' +
+        '.ppu-bug-cancel-btn:disabled{opacity:0.6;cursor:default;}' +
+        '#ppu-bug-error{font-size:11px;color:#c2362a;margin-top:6px;}' +
+        '.ppu-bug-retry-btn{background:none;border:none;color:#c2362a;font-size:11px;cursor:pointer;padding:0;text-decoration:underline;font-family:inherit;}' +
+        '#ppu-bug-success{font-size:14px;font-weight:600;color:#1f7a4a;text-align:center;padding:40px 20px;}';
       document.head.appendChild(styleEl);
     }
 
@@ -2707,7 +2738,7 @@ const ITEM_UNITS = [
       }).map(function(r){return getCompPPU(r);});
       var bestPPU=ppuVals.length?Math.min.apply(null,ppuVals):null;
 
-      var mainHtml='',demotedHtml='',amazonDemotedHtml='',curPage=0;
+      var mainHtml='',demotedHtml='',amazonDemotedHtml='',sponDemotedHtml='',curPage=0;
       displayData.forEach(function(r){
         var srcHid=(r.retailer&&!srcFilter[r.retailer.key]);
         var sponHid=sponsoredMode==='hide'&&r.isSponsored;
@@ -2866,10 +2897,11 @@ const ITEM_UNITS = [
               noteFieldHtml+
             '</div>'+
           '</div>';
-        if(amazonDem&&!brandDem){ amazonDemotedHtml+=rowHtml; } else if(brandDem){ demotedHtml+=rowHtml; } else { mainHtml+=rowHtml; }
+        if(sponDem&&!amazonDem&&!brandDem){ sponDemotedHtml+=rowHtml; } else if(amazonDem&&!brandDem){ amazonDemotedHtml+=rowHtml; } else if(brandDem){ demotedHtml+=rowHtml; } else { mainHtml+=rowHtml; }
       });
 
       var brandDemCount=brandFilterActive?brandFlaggedCt:0;
+      var sponDemCount=displayData.filter(function(r){return r.isSponsored&&sponsoredMode==='demote';}).length;
       var html=mainHtml;
       if(amazonDemotedHtml){
         html+=
@@ -2885,10 +2917,45 @@ const ITEM_UNITS = [
           '</div>'+
           demotedHtml;
       }
+      if(sponDemotedHtml){
+        html+=
+          '<div class="ppu-sponsored-divider">'+
+            '<span class="ppu-sponsored-divider-label">'+sponDemCount+' sponsored item'+(sponDemCount!==1?'s':'')+' moved to end</span>'+
+          '</div>'+
+          sponDemotedHtml;
+      }
 
       if(hasKw&&matchCt===0){html='<div class="ppu-empty-kw">No results match your keyword(s)</div>'+html;}
       var listEl=document.getElementById('ppu-list');
       listEl.innerHTML=html;
+
+      // Re-inject brand hint if not yet dismissed — lives in #ppu-hint-slot above the scroll area
+      // so it stays visible regardless of scroll position or render() innerHTML replacement.
+      if(!hasSeenBrandHint){
+        var _hintSlot = document.getElementById('ppu-hint-slot');
+        if(_hintSlot && !document.getElementById('ppu-brand-hint-inline')){
+          var _hintNode = document.createElement('div');
+          _hintNode.id = 'ppu-brand-hint-inline';
+          _hintNode.innerHTML =
+            '<div class="ppu-brand-hint-body">'+
+              '<strong>Brand controls</strong> \u2014 click the \u22ef next to any brand name to always show or always hide that brand. Manage your rules from <span class="ppu-brand-hint-link" id="ppu-brand-hint-rules-link">My brand rules</span> at the bottom.'+
+            '</div>'+
+            '<button class="ppu-brand-hint-gotit" id="ppu-brand-hint-gotit">Got it</button>'+
+            '<button class="ppu-brand-hint-x" id="ppu-brand-hint-x" title="Dismiss">\u00d7</button>';
+          _hintSlot.appendChild(_hintNode);
+          var _ghBtn = document.getElementById('ppu-brand-hint-gotit');
+          var _xBtn  = document.getElementById('ppu-brand-hint-x');
+          if(_ghBtn) _ghBtn.addEventListener('click', function(){ dismissBrandHint(); });
+          if(_xBtn)  _xBtn.addEventListener('click',  function(){ dismissBrandHint(); });
+          var _rl = document.getElementById('ppu-brand-hint-rules-link');
+          if(_rl) _rl.addEventListener('click', function(){
+            dismissBrandHint();
+            var bl = document.getElementById('ppu-blocklist-link');
+            if(bl) bl.click();
+          });
+        }
+      }
+
       // Phase 3 — card density preference (Phase 5/6 will add UI to change it)
       listEl.classList.remove('density-dense','density-comfortable');
       listEl.classList.add(cardDensity==='comfortable'?'density-comfortable':'density-dense');
@@ -3029,6 +3096,22 @@ const ITEM_UNITS = [
         pop.appendChild(showBtn);
         pop.appendChild(hideBtn);
 
+        // 4th option — bug report
+        var reportBtn=document.createElement('button');
+        reportBtn.type='button';
+        reportBtn.className='ppu-brand-popover-item ppu-brand-popover-item--report';
+        reportBtn.setAttribute('role','menuitem');
+        reportBtn.textContent='Report an issue with this item';
+        reportBtn.addEventListener('click',function(e){
+          e.stopPropagation();
+          closeBrandPopover();
+          var row=btn.closest('.ppu-row');
+          var asin=row?row.getAttribute('data-asin'):null;
+          var item=asin?allData.find(function(d){return d.asin===asin;}):null;
+          if(item) openBugReportOverlay(item);
+        });
+        pop.appendChild(reportBtn);
+
         // Position relative to the ⋯ button using viewport coords. Position:fixed
         // so the popover doesn't get clipped by the scrolling list container.
         var rect=btn.getBoundingClientRect();
@@ -3049,6 +3132,22 @@ const ITEM_UNITS = [
             return;
           }
           openBrandPopover(this);
+        });
+      });
+
+      // Brand name also opens the popover (mirrors ⋯ click)
+      document.querySelectorAll('.ppu-brand-name').forEach(function(nameEl){
+        nameEl.addEventListener('click',function(e){
+          e.stopPropagation();
+          var row=this.closest('.ppu-row');
+          if(!row) return;
+          var btn=row.querySelector('.ppu-brand-menu-btn');
+          if(!btn) return;
+          if(btn.classList.contains('is-open')){
+            closeBrandPopover();
+            return;
+          }
+          openBrandPopover(btn);
         });
       });
 
@@ -3464,6 +3563,9 @@ const ITEM_UNITS = [
 
 
     // Show keyword hint on first use, then keep it visible for the session
+    // TODO (deferred, post-Phase 7): keyword hint text is too verbose for the available space.
+    // Users need guidance on boolean syntax but the current hint is too long.
+    // Design session needed to decide format (tooltip, link to help, shorter copy).
     var kwHint=document.getElementById('ppu-kw-hint');
     if(kwHint && localStorage.getItem('au-kw-hint-seen')==='1') kwHint.style.display='block';
     var kwHintClose=document.getElementById('ppu-kw-hint-close');
@@ -4495,53 +4597,158 @@ const ITEM_UNITS = [
       });
     }
 
+    // dismissBrandHint is declared here in the enclosing scope so render()'s brand hint
+    // re-injection can reference it. Overwritten by the IIFE below when hint is active.
+    var dismissBrandHint = function(){};
+
     render();
+
+    // ── Phase 7A — Bug reporting tool ────────────────────────────────────
+    // Entry: "Report an issue with this item" in the ⋯ brand options popover.
+    // POSTs to Supabase bug_reports table. Sends regardless of telemetry state.
+
+    var AU_BUG_SESSION_ID = (function(){
+      try{ return crypto.randomUUID(); }catch(e){ return 'ses-'+Math.random().toString(36).slice(2); }
+    })();
+    var AU_BUG_VERSION = 'v0.6.2.0';
+
+    function openBugReportOverlay(item){
+      // Remove any existing overlay
+      var existing=document.getElementById('ppu-bug-overlay');
+      if(existing) existing.remove();
+
+      var panel=document.getElementById(PANEL_ID);
+      if(!panel) return;
+
+      var titlePreview=(item.title||'').slice(0,60)+((item.title||'').length>60?'\u2026':'');
+
+      var overlay=document.createElement('div');
+      overlay.id='ppu-bug-overlay';
+      overlay.innerHTML=
+        '<div id="ppu-bug-header">'+
+          '<span id="ppu-bug-title">Report an issue</span>'+
+          '<button id="ppu-bug-close" title="Cancel">\u00d7</button>'+
+        '</div>'+
+        '<div id="ppu-bug-item-ctx">'+escapeHtml(titlePreview)+'</div>'+
+        '<div id="ppu-bug-body">'+
+          '<div class="ppu-bug-choose-label" id="ppu-bug-cat-label">Choose one of the following:</div>'+
+          '<label class="ppu-bug-radio"><input type="radio" name="ppu-bug-cat" value="unit_type"> Wrong unit type</label>'+
+          '<label class="ppu-bug-radio"><input type="radio" name="ppu-bug-cat" value="ppu_math"> Wrong price per unit</label>'+
+          '<label class="ppu-bug-radio"><input type="radio" name="ppu-bug-cat" value="brand_wrong"> Wrong brand</label>'+
+          '<label class="ppu-bug-radio"><input type="radio" name="ppu-bug-cat" value="brand_filtered"> Error with filtering or sorting</label>'+
+          '<label class="ppu-bug-radio"><input type="radio" name="ppu-bug-cat" value="other"> Other</label>'+
+          '<div class="ppu-bug-notes-label">Notes <span class="ppu-bug-optional">(optional)</span></div>'+
+          '<textarea id="ppu-bug-notes" rows="3" placeholder="Any details that would help\u2026"></textarea>'+
+          '<div id="ppu-bug-transparency">Submitting sends the item details (URL, ASIN, price, PPU, raw data) and your notes to Actually Useful. No personal info.</div>'+
+          '<div id="ppu-bug-actions">'+
+            '<button id="ppu-bug-send" class="ppu-bug-send-btn">Send report</button>'+
+            '<button id="ppu-bug-cancel" class="ppu-bug-cancel-btn">Cancel</button>'+
+          '</div>'+
+        '</div>';
+
+      panel.appendChild(overlay);
+
+      document.getElementById('ppu-bug-close').addEventListener('click',function(){overlay.remove();});
+      document.getElementById('ppu-bug-cancel').addEventListener('click',function(){overlay.remove();});
+
+      // Clear error highlight once user picks a category
+      panel.querySelectorAll('input[name="ppu-bug-cat"]').forEach(function(r){
+        r.addEventListener('change',function(){
+          var catLbl=document.getElementById('ppu-bug-cat-label');
+          if(catLbl) catLbl.classList.remove('error-highlight');
+        });
+      });
+
+      document.getElementById('ppu-bug-send').addEventListener('click',function(){
+        var cat=null;
+        panel.querySelectorAll('input[name="ppu-bug-cat"]').forEach(function(r){if(r.checked)cat=r.value;});
+        if(!cat){
+          var catLbl=document.getElementById('ppu-bug-cat-label');
+          if(catLbl){ catLbl.classList.add('error-highlight'); }
+          return;
+        }
+        var notes=document.getElementById('ppu-bug-notes').value||'';
+        var payload={
+          session_id:  AU_BUG_SESSION_ID,
+          search_url:  window.location.href,
+          asin:        item.asin||'',
+          title:       item.title||'',
+          category:    cat,
+          notes:       notes,
+          ppu:         (item.ppu!=null&&!isNaN(item.ppu))?item.ppu:null,
+          ppu_unit:    item.unit||'',
+          price:       (item.price!=null&&!isNaN(item.price))?item.price:null,
+          raw_extract: JSON.stringify(item),
+          extension_version: AU_BUG_VERSION
+        };
+        submitBugReport(payload, notes, overlay);
+      });
+    }
+
+    function submitBugReport(payload, savedNotes, overlayEl){
+      var sendBtn=overlayEl.querySelector('#ppu-bug-send');
+      var cancelBtn=overlayEl.querySelector('#ppu-bug-cancel');
+      if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='Sending\u2026';}
+      if(cancelBtn){cancelBtn.disabled=true;}
+
+      fetch(AU_SUPABASE_URL+'/rest/v1/bug_reports',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'apikey':AU_SUPABASE_KEY,
+          'Authorization':'Bearer '+AU_SUPABASE_KEY,
+          'Prefer':'return=minimal'
+        },
+        body:JSON.stringify(payload)
+      })
+      .then(function(res){
+        if(!res.ok) throw new Error('Supabase error '+res.status);
+        // Success
+        var body=overlayEl.querySelector('#ppu-bug-body');
+        if(body){
+          body.innerHTML='<div id="ppu-bug-success">Thanks \u2014 report sent</div>';
+        }
+        setTimeout(function(){if(overlayEl.parentNode)overlayEl.remove();},2000);
+      })
+      .catch(function(){
+        // Error — preserve notes, offer retry
+        if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Send report';}
+        if(cancelBtn){cancelBtn.disabled=false;}
+        var existing=overlayEl.querySelector('#ppu-bug-error');
+        if(!existing){
+          var errDiv=document.createElement('div');
+          errDiv.id='ppu-bug-error';
+          errDiv.innerHTML='Couldn\u2019t send report. <button id="ppu-bug-retry" class="ppu-bug-retry-btn">Try again?</button>';
+          var actions=overlayEl.querySelector('#ppu-bug-actions');
+          if(actions) actions.parentNode.insertBefore(errDiv,actions);
+          var retryBtn=overlayEl.querySelector('#ppu-bug-retry');
+          if(retryBtn) retryBtn.addEventListener('click',function(){
+            errDiv.remove();
+            submitBugReport(payload, savedNotes, overlayEl);
+          });
+        }
+      });
+    }
 
     // ── Phase 6 — First-search brand-controls hint ────────────────────────
     // Shows inline note above results + tooltip on first ⋯ with a detected brand.
     // Fires once per install (auHasSeenBrandHint gate). Both surfaces share one flag.
     // Dismissed by: "Got it", ×, clicking any ⋯ menu, or 30-second auto-dismiss.
+    // DOM injection is handled inside render() so the hint survives innerHTML replacement.
     (function(){
       if(hasSeenBrandHint) return;
 
-      function dismissBrandHint(){
+      dismissBrandHint = function(){
         if(hasSeenBrandHint) return;
         hasSeenBrandHint = true;
         try{ chrome.storage.local.set({auHasSeenBrandHint:true}); }catch(e){}
         var note = document.getElementById('ppu-brand-hint-inline');
         var tip  = document.getElementById('ppu-brand-hint-tooltip');
-        var dots = document.querySelector('.ppu-brand-dots-highlighted');
+        var dots = document.querySelector('.ppu-brand-hint-highlighted');
         if(note){ note.style.transition='opacity 200ms'; note.style.opacity='0'; setTimeout(function(){if(note.parentNode)note.parentNode.removeChild(note);},210); }
         if(tip) { tip.style.transition='opacity 200ms'; tip.style.opacity='0'; setTimeout(function(){if(tip.parentNode)tip.parentNode.removeChild(tip);},210); }
-        if(dots){ dots.classList.remove('ppu-brand-dots-highlighted'); }
-      }
-
-      // Inject inline note at the top of #ppu-list
-      var list = document.getElementById('ppu-list');
-      if(list){
-        var note = document.createElement('div');
-        note.id = 'ppu-brand-hint-inline';
-        // <!-- SUGGESTED COPY: brand hint inline note -->
-        note.innerHTML =
-          '<div class="ppu-brand-hint-body">'+
-            '<strong>Brand controls</strong> \u2014 click the \u22ef next to any brand name to always show or always hide that brand. Manage your rules from <span class="ppu-brand-hint-link" id="ppu-brand-hint-rules-link">My brand rules</span> at the bottom.'+
-          '</div>'+
-          '<button class="ppu-brand-hint-gotit" id="ppu-brand-hint-gotit">Got it</button>'+
-          '<button class="ppu-brand-hint-x" id="ppu-brand-hint-x" title="Dismiss">\u00d7</button>';
-        list.insertBefore(note, list.firstChild);
-        document.getElementById('ppu-brand-hint-gotit').addEventListener('click', dismissBrandHint);
-        document.getElementById('ppu-brand-hint-x').addEventListener('click', dismissBrandHint);
-        // Clicking "My brand rules" link also dismisses
-        var rulesLink = document.getElementById('ppu-brand-hint-rules-link');
-        if(rulesLink){
-          rulesLink.addEventListener('click', function(){
-            dismissBrandHint();
-            // Scroll to footer where brand rules link lives
-            var bl = document.getElementById('ppu-blocklist-link');
-            if(bl) bl.click();
-          });
-        }
-      }
+        if(dots){ dots.classList.remove('ppu-brand-hint-highlighted'); }
+      };
 
       // Find first ⋯ button on a card with a detected brand, add tooltip
       // Edge case: if no detected brands, skip tooltip silently — inline note still shows
@@ -4551,8 +4758,8 @@ const ITEM_UNITS = [
         var targetDots = null;
         for(var i=0;i<allDots.length;i++){
           // Only highlight ⋯ on cards with a real detected brand (not generic/unknown)
-          var card = allDots[i].closest('.ppu-card');
-          if(card && card.querySelector('.ppu-brand-name') && card.querySelector('.ppu-brand-menu-btn')){
+          var row = allDots[i].closest('.ppu-row');
+          if(row && row.querySelector('.ppu-brand-name')){
             targetDots = allDots[i];
             break;
           }
@@ -4579,18 +4786,6 @@ const ITEM_UNITS = [
           dismissBrandHint();
         }, 30000);
       }, 300); // short delay so render() has painted cards
-
-      // Dismiss when user clicks any ⋯ menu (they're exploring it themselves)
-      document.addEventListener('click', function onBrandMenuClick(e){
-        if(hasSeenBrandHint){
-          document.removeEventListener('click', onBrandMenuClick);
-          return;
-        }
-        if(e.target && e.target.classList && e.target.classList.contains('ppu-brand-menu-btn')){
-          dismissBrandHint();
-          document.removeEventListener('click', onBrandMenuClick);
-        }
-      });
 
     })();
 
