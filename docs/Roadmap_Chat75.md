@@ -4,7 +4,7 @@
 
 ---
 
-## Current version: v0.6.1.80 (overall) · v0.6.1 (manifest) · v0.6.1.80 (search.js) · v0.6.1.53 (core.js) · compare.html updated Chat 66 · v0.6.1.17 (background.js) · styles.css updated Chat 68 · welcome.html updated Chat 66 · index.html updated Chat 66 · privacy.html updated Chat 66
+## Current version: v0.6.1.85 (overall) · v0.6.1 (manifest) · v0.6.1.85 (search.js) · v0.6.1.53 (core.js) · v0.6.1.18 (background.js) · styles.css updated Chat 75 · welcome.html rewritten Chat 75 · welcome-bridge.js new Chat 75 · compare.html updated Chat 66 · index.html updated Chat 66 · privacy.html updated Chat 66
 
 ---
 
@@ -27,19 +27,25 @@
 - **compare.html logging** — deferred; compare.html can't read telemetry opt-out from chrome.storage.local; revisit when website has more surfaces
 - **Brand filter mixed-case invented names** — Floerns, Verdusa, Wenrine etc. score 0 on heuristics; accepted gap, covered partially by bundled blocklist
 - **Brand filter threshold tuning** — 25% high-noise threshold needs real-world calibration
-- **Duplicate "Pages slider" comment** — cosmetic only, around line 2808 in search.js; fix opportunistically
 - **Outlier PPU units sorting to top** — items with unusual units ($/lb for weighted heating pad, $/ft for a cord) sort to top as "best value" when their raw PPU is small. Needs design session before fix.
-- **welcome.html screenshot** — current screenshot is old search; needs replacement with laundry pods screenshot, keyword filter active, annotated callout design. (Phase 6 of redesign supersedes this with full content rewrite.)
 - **Prime scraping — possible Amazon selector change.** Two searches in Chat 61 showed no Prime badges detected. Amazon may have changed from a "Prime" filter to "Free Shipping by Amazon." Needs investigation.
 - **Amazon Basics brand column shows — on compare.html** — needs investigation.
 - **Dumbbells showing $/lb** — pre-existing outlier PPU issue; isMultiPackWeight correctly returns false for dumbbells, but weight-from-title still fires for single items. Needs design session.
-- **Coral vs Amazon orange** — verify coral (#f25d4e) doesn't clash with Amazon's orange (#ff9900) on a real search page. Flag and adjust hex if needed (small adjustments acceptable within Phase 1).
+- **Coral vs Amazon orange** — verify coral (#f25d4e) doesn't clash with Amazon's orange (#ff9900) on a real search page. Flag and adjust hex if needed.
+- **Left-edge resize handle awkward when panel is on left side of viewport** — Phase 4 design choice to keep handle on left edge always. Revisit if users report difficulty resizing a left-docked panel.
+- **Welcome page copy** — all `<!-- SUGGESTED COPY: ... -->` blocks need Melissa review before CWS push. Loading banner first-time text and brand hint text in search.js also flagged.
+- **index.html screenshot** — current screenshot is old; needs replacement post-Phase 6.
 
 ---
 
 ## Working rules
 
 **Single agent.** Claude only. No Replit, Gemini, Figma, or other tools touching code files directly.
+
+**Opus plans, Sonnet codes.** Opus 4.7 is used for design conversations, scope decisions, and producing kickoff briefs. Sonnet 4.6 is used for code changes. Triggers for moving between them:
+- In an Opus chat, when planning is done and a kickoff brief is ready → switch to a fresh Sonnet chat and paste the brief.
+- In a Sonnet chat, if a real design question comes up (scope, defaults, user-facing copy decisions) → stop, return to Opus, decide there.
+- Each kickoff brief should remind Sonnet to bounce design questions back to Opus.
 
 **Confirm before coding.** Always align with Melissa on what we're building before touching any files. Do not code without explicit approval.
 
@@ -57,8 +63,10 @@
 
 **Brand list sync rule:** brand_blocklist.txt and amazon_brands.txt must be updated concurrently in extension/data/ AND repo root data/. Both files must always match.
 
+**default_popup rule:** manifest.json must NOT have `default_popup` set under `action`. Removing it was required to enable the `chrome.action.onClicked` listener in background.js (toolbar-icon restore). If `default_popup` is ever re-added, the restore listener will silently stop firing. Documented in background.js comment.
+
 **Version numbering:**
-- Overall / canonical: v0.6.1.80 (search.js number)
+- Overall / canonical: search.js number
 - Per-file versions differ intentionally — files change at different rates
 - v1.0 = Web Store public launch
 
@@ -76,23 +84,47 @@
 
 **search.js stays as one file** until selector resilience is properly designed.
 
-**End of every session:**
-1. Test before producing docs
-2. Produce complete updated Project_Briefing.md, Roadmap.md, Changelog entry, and Handover.md as downloadable files — complete documents, not snippets or merge instructions
-3. Give Melissa a suggested GitHub commit message
-4. Remind Melissa to push to GitHub
-5. Remind Melissa to update project files in Claude after the push
+---
+
+## Document update cadence
+
+Documents update on a phase-bundle rhythm, not a session rhythm.
+
+**Filename convention (adopted Chat 71):** `Project_Briefing.md` and `Roadmap.md` use `_Chat[N].md` suffix. Each version gets a unique filename. Coding files and uniquely-named docs (specs, mockups, briefs) are out of scope for this rule.
+
+**Current bundles:**
+- Phase 4 + Phase 5 → one bundle ✅ complete (Chat 70 + Chat 72)
+- Phase 6 bundle (close button + onboarding) → one bundle ✅ complete (Chat 74 + Chat 75)
+- Phase 7 → next bundle (website polish — scope TBD)
+
+**Every session (coding or planning) ends with:**
+1. Test before producing docs (if coding)
+2. Updated **Handover** (always)
+3. Updated **Changelog entry** (always)
+4. GitHub commit message + push reminder (if coding)
+5. Reminder to update Handover and Changelog in the Claude Project after the push
+
+**At the end of each phase bundle, additionally:**
+6. Updated **Project_Briefing_Chat[N].md** — PART TWO (volatile state) always; PART ONE (stable core) only if something in it actually changed
+7. Updated **Roadmap_Chat[N].md** — check phase boxes, update next-session priorities, update known-issues list
+
+All documents are produced as complete files. No snippets, no merge instructions.
 
 ---
 
 ## Next session priorities
 
-**Phase 4 of panel redesign — Panel chrome (minimize, drag, resize, snap).** Also wire the inert `#ppu-minimize` button. Brief: Panel_Redesign_Spec.md in the Claude Project.
+**Phase 7 — Website polish (Opus planning session first).** Rough scope from the redesign spec:
+- index.html and privacy.html — remaining palette/content pass
+- compare.html — polish pass
+- Any missed §8 items from Panel_Redesign_Spec.md
 
-Deferred coding work (returns after redesign complete):
+**Copy review before CWS push.** All `<!-- SUGGESTED COPY: ... -->` blocks on welcome.html and wizard. Loading banner and brand hint text in search.js. These are flagged but not locked in.
+
+Deferred coding work (returns after Phase 7):
 - $/serving for protein powder — design session required
 - Prime scraping investigation — check selectors against current Amazon HTML
-- CWS push + Reddit posts — held pending redesign progress
+- CWS push + Reddit posts — held pending redesign completion
 
 ---
 
@@ -103,34 +135,13 @@ Full spec: Panel_Redesign_Spec.md (in Claude Project).
 - [x] Chat 64 — initial spec drafted (compare bar, filters layout, brand row, palette, settings, onboarding outline)
 - [x] Chat 65 — all §10 open items locked, Step 0 added to workflow model, welcome page and wizard screen 1 rewritten, Phase 1 brief produced, onboarding mockups built
 - [x] **Phase 1 — Palette migration + layout scaffold** (Chat 66) ✅
-  - Coral + slate palette applied to styles.css, compare.html, index.html, welcome.html, privacy.html
-  - Sort row always-visible (`#ppu-sort-row`), no longer in collapsible
-  - Pages row always-visible (`#ppu-pages-standalone-row`), no longer in collapsible
-  - Default pages = 4
-  - "As Amazon listed" sort option (`amazon-default`)
-  - Empty-state compare bar copy per §10.1; active copy per §10.4
-  - Minimize button (−) present but inert — wire in Phase 4
-  - Compare button disabled state when 0 items — tooltip added in Phase 2
 - [x] **Phase 2 — Filters overlay (Option C)** (Chat 67) ✅
-  - Filters collapsible replaced with trigger row (`#ppu-filters-trigger`) + slide-down overlay (`#ppu-filters-overlay`)
-  - Five mini-sections: Quality, Price, Sources, Badges, Brand & delivery
-  - Active count pill (all non-default states; Phase 5-ready structure)
-  - Chevron rotation, ESC/tap-outside/×/trigger-row close behavior
-  - Brand & delivery inline expansion ("Adjust for this search →")
-  - Compare button "Nothing checked yet" tooltip (native title attr; pointer-events:none removed)
-  - `au-filters-open` localStorage key no longer used
 - [x] **Phase 3 — Card redesign** (Chat 68) ✅
-  - Brand row: pill buttons replaced with plain text + ⋯ menu popover
-  - Popover actions: "Always show [brand]" / "Always hide [brand]" (same allowlist/blocklist logic as before)
-  - Popover close: ESC · click outside · click another card's ⋯ · click same ⋯ again · select an action
-  - Card padding updated to spec: dense `8px 14px` (was `6px 10px 6px 8px`); comfortable `16px 14px`
-  - Card density preference: storage key `auCardDensity` (`'dense'` | `'comfortable'`, default `'dense'`)
-  - Density class applied to `#ppu-list` at render time (`.density-dense` / `.density-comfortable`)
-  - Storage plumbed via `loadCardDensity(cb)` in startup chain; no UI to change it yet (Phase 5 / Phase 6)
-- [ ] **Phase 4 — Panel chrome (minimize, drag, resize, snap)** — also wire `#ppu-minimize`
-- [ ] **Phase 5 — Settings page**
-- [ ] **Phase 6 — Onboarding refresh (welcome.html content rewrite, Personalize wizard, first-search brand hint)**
-- [ ] **Phase 7 — Remaining website palette work and polish**
+- [x] **Phase 4 — Panel chrome** (Chat 70) ✅
+- [x] **Phase 5 — Settings page** (Chat 72) ✅
+- [x] **Close button (Path C)** (Chat 74) ✅
+- [x] **Phase 6 — Onboarding refresh** (Chat 75) ✅
+- [ ] **Phase 7 — Website polish** (scope TBD in Opus session)
 
 ---
 
@@ -171,35 +182,25 @@ Full spec: Panel_Redesign_Spec.md (in Claude Project).
 - [x] compare.html — brand column (Chat 54)
 - [x] Shortlist object shape — brand field added (Chat 55)
 - [x] Dual-handle price range slider (Chat 56)
-- [x] compare.html — hide slow shipping filters on Math.min(freeDateTs, fastDateTs) (Chat 57)
+- [x] compare.html — hide slow shipping filters (Chat 57)
 - [x] High-noise banner — dismissible X added (Chat 57)
-- [x] PPU interpretation banner — X moved upper right (Chat 57)
 - [x] Re-sync prompt — "You had X pages loaded — reload all?" (Chat 57)
 - [x] Filter layout jank fixed (Chat 58)
-- [x] Sort and Filters sections — localStorage collapsed state (Chat 58)
-- [x] Sort chip — hidden when expanded, visible when collapsed (Chat 58)
 - [x] Welcome page on install (Chat 59)
-- [x] welcome.html created (Chat 59)
-- [x] background.js onInstalled listener (Chat 59)
 - [x] Keyword filter — full boolean parser rewrite (Chat 60)
-- [x] Keyword filter UI — persistent label, hint block, placeholder (Chat 60)
 - [x] extractCount — pack/pk patterns moved to end (Chat 61)
-- [x] Keyword hint — hidden by default, shown on first keypress (Chat 61)
 - [x] compare.html — boolean keyword parser ported (Chat 61)
-- [x] isPaperWeightLb() helper (Chat 62)
-- [x] isMultiPackWeight() helper (Chat 63)
-- [x] isServingWeight() helper (Chat 63)
+- [x] isMultiPackWeight() / isServingWeight() helpers (Chat 63)
 - [x] Multi-pack × weight PPU (Chat 63)
-- [x] Oz hyphen fix (Chat 63)
-- [x] Panel redesign — initial spec draft (Chat 64)
-- [x] Panel redesign — §10 open items locked; Phase 1 brief; onboarding mockups (Chat 65)
+- [x] Panel redesign — spec and planning (Chats 64–65)
 - [x] **Phase 1 — Palette migration + layout scaffold** (Chat 66) ✅
 - [x] **Phase 2 — Filters overlay (Option C)** (Chat 67) ✅
 - [x] **Phase 3 — Card redesign** (Chat 68) ✅
-- [ ] Phase 4 of panel redesign — panel chrome (also: wire `#ppu-minimize`)
-- [ ] Phase 5 of panel redesign — settings page
-- [ ] Phase 6 of panel redesign — onboarding refresh
-- [ ] Phase 7 of panel redesign — website polish
+- [x] **Phase 4 — Panel chrome** (Chat 70) ✅
+- [x] **Phase 5 — Settings page** (Chat 72) ✅
+- [x] **Close button (Path C)** (Chat 74) ✅
+- [x] **Phase 6 — Onboarding refresh** (Chat 75) ✅
+- [ ] **Phase 7 — Website polish** (scope TBD)
 - [ ] $/serving for protein powder — design session required (deferred during redesign)
 - [ ] Prime scraping — investigate selector change (deferred during redesign)
 - [ ] Add laundry pods (id=73) and laptop (id=74) sample links to index.html
@@ -209,6 +210,7 @@ Full spec: Panel_Redesign_Spec.md (in Claude Project).
 - [x] Chrome Web Store — published unlisted (Chat 29)
 - [x] Reddit posts live (Chats 29/30)
 - [x] Reddit feedback received (Chat 38)
+- [ ] Welcome page copy review (all SUGGESTED COPY blocks)
 - [ ] r/vibecodedevs post
 - [ ] Facebook post
 - [ ] Test on a different setup (Mac or Chrome vs Edge)
@@ -240,7 +242,8 @@ Full spec: Panel_Redesign_Spec.md (in Claude Project).
 - [x] Brand filter feature suite (Sessions 1–5 complete) ✅
 - [x] Panel redesign spec locked (Chat 65) ✅
 
-- [ ] Panel redesign Phases 1–6 complete
+- [ ] Panel redesign Phases 1–7 complete
+- [ ] Welcome page copy review (SUGGESTED COPY blocks)
 - [ ] Selector resilience refactor
 - [ ] Self-test mode
 - [ ] Anomaly/transparency banner audit pass
@@ -263,7 +266,7 @@ Full spec: Panel_Redesign_Spec.md (in Claude Project).
 - compare.html logging — revisit when website has more surfaces
 
 ### Website (post-alpha)
-- [ ] search.html — standalone search results page; AU features without being on Amazon; clean, ad-free alternative to tools like jungle-search.com
+- [ ] search.html — standalone search results page
 - [ ] Product pages on website — per-product research surface
 - [ ] Gift lists, carts, saved-for-later surfaces
 - [ ] "For nerds" transparency doc
