@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.1.83)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.1.85)
 'use strict';
 
 function auFeedbackUrl() {
@@ -1457,6 +1457,20 @@ const ITEM_UNITS = [
   var panelMinimized = false;   // loaded from auPanelMinimized
   var panelSnapped   = null;    // loaded from auPanelSnapped: "left" | "right" | null
 
+
+  // ── Chat 74 — Close button state ──────────────────────────────────────
+  // auHasSeenCloseToast: boolean — true after first-close toast has been shown once.
+  // Does NOT reset across page loads. Toast never repeats once flag is set.
+  var hasSeenCloseToast = false;  // loaded from auHasSeenCloseToast
+
+  // ── Phase 6 — Onboarding flags ────────────────────────────────────────
+  // auHasSeenLoadingBanner: false on first install; true after first multi-page load completes.
+  // Switches loading indicator from amber first-time banner to thin coral progress strip.
+  var hasSeenLoadingBanner = false; // loaded from auHasSeenLoadingBanner
+
+  // auHasSeenBrandHint: false on first install; true after first-search brand hint is dismissed.
+  // Prevents inline note + tooltip from appearing on subsequent searches.
+  var hasSeenBrandHint = false;     // loaded from auHasSeenBrandHint
   // ── Phase 5 — Settings state ──────────────────────────────────────────
   // panelInSettings: true when the settings view is active (results view hidden).
   // Does NOT persist across page loads — always starts in results view.
@@ -1724,8 +1738,7 @@ const ITEM_UNITS = [
             '</button>'+
             '<a id="ppu-help" href="https://actuallyuseful.net" target="_blank" title="Help &amp; instructions">?</a>'+
             '<button id="ppu-minimize" title="Minimize">\u2212</button>'+
-            '<button id="ppu-close" title="Close (coming in a future update)">\u00d7</button>'+
-            '<!-- ppu-close: intentionally inert in Phase 4 pending session-hide design -->'+
+            '<button id="ppu-close" title="Close panel">\u00d7</button>'+
           '</div>'+
         '</div>'+
         '<div id="ppu-header-minimized" style="display:none;">'+
@@ -1738,19 +1751,10 @@ const ITEM_UNITS = [
             '<button id="ppu-expand" title="Expand">'+
               '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'+
             '</button>'+
-            '<button id="ppu-close-min" title="Close (coming in a future update)">\u00d7</button>'+
-            '<!-- ppu-close-min: intentionally inert in Phase 4 pending session-hide design -->'+
+            '<button id="ppu-close-min" title="Close panel">\u00d7</button>'+
           '</div>'+
         '</div>'+
-        (localStorage.getItem('au-banner-dismissed')==='1' ? '' :
-        '<div id="ppu-workflow-banner">'+
-          '<div id="ppu-workflow-banner-dot"></div>'+
-          '<div id="ppu-workflow-banner-text">'+
-            '<strong>New here?</strong> Set Amazon\u2019s filters first, then load more pages, then sort &amp; filter here.'+
-            '&ensp;<a href="https://actuallyuseful.net" target="_blank" id="ppu-workflow-learn">Learn more \u2197</a>'+
-          '</div>'+
-          '<button id="ppu-workflow-dismiss" title="Dismiss">\u00d7</button>'+
-        '</div>')+
+        '<div id="ppu-loading-banner-slot"></div>'+
         '<div id="ppu-filter-row">'+
           '<div class="ppu-kw-wrap">'+
             '<label for="ppu-keyword" class="ppu-kw-label">Keyword filter</label>'+
@@ -2283,8 +2287,94 @@ const ITEM_UNITS = [
     addDoubleClickToggle(header);
     addDoubleClickToggle(headerMin);
 
-    // ppu-close / ppu-close-min: intentionally inert in Phase 4 pending session-hide design.
-    // Do NOT wire these until the toolbar-icon restore path is designed.
+    // Wire close buttons — #ppu-close (expanded) and #ppu-close-min (minimized)
+    // Path C: CSS hide preserves DOM and all state. Toolbar icon click restores.
+    // First close ever shows a one-time toast (auHasSeenCloseToast gate).
+    function showCloseToast() {
+      // Position toast at the panel's own location so it appears in place
+      var panelEl = document.getElementById(PANEL_ID);
+      var rect = panelEl ? panelEl.getBoundingClientRect() : null;
+
+      var toast = document.createElement('div');
+      toast.className = 'ppu-close-toast';
+      if (rect) {
+        // Anchor to whichever edge the panel sits closer to
+        var nearRight = rect.left >= (window.innerWidth / 2);
+        toast.style.top = Math.max(rect.top, 8) + 'px';
+        if (nearRight) {
+          toast.style.right = Math.max(window.innerWidth - rect.right, 8) + 'px';
+          toast.style.left = 'auto';
+        } else {
+          toast.style.left = Math.max(rect.left, 8) + 'px';
+          toast.style.right = 'auto';
+        }
+      } else {
+        // Fallback if panel element unavailable
+        toast.style.top = '20px';
+        toast.style.left = '20px';
+      }
+
+      var msg = document.createElement('p');
+      msg.className = 'ppu-close-toast-msg';
+      var strong = document.createElement('strong');
+      strong.textContent = 'Panel closed.';
+      msg.appendChild(strong);
+      msg.appendChild(document.createTextNode(' Click the Actually Useful icon in your browser toolbar to bring it back.'));
+
+      var btn = document.createElement('button');
+      btn.className = 'ppu-close-toast-btn';
+      btn.textContent = 'Got it';
+
+      toast.appendChild(msg);
+      toast.appendChild(btn);
+      document.body.appendChild(toast);
+
+      // Force reflow then add visible class to trigger fade-in
+      void toast.offsetWidth;
+      toast.classList.add('ppu-close-toast-visible');
+
+      function dismissToast() {
+        toast.classList.remove('ppu-close-toast-visible');
+        setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 220);
+        try { chrome.storage.local.set({ auHasSeenCloseToast: true }); } catch(e) {}
+        hasSeenCloseToast = true;
+      }
+
+      btn.addEventListener('click', dismissToast);
+      var autoTimer = setTimeout(dismissToast, 8000);
+      // Clear timer if user clicks Got it first (dismissToast runs once either way)
+      btn.addEventListener('click', function() { clearTimeout(autoTimer); });
+    }
+
+    function doClose() {
+      var panelEl = document.getElementById(PANEL_ID);
+      if (!panelEl) return;
+      panelEl.style.display = 'none';
+      if (!hasSeenCloseToast) {
+        showCloseToast();
+      }
+    }
+
+    var closeBtn = document.getElementById('ppu-close');
+    if (closeBtn) {
+      closeBtn.title = 'Close panel';
+      closeBtn.addEventListener('click', function(e) { e.stopPropagation(); doClose(); });
+    }
+
+    var closeBtnMin = document.getElementById('ppu-close-min');
+    if (closeBtnMin) {
+      closeBtnMin.title = 'Close panel';
+      closeBtnMin.addEventListener('click', function(e) { e.stopPropagation(); doClose(); });
+    }
+
+    // Message listener — restore panel when toolbar icon is clicked
+    // background.js sends ppu-restore-panel via chrome.action.onClicked
+    chrome.runtime.onMessage.addListener(function(msg) {
+      if (msg && msg.type === 'ppu-restore-panel') {
+        var panelEl = document.getElementById(PANEL_ID);
+        if (panelEl) panelEl.style.display = '';
+      }
+    });
 
     // ── Left-edge resize handle ───────────────────────────────────────────
     var dh = document.getElementById('ppu-drag-handle');
@@ -3101,7 +3191,7 @@ const ITEM_UNITS = [
       deliveryFilterActive=false;
       deliveryFilterDays=7;
       sortVal='ppu-asc'; sortEl.value='ppu-asc';
-      try{ localStorage.removeItem('au-banner-dismissed'); }catch(e){}
+
       try{ sessionStorage.removeItem(getFilterStorageKey(searchTerm)); }catch(e){}
       checkedAsins={};
       buildPanel();
@@ -3563,14 +3653,6 @@ const ITEM_UNITS = [
 
     // ppu-minimize, ppu-expand, ppu-close, ppu-close-min:
     // All wired in the Phase 4 panel chrome block above.
-    var workflowDismiss=document.getElementById('ppu-workflow-dismiss');
-    if(workflowDismiss){
-      workflowDismiss.addEventListener('click',function(){
-        var banner=document.getElementById('ppu-workflow-banner');
-        if(banner) banner.remove();
-        try{ localStorage.setItem('au-banner-dismissed','1'); }catch(e){}
-      });
-    }
     var mixedDismissBtn=document.querySelector('.ppu-mixed-dismiss');
     if(mixedDismissBtn){
       mixedDismissBtn.addEventListener('click',function(){
@@ -3851,7 +3933,7 @@ const ITEM_UNITS = [
       // Hide individual rows inside controls-wrap rather than the whole wrapper,
       // so the header (and its drag affordance) stays rendered in settings view.
       var contentRowIds = [
-        'ppu-workflow-banner','ppu-filter-row','ppu-unit-pill-row',
+        'ppu-loading-banner-slot','ppu-filter-row','ppu-unit-pill-row',
         'ppu-sort-row','ppu-pages-standalone-row',
         'ppu-filters-trigger','ppu-filters-overlay','ppu-dec-bar'
       ];
@@ -4226,7 +4308,7 @@ const ITEM_UNITS = [
 
       // Restore results content region
       var contentRowIds = [
-        'ppu-workflow-banner','ppu-filter-row','ppu-unit-pill-row',
+        'ppu-loading-banner-slot','ppu-filter-row','ppu-unit-pill-row',
         'ppu-sort-row','ppu-pages-standalone-row',
         'ppu-filters-trigger','ppu-filters-overlay','ppu-dec-bar'
       ];
@@ -4313,10 +4395,56 @@ const ITEM_UNITS = [
         pagesSlider.disabled = true;
         updatePagesSliderFill(pagesSlider);
         updatePagesLabel();
+
+        // ── Loading banner (Phase 6) ────────────────────────────────────
+        // Slot is #ppu-loading-banner-slot, already in DOM.
+        // First-time: amber full banner. Subsequent: thin coral progress strip.
+        var bannerSlot = document.getElementById('ppu-loading-banner-slot');
+        if(bannerSlot){
+          if(!hasSeenLoadingBanner){
+            // First-time amber banner — no manual dismiss, clears on load complete
+            bannerSlot.innerHTML =
+              '<div id="ppu-loading-banner-first">'+
+                '<span class="ppu-loading-spinner"></span>'+
+                // <!-- SUGGESTED COPY: loading banner first-time text -->
+                '<span><strong>Loading '+autoTarget+' pages of results</strong> \u2014 this is what makes Actually Useful, you know, actually useful. About 8\u201312 seconds. You can start checking items as they appear.</span>'+
+              '</div>';
+          } else {
+            // Subsequent thin coral progress strip
+            bannerSlot.innerHTML =
+              '<div id="ppu-loading-strip">'+
+                '<div id="ppu-loading-strip-bar"></div>'+
+                '<span id="ppu-loading-strip-label">Loading '+autoTarget+' pages\u2026</span>'+
+              '</div>';
+          }
+        }
+
+        function updateLoadingProgress(loaded, target){
+          if(!bannerSlot) return;
+          if(hasSeenLoadingBanner){
+            var bar = document.getElementById('ppu-loading-strip-bar');
+            if(bar) bar.style.width = Math.round((loaded/target)*100)+'%';
+          }
+        }
+
+        function clearLoadingBanner(){
+          if(!bannerSlot) return;
+          if(!hasSeenLoadingBanner){
+            // First time complete — set flag, fade out banner
+            hasSeenLoadingBanner = true;
+            try{ chrome.storage.local.set({auHasSeenLoadingBanner:true}); }catch(e){}
+          }
+          var slot = bannerSlot;
+          slot.style.transition = 'opacity 200ms';
+          slot.style.opacity = '0';
+          setTimeout(function(){ slot.innerHTML = ''; slot.style.opacity = ''; slot.style.transition = ''; }, 210);
+        }
+
         function autoLoadNext(remaining){
           if(remaining===0||!nextPageUrl){
             pagesSlider.disabled=false;
             if(autoStatusEl) autoStatusEl.style.display='none';
+            clearLoadingBanner();
             needsResort=false; updateLoadMoreRow(); render(); return;
           }
           var fp=loadedPages+1,si=allData.length;
@@ -4331,6 +4459,7 @@ const ITEM_UNITS = [
             pagesSlider.value=loadedPages;
             updatePagesSliderFill(pagesSlider);
             updatePagesLabel();
+            updateLoadingProgress(loadedPages, autoTarget);
             if(result.nextUrl&&remaining>1){
               setTimeout(function(){autoLoadNext(remaining-1);},750);
             } else {
@@ -4339,6 +4468,7 @@ const ITEM_UNITS = [
           }).catch(function(err){
             console.log('[PPU] Auto-load failed:',err);
             pagesSlider.disabled=false;
+            if(bannerSlot){ bannerSlot.innerHTML=''; }
             if(autoStatusEl){autoStatusEl.textContent='Load failed \u2014 try Re-sync';setTimeout(function(){autoStatusEl.style.display='none';},3000);}
           });
         }
@@ -4367,8 +4497,104 @@ const ITEM_UNITS = [
 
     render();
 
+    // ── Phase 6 — First-search brand-controls hint ────────────────────────
+    // Shows inline note above results + tooltip on first ⋯ with a detected brand.
+    // Fires once per install (auHasSeenBrandHint gate). Both surfaces share one flag.
+    // Dismissed by: "Got it", ×, clicking any ⋯ menu, or 30-second auto-dismiss.
+    (function(){
+      if(hasSeenBrandHint) return;
+
+      function dismissBrandHint(){
+        if(hasSeenBrandHint) return;
+        hasSeenBrandHint = true;
+        try{ chrome.storage.local.set({auHasSeenBrandHint:true}); }catch(e){}
+        var note = document.getElementById('ppu-brand-hint-inline');
+        var tip  = document.getElementById('ppu-brand-hint-tooltip');
+        var dots = document.querySelector('.ppu-brand-dots-highlighted');
+        if(note){ note.style.transition='opacity 200ms'; note.style.opacity='0'; setTimeout(function(){if(note.parentNode)note.parentNode.removeChild(note);},210); }
+        if(tip) { tip.style.transition='opacity 200ms'; tip.style.opacity='0'; setTimeout(function(){if(tip.parentNode)tip.parentNode.removeChild(tip);},210); }
+        if(dots){ dots.classList.remove('ppu-brand-dots-highlighted'); }
+      }
+
+      // Inject inline note at the top of #ppu-list
+      var list = document.getElementById('ppu-list');
+      if(list){
+        var note = document.createElement('div');
+        note.id = 'ppu-brand-hint-inline';
+        // <!-- SUGGESTED COPY: brand hint inline note -->
+        note.innerHTML =
+          '<div class="ppu-brand-hint-body">'+
+            '<strong>Brand controls</strong> \u2014 click the \u22ef next to any brand name to always show or always hide that brand. Manage your rules from <span class="ppu-brand-hint-link" id="ppu-brand-hint-rules-link">My brand rules</span> at the bottom.'+
+          '</div>'+
+          '<button class="ppu-brand-hint-gotit" id="ppu-brand-hint-gotit">Got it</button>'+
+          '<button class="ppu-brand-hint-x" id="ppu-brand-hint-x" title="Dismiss">\u00d7</button>';
+        list.insertBefore(note, list.firstChild);
+        document.getElementById('ppu-brand-hint-gotit').addEventListener('click', dismissBrandHint);
+        document.getElementById('ppu-brand-hint-x').addEventListener('click', dismissBrandHint);
+        // Clicking "My brand rules" link also dismisses
+        var rulesLink = document.getElementById('ppu-brand-hint-rules-link');
+        if(rulesLink){
+          rulesLink.addEventListener('click', function(){
+            dismissBrandHint();
+            // Scroll to footer where brand rules link lives
+            var bl = document.getElementById('ppu-blocklist-link');
+            if(bl) bl.click();
+          });
+        }
+      }
+
+      // Find first ⋯ button on a card with a detected brand, add tooltip
+      // Edge case: if no detected brands, skip tooltip silently — inline note still shows
+      setTimeout(function(){
+        if(hasSeenBrandHint) return; // dismissed before timeout fired
+        var allDots = document.querySelectorAll('.ppu-brand-menu-btn');
+        var targetDots = null;
+        for(var i=0;i<allDots.length;i++){
+          // Only highlight ⋯ on cards with a real detected brand (not generic/unknown)
+          var card = allDots[i].closest('.ppu-card');
+          if(card && card.querySelector('.ppu-brand-name') && card.querySelector('.ppu-brand-menu-btn')){
+            targetDots = allDots[i];
+            break;
+          }
+        }
+        if(targetDots){
+          targetDots.classList.add('ppu-brand-hint-highlighted');
+          var tip = document.createElement('div');
+          tip.id = 'ppu-brand-hint-tooltip';
+          // <!-- SUGGESTED COPY: brand hint tooltip -->
+          tip.innerHTML =
+            '<strong>Always show or always hide this brand.</strong> '+
+            'Your rule applies to every search until you change it.'+
+            '<button class="ppu-brand-hint-tip-gotit" id="ppu-brand-hint-tip-gotit">Got it</button>';
+          targetDots.style.position = 'relative';
+          targetDots.appendChild(tip);
+          document.getElementById('ppu-brand-hint-tip-gotit').addEventListener('click', function(e){
+            e.stopPropagation();
+            dismissBrandHint();
+          });
+        }
+
+        // 30-second auto-dismiss
+        setTimeout(function(){
+          dismissBrandHint();
+        }, 30000);
+      }, 300); // short delay so render() has painted cards
+
+      // Dismiss when user clicks any ⋯ menu (they're exploring it themselves)
+      document.addEventListener('click', function onBrandMenuClick(e){
+        if(hasSeenBrandHint){
+          document.removeEventListener('click', onBrandMenuClick);
+          return;
+        }
+        if(e.target && e.target.classList && e.target.classList.contains('ppu-brand-menu-btn')){
+          dismissBrandHint();
+          document.removeEventListener('click', onBrandMenuClick);
+        }
+      });
+
+    })();
+
     } catch(err) {
-      console.error('[PPU] Panel build failed:', err);
       var existing=document.getElementById(PANEL_ID);
       if(existing) existing.remove();
       var errPanel=document.createElement('div');
@@ -4491,6 +4717,27 @@ const ITEM_UNITS = [
     }catch(e){cb();}
   }
 
+  // Chat 74 — load close toast flag before buildPanel
+  function loadHasSeenCloseToast(cb){
+    try{
+      chrome.storage.local.get('auHasSeenCloseToast',function(res){
+        hasSeenCloseToast = !!(res && res.auHasSeenCloseToast);
+        cb();
+      });
+    }catch(e){cb();}
+  }
+
+  // Phase 6 — load onboarding flags before buildPanel
+  function loadPhase6Flags(cb){
+    try{
+      chrome.storage.local.get(['auHasSeenLoadingBanner','auHasSeenBrandHint'],function(res){
+        hasSeenLoadingBanner = !!(res && res.auHasSeenLoadingBanner);
+        hasSeenBrandHint     = !!(res && res.auHasSeenBrandHint);
+        cb();
+      });
+    }catch(e){cb();}
+  }
+
   function tryBuild(n){
     var cards=document.querySelectorAll('[data-component-type="s-search-result"]');
     if(cards.length>0) buildPanel();
@@ -4510,8 +4757,12 @@ const ITEM_UNITS = [
             loadPersonalAllowlist(function(){
               loadCardDensity(function(){
                 loadPanelMinimized(function(){
-                  loadUserDefaults(function(){
-                    setTimeout(function(){tryBuild(15);},1500);
+                  loadHasSeenCloseToast(function(){
+                    loadPhase6Flags(function(){
+                      loadUserDefaults(function(){
+                        setTimeout(function(){tryBuild(15);},1500);
+                      });
+                    });
                   });
                 });
               });

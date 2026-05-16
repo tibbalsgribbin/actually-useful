@@ -1,4 +1,4 @@
-// Actually Useful — background.js v0.6.1.17
+// Actually Useful — background.js v0.6.1.18
 // Manages cross-page state: passes search context from search results to product pages.
 // Uses chrome.storage.session so context clears when the browser closes.
 
@@ -15,6 +15,23 @@ chrome.runtime.onInstalled.addListener(function(details) {
   if (details.reason === 'install') {
     chrome.tabs.create({ url: 'https://actuallyuseful.net/welcome' });
   }
+});
+
+// Toolbar icon click — restore the panel if it's hidden.
+// NOTE: This only fires because manifest.json has NO default_popup set.
+// If default_popup is ever added back, onClicked will stop firing and panel
+// restore will silently break. The popup key was removed in Chat 74 (v0.6.1.18)
+// specifically to enable this listener. Do not re-add default_popup without
+// revisiting this listener.
+chrome.action.onClicked.addListener(function() {
+  chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+    if (!tabs || !tabs.length) return;
+    chrome.tabs.sendMessage(tabs[0].id, { type: 'ppu-restore-panel' }, function() {
+      // Ignore errors — user may be on a non-Amazon page where the content
+      // script isn't injected. Silent failure is correct behavior.
+      if (chrome.runtime.lastError) { /* intentional no-op */ }
+    });
+  });
 });
 
 // Listen for messages from content scripts

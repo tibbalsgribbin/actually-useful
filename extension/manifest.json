@@ -10,7 +10,6 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "Actually Useful"
   },
   "background": {
@@ -19,11 +18,16 @@
   "content_scripts": [
     {
       "matches": ["https://www.amazon.com/s*"],
-"js": [
-  "content/shared/core.js",
-  "content/search.js"
-],
+      "js": [
+        "content/shared/core.js",
+        "content/search.js"
+      ],
       "css": ["content/shared/styles.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://actuallyuseful.net/welcome*"],
+      "js": ["content/welcome-bridge.js"],
       "run_at": "document_idle"
     }
   ],
@@ -33,7 +37,7 @@
       "matches": ["https://www.amazon.com/*"]
     }
   ],
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": [
     "https://www.amazon.com/*",
     "https://script.google.com/*",
