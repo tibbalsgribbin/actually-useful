@@ -12,14 +12,18 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --navy:        #f25d4e;    /* vivid violet — brand primary */
-      --teal:        #c2362a;        /* medium violet — links */
-      --teal-mid:    #f25d4e;    /* violet hover */
-      --cream:       #ffffff;         /* white canvas */
-      --warm:        #fef2f0;       /* light violet tint */
-      --text:        #1e293b;       /* near-black */
-      --muted:       #64748b;      /* muted text */
-      --rule:        #e2e8f0;     /* light border */
+      --coral:       #f25d4e;    /* brand primary */
+      --coral-deep:  #c2362a;    /* links / hover */
+      --cream:       #ffffff;    /* white canvas */
+      --warm:        #fef2f0;    /* light coral tint */
+      --text:        #1e293b;    /* near-black */
+      --muted:       #64748b;    /* muted text */
+      --rule:        #e2e8f0;    /* light border */
+
+      /* Aliases used throughout */
+      --navy:        var(--coral);
+      --teal:        var(--coral-deep);
+      --teal-mid:    var(--coral);
     }
 
     html { scroll-behavior: smooth; }
@@ -258,6 +262,15 @@
       <p class="section-label">Website</p>
       <h2>The comparison page</h2>
       <p>If you use the comparison feature at actuallyuseful.net, your shortlisted items are saved temporarily to a database to generate a shareable link. This data contains only product information from Amazon — no personal information. Saved comparisons may be deleted periodically.</p>
+    </div>
+
+    <div class="policy-section">
+      <p class="section-label">Extension</p>
+      <h2>Bug reports</h2>
+      <!-- SUGGESTED COPY: entire bug reports section below -->
+      <p>When you click "Report an issue" in the Actually Useful extension, the extension sends us:</p>
+      <p>The Amazon search URL you were on · the item's ASIN, title, price, and unit information · the raw data Actually Useful extracted from that listing · any notes you choose to add · the extension version.</p>
+      <p>This is separate from anonymous usage data (telemetry). Bug reports are sent only when you actively choose to submit one, regardless of your telemetry setting. We use these reports to find and fix problems with unit detection, price-per-unit math, brand identification, and filtering. No personal information is included.</p>
     </div>
 
     <div class="policy-section">
