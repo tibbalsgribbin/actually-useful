@@ -11,29 +11,29 @@
   <style>
     /* ── Variables ───────────────────────────────────────────── */
     :root {
-      --cream:   #fef2f0;    /* 10 — lightest indigo, background */
-      --navy:    #f25d4e;    /* 1  — deep indigo, headers & nav */
-      --teal:    #c2362a;    /* 2  — medium indigo, links & buttons */
-      --teal-lt: #fcc8c3;    /* 8  — light indigo, pills */
-      --gold:    #BDB96A;    /* gold — star ratings */
-      --muted:   #64748b;    /* muted indigo */
-      --border:  #e2e8f0;    /* 7  — indigo border */
-      --red:     #c94b2e;
-      --green:   #D4920A;    /* amber — best value */
+      --warm:        #fef2f0;    /* light coral tint — background */
+      --coral:       #f25d4e;    /* brand primary — headers & nav */
+      --coral-deep:  #c2362a;    /* brand deep — links & buttons */
+      --coral-lt:    #fcc8c3;    /* light coral — pills */
+      --gold:        #BDB96A;    /* gold — star ratings */
+      --muted:       #64748b;    /* muted text */
+      --border:      #e2e8f0;    /* light border */
+      --red:         #c94b2e;
+      --amber:       #D4920A;    /* amber — best value */
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'DM Sans', sans-serif;
-      background: var(--cream);
+      background: var(--warm);
       color: #1e293b;
       min-height: 100vh;
     }
 
     /* ── Nav ─────────────────────────────────────────────────── */
     nav {
-      background: var(--navy);
+      background: var(--coral);
       padding: 0 2rem;
       display: flex;
       align-items: center;
@@ -43,7 +43,7 @@
 
     .nav-brand {
       font-family: 'DM Serif Display', serif;
-      color: var(--cream);
+      color: var(--warm);
       font-size: 1.25rem;
       text-decoration: none;
     }
@@ -62,18 +62,18 @@
       transition: color 0.15s;
     }
 
-    .nav-links a:hover { color: var(--cream); }
+    .nav-links a:hover { color: var(--warm); }
 
     /* ── Page header ─────────────────────────────────────────── */
     .page-header {
-      background: var(--navy);
+      background: var(--coral);
       padding: 2rem 2rem 2.5rem;
       text-align: center;
     }
 
     .page-header h1 {
       font-family: 'DM Serif Display', serif;
-      color: var(--cream);
+      color: var(--warm);
       font-size: 2rem;
       font-weight: 400;
       margin-bottom: 0.4rem;
@@ -106,8 +106,8 @@
       align-items: center;
       justify-content: space-between;
       padding: 0.5rem 0.9rem;
-      background: var(--navy);
-      color: var(--cream);
+      background: var(--coral);
+      color: var(--warm);
     }
 
     #filter-bar-title {
@@ -119,7 +119,7 @@
     #filter-bar-toggle {
       background: none;
       border: none;
-      color: var(--cream);
+      color: var(--warm);
       font-size: 0.8rem;
       cursor: pointer;
       padding: 0.2rem 0.4rem;
@@ -236,7 +236,7 @@
     }
 
     .meta-bar .item-count strong {
-      color: var(--navy);
+      color: var(--coral);
     }
 
     .search-term-badge {
@@ -267,8 +267,8 @@
     }
 
     thead {
-      background: var(--navy);
-      color: var(--cream);
+      background: var(--coral);
+      color: var(--warm);
       position: sticky;
       top: 0;
       z-index: 10;
@@ -314,7 +314,7 @@
     }
 
     .col-title a {
-      color: var(--teal);
+      color: var(--coral-deep);
       text-decoration: none;
       font-weight: 500;
       line-height: 1.4;
@@ -330,7 +330,7 @@
     }
 
     .best-value {
-      color: var(--green);
+      color: var(--amber);
       font-weight: 500;
     }
 
@@ -370,7 +370,7 @@
     }
 
     .rating-num {
-      color: var(--navy);
+      color: var(--coral);
       font-weight: 400;
     }
 
@@ -427,7 +427,7 @@
       font-family: 'DM Serif Display', serif;
       font-size: 1.6rem;
       font-weight: 400;
-      color: var(--navy);
+      color: var(--coral);
       margin-bottom: 0.75rem;
     }
 
@@ -454,12 +454,12 @@
     .btn:hover { opacity: 0.85; }
     .btn:active { transform: translateY(1px); opacity: 0.75; }
 
-    .btn-primary { background: var(--navy); color: #ffffff; }
-    .btn-ghost   { background: transparent; color: var(--teal); border: 1.5px solid var(--teal); margin-left: 0.75rem; }
+    .btn-primary { background: var(--coral); color: #ffffff; }
+    .btn-ghost   { background: transparent; color: var(--coral-deep); border: 1.5px solid var(--coral-deep); margin-left: 0.75rem; }
 
     /* ── Footer ──────────────────────────────────────────────── */
     footer {
-      background: var(--navy);
+      background: var(--coral);
       color: rgba(255,255,255,0.75);
       text-align: center;
       padding: 1.5rem;
@@ -482,6 +482,235 @@
       font-size: 0.78rem;
       color: var(--muted);
       text-align: center;
+    }
+
+    /* ── Row ⋯ menu column ───────────────────────────────────── */
+    .col-row-menu {
+      width: 32px;
+      padding: 0.5rem 0.25rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .row-menu-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      color: var(--muted);
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+      line-height: 1;
+      font-family: inherit;
+    }
+
+    .row-menu-btn:hover { background: #e2e8f0; color: #1e293b; }
+
+    .row-menu-popover {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 200;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      min-width: 200px;
+      padding: 0.35rem 0;
+    }
+
+    .row-menu-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-family: inherit;
+      color: #1e293b;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .row-menu-item:hover { background: #fef2f0; }
+
+    /* ── Bug report overlay ──────────────────────────────────── */
+    .compare-bug-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1000;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      width: 420px;
+      max-width: calc(100vw - 2rem);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .compare-bug-overlay-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: rgba(0,0,0,0.25);
+    }
+
+    .compare-bug-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1rem 0.75rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .compare-bug-header-title {
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: #1e293b;
+    }
+
+    .compare-bug-close {
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+      line-height: 1;
+      font-family: inherit;
+    }
+
+    .compare-bug-close:hover { background: #e2e8f0; }
+
+    .compare-bug-item-ctx {
+      padding: 0.6rem 1rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      border-bottom: 1px solid #e2e8f0;
+      font-style: italic;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .compare-bug-body { padding: 0.85rem 1rem 1rem; }
+
+    .compare-bug-cat-label {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+    }
+
+    .compare-bug-cat-label.error-highlight { color: var(--coral-deep); }
+
+    .compare-bug-radio {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: #1e293b;
+      margin-bottom: 0.35rem;
+      cursor: pointer;
+    }
+
+    .compare-bug-radio input { cursor: pointer; accent-color: var(--coral); }
+
+    .compare-bug-notes-label {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #1e293b;
+      margin-top: 0.85rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .compare-bug-optional {
+      font-weight: 400;
+      color: var(--muted);
+    }
+
+    .compare-bug-notes {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      color: #1e293b;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    .compare-bug-notes:focus { outline: none; border-color: var(--coral); }
+
+    .compare-bug-transparency {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.75rem;
+      line-height: 1.5;
+    }
+
+    .compare-bug-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+    }
+
+    .compare-bug-send {
+      background: var(--coral);
+      color: #fff;
+      border: none;
+      padding: 0.45rem 1.1rem;
+      border-radius: 5px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .compare-bug-send:hover { background: var(--coral-deep); }
+    .compare-bug-send:disabled { opacity: 0.6; cursor: default; }
+
+    .compare-bug-cancel {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid #e2e8f0;
+      padding: 0.45rem 1rem;
+      border-radius: 5px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .compare-bug-cancel:hover { background: #f8fafc; }
+    .compare-bug-cancel:disabled { opacity: 0.6; cursor: default; }
+
+    .compare-bug-success {
+      text-align: center;
+      padding: 1.5rem 1rem;
+      font-size: 0.95rem;
+      color: #1e293b;
+    }
+
+    .compare-bug-error {
+      font-size: 0.82rem;
+      color: var(--coral-deep);
+      margin-top: 0.5rem;
+    }
+
+    .compare-bug-retry {
+      background: none;
+      border: none;
+      color: var(--coral-deep);
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-family: inherit;
+      padding: 0;
     }
   </style>
 </head>
@@ -534,6 +763,14 @@
 
   const SUPABASE_URL = 'https://bnqgeguulurcrbkdpfzv.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_h70-MNvomO4EpJrpXgcdjw__motBOdi';
+
+  // ── Compare version (for bug report payload) ──────────────────
+  const COMPARE_VERSION = 'compare-v1.0.0';
+
+  // ── Bug report session ID (new UUID per page load) ────────────
+  var COMPARE_BUG_SESSION_ID = (function() {
+    try { return crypto.randomUUID(); } catch(e) { return 'ses-' + Math.random().toString(36).slice(2); }
+  })();
 
   // ── Helpers ───────────────────────────────────────────────────
   function affiliateUrl(asin) {
@@ -1273,6 +1510,7 @@
 
     var colDefs = [
       { key: '_cb',         label: selectAllChk, nosort: true, cls: 'col-cb' },
+      { key: '_menu',        label: '',           nosort: true, cls: 'col-row-menu' },
       { key: '_thumb',      label: '',           nosort: true, cls: 'col-thumb' },
       { key: 'title',       label: 'Product' },
       { key: 'price',       label: 'Price' },
@@ -1385,13 +1623,14 @@
 
       var thumbCell = item.imgUrl
         ? '<img src="' + esc(item.imgUrl) + '" loading="lazy" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:4px;display:block;">'
-        : '';
+        : '<div style="width:56px;height:56px;border-radius:4px;background:#e2e8f0;display:block;"></div>';
 
       var noteVal = esc(item.note || '');
       var noteCell = '<textarea class="note-textarea" data-asin="' + safeAsin + '" placeholder="Add a note…" rows="2">' + noteVal + '</textarea>';
 
       return '<tr data-asin="' + safeAsin + '">'
         + '<td class="col-cb"><input type="checkbox" class="compare-row-cb" data-asin="' + safeAsin + '"' + (isChecked ? ' checked' : '') + '></td>'
+        + '<td class="col-row-menu"><button class="row-menu-btn" data-asin="' + safeAsin + '" title="More options">⋯</button></td>'
         + '<td class="col-thumb">' + thumbCell + '</td>'
         + '<td class="col-title"><a href="' + affiliateUrl(item.asin) + '" target="_blank" rel="noopener">' + highlightTitle(item.title, filterInclude) + '</a>' + sponsoredBadge + '</td>'
         + '<td class="col-price">' + priceCell + '</td>'
@@ -1551,6 +1790,7 @@
     attachColToggleHandlers();
     applyColVisibility();
     attachRowHandlers();
+    attachRowMenuHandlers();
     attachActionBarButtons();
     attachShareHandler('top-share-btn');
     attachShareHandler('bottom-share-btn');
@@ -1719,6 +1959,7 @@
 
     var colDefs = [
       { key: '_cb',         label: selectAllChk, nosort: true, cls: 'col-cb' },
+      { key: '_menu',        label: '',           nosort: true, cls: 'col-row-menu' },
       { key: '_thumb',      label: '',           nosort: true, cls: 'col-thumb' },
       { key: 'title',       label: 'Product' },
       { key: 'price',       label: 'Price' },
@@ -1828,13 +2069,14 @@
 
       var thumbCell = item.imgUrl
         ? '<img src="' + esc(item.imgUrl) + '" loading="lazy" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:4px;display:block;">'
-        : '';
+        : '<div style="width:56px;height:56px;border-radius:4px;background:#e2e8f0;display:block;"></div>';
 
       var noteVal = esc(item.note || '');
       var noteCell = '<textarea class="note-textarea" data-asin="' + safeAsin + '" placeholder="Add a note…" rows="2">' + noteVal + '</textarea>';
 
       return '<tr data-asin="' + safeAsin + '">'
         + '<td class="col-cb"><input type="checkbox" class="compare-row-cb" data-asin="' + safeAsin + '"' + (isChecked ? ' checked' : '') + '></td>'
+        + '<td class="col-row-menu"><button class="row-menu-btn" data-asin="' + safeAsin + '" title="More options">⋯</button></td>'
         + '<td class="col-thumb">' + thumbCell + '</td>'
         + '<td class="col-title"><a href="' + affiliateUrl(item.asin) + '" target="_blank" rel="noopener">' + highlightTitle(item.title, filterInclude) + '</a>' + sponsoredBadge + '</td>'
         + '<td class="col-price">' + priceCell + '</td>'
@@ -1910,6 +2152,7 @@
       attachColToggleHandlers();
       applyColVisibility();
       attachRowHandlers();
+      attachRowMenuHandlers();
       attachActionBarButtons();
       attachShareHandler('top-share-btn');
       attachShareHandler('bottom-share-btn');
@@ -2323,6 +2566,195 @@
 
     currentItems = items;
     rerender();
+  }
+
+  // ── Phase 8A — Bug reporting on compare.html ─────────────────
+  // Entry: per-row ⋯ button → popover → "Report an issue with this item"
+  // POSTs to Supabase bug_reports table. No telemetry gate.
+
+  var _openPopover = null; // tracks the currently open row popover
+
+  function closeOpenPopover() {
+    if (_openPopover) {
+      _openPopover.remove();
+      _openPopover = null;
+    }
+  }
+
+  function attachRowMenuHandlers() {
+    document.querySelectorAll('.row-menu-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var asin = this.getAttribute('data-asin');
+
+        // Toggle: if this button's popover is already open, close it
+        if (_openPopover && _openPopover.dataset.asin === asin) {
+          closeOpenPopover();
+          return;
+        }
+
+        closeOpenPopover();
+
+        var item = currentItems.find(function(it) { return it.asin === asin; });
+        if (!item) return;
+
+        var popover = document.createElement('div');
+        popover.className = 'row-menu-popover';
+        popover.dataset.asin = asin;
+
+        var reportBtn = document.createElement('button');
+        reportBtn.className = 'row-menu-item';
+        reportBtn.textContent = 'Report an issue with this item';
+        reportBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          closeOpenPopover();
+          openBugReportOverlay(item);
+        });
+
+        popover.appendChild(reportBtn);
+        this.parentElement.appendChild(popover);
+        _openPopover = popover;
+      });
+    });
+  }
+
+  // Close any open row popover on outside click — wired once globally
+  document.addEventListener('click', function() {
+    closeOpenPopover();
+  }, true);
+
+  function openBugReportOverlay(item) {
+    // Remove any existing overlay and backdrop
+    var existing = document.getElementById('compare-bug-overlay');
+    var existingBd = document.getElementById('compare-bug-backdrop');
+    if (existing) existing.remove();
+    if (existingBd) existingBd.remove();
+
+    var titlePreview = (item.title || '').slice(0, 60) + ((item.title || '').length > 60 ? '\u2026' : '');
+
+    var backdrop = document.createElement('div');
+    backdrop.id = 'compare-bug-backdrop';
+    backdrop.className = 'compare-bug-overlay-backdrop';
+    document.body.appendChild(backdrop);
+
+    var overlay = document.createElement('div');
+    overlay.id = 'compare-bug-overlay';
+    overlay.className = 'compare-bug-overlay';
+    overlay.innerHTML =
+      '<div class="compare-bug-header">' +
+        '<span class="compare-bug-header-title">Report an issue</span>' +
+        '<button class="compare-bug-close" id="compare-bug-close" title="Cancel">\u00d7</button>' +
+      '</div>' +
+      '<div class="compare-bug-item-ctx" title="' + esc(item.title || '') + '">' + esc(titlePreview) + '</div>' +
+      '<div class="compare-bug-body">' +
+        '<div class="compare-bug-cat-label" id="compare-bug-cat-label">Choose one of the following:</div>' +
+        '<label class="compare-bug-radio"><input type="radio" name="compare-bug-cat" value="unit_type"> Wrong unit type</label>' +
+        '<label class="compare-bug-radio"><input type="radio" name="compare-bug-cat" value="ppu_math"> Wrong price per unit</label>' +
+        '<label class="compare-bug-radio"><input type="radio" name="compare-bug-cat" value="brand_wrong"> Wrong brand</label>' +
+        '<label class="compare-bug-radio"><input type="radio" name="compare-bug-cat" value="brand_filtered"> Error with filtering or sorting</label>' +
+        '<label class="compare-bug-radio"><input type="radio" name="compare-bug-cat" value="other"> Other</label>' +
+        '<div class="compare-bug-notes-label">Notes <span class="compare-bug-optional">(optional)</span></div>' +
+        '<textarea class="compare-bug-notes" id="compare-bug-notes" rows="3" placeholder="Any details that would help\u2026"></textarea>' +
+        '<div class="compare-bug-transparency">Submitting sends the item details (ASIN, title, price, PPU, raw data) and your notes to Actually Useful. No personal info.</div>' +
+        '<div class="compare-bug-actions" id="compare-bug-actions">' +
+          '<button class="compare-bug-send" id="compare-bug-send">Send report</button>' +
+          '<button class="compare-bug-cancel" id="compare-bug-cancel">Cancel</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+
+    function closeOverlay() {
+      overlay.remove();
+      backdrop.remove();
+    }
+
+    document.getElementById('compare-bug-close').addEventListener('click', closeOverlay);
+    document.getElementById('compare-bug-cancel').addEventListener('click', closeOverlay);
+    backdrop.addEventListener('click', closeOverlay);
+
+    // Clear error highlight once user picks a category
+    overlay.querySelectorAll('input[name="compare-bug-cat"]').forEach(function(r) {
+      r.addEventListener('change', function() {
+        var lbl = document.getElementById('compare-bug-cat-label');
+        if (lbl) lbl.classList.remove('error-highlight');
+      });
+    });
+
+    document.getElementById('compare-bug-send').addEventListener('click', function() {
+      var cat = null;
+      overlay.querySelectorAll('input[name="compare-bug-cat"]').forEach(function(r) {
+        if (r.checked) cat = r.value;
+      });
+      if (!cat) {
+        var lbl = document.getElementById('compare-bug-cat-label');
+        if (lbl) lbl.classList.add('error-highlight');
+        return;
+      }
+      var notes = (document.getElementById('compare-bug-notes').value || '');
+      var payload = {
+        session_id:        COMPARE_BUG_SESSION_ID,
+        search_url:        window.location.href,
+        asin:              item.asin || '',
+        title:             item.title || '',
+        category:          cat,
+        notes:             notes,
+        ppu:               (item.ppu != null && !isNaN(item.ppu)) ? item.ppu : null,
+        ppu_unit:          item.ppuUnit || '',
+        price:             (item.price != null && !isNaN(item.price)) ? item.price : null,
+        raw_extract:       JSON.stringify(item),
+        extension_version: COMPARE_VERSION
+      };
+      submitCompareBugReport(payload, notes, overlay);
+    });
+  }
+
+  function submitCompareBugReport(payload, savedNotes, overlayEl) {
+    var sendBtn = overlayEl.querySelector('#compare-bug-send');
+    var cancelBtn = overlayEl.querySelector('#compare-bug-cancel');
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending\u2026'; }
+    if (cancelBtn) { cancelBtn.disabled = true; }
+
+    fetch(SUPABASE_URL + '/rest/v1/bug_reports', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error('Supabase error ' + res.status);
+      var body = overlayEl.querySelector('.compare-bug-body');
+      if (body) {
+        body.innerHTML = '<div class="compare-bug-success">Thanks \u2014 report sent</div>';
+      }
+      setTimeout(function() {
+        var bd = document.getElementById('compare-bug-backdrop');
+        if (overlayEl.parentNode) overlayEl.remove();
+        if (bd && bd.parentNode) bd.remove();
+      }, 2000);
+    })
+    .catch(function() {
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send report'; }
+      if (cancelBtn) { cancelBtn.disabled = false; }
+      var existing = overlayEl.querySelector('#compare-bug-error');
+      if (!existing) {
+        var errDiv = document.createElement('div');
+        errDiv.id = 'compare-bug-error';
+        errDiv.className = 'compare-bug-error';
+        errDiv.innerHTML = 'Couldn\u2019t send report. <button class="compare-bug-retry" id="compare-bug-retry">Try again?</button>';
+        var actions = overlayEl.querySelector('#compare-bug-actions');
+        if (actions) actions.parentNode.insertBefore(errDiv, actions);
+        var retryBtn = overlayEl.querySelector('#compare-bug-retry');
+        if (retryBtn) retryBtn.addEventListener('click', function() {
+          errDiv.remove();
+          submitCompareBugReport(payload, savedNotes, overlayEl);
+        });
+      }
+    });
   }
 
   init();
