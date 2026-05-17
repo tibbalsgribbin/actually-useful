@@ -1758,6 +1758,7 @@
       + '<button class="btn-action" id="action-open-tabs">Open checked in tabs</button>'
       + '<span style="font-size:0.75em;opacity:0.75;white-space:nowrap;">Your browser may ask you to allow pop-ups.</span>'
       + '<button class="btn-action-ghost" id="action-show-checked">' + showLabel + '</button>'
+      + '<label style="font-size:0.78em;opacity:0.85;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="action-include-notes" style="margin:0;cursor:pointer;"> Include my notes in the shared link</label>'
       + '<button class="btn-action-ghost" id="action-share-checked">Share checked items</button>'
       + '<button class="btn-action-ghost" id="action-deselect-all">Deselect all</button>'
       + '</div>';
@@ -1855,7 +1856,7 @@
       });
     }
 
-    // Editable note textareas — update currentItems in memory and try to sync to extension
+    // Editable note textareas — update currentItems in memory and sync to chrome.storage.local
     document.querySelectorAll('.note-textarea').forEach(function(ta) {
       ta.addEventListener('input', function() {
         var asin = this.getAttribute('data-asin');
@@ -1863,12 +1864,8 @@
         // Update in-memory items so rerenders preserve the note
         currentItems.forEach(function(it) { if (it.asin === asin) it.note = note; });
         if (checkedAsins[asin]) checkedAsins[asin].note = note;
-        // Try to sync back to extension
-        if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
-          try {
-            chrome.runtime.sendMessage({ type: 'AU_UPDATE_NOTE', asin: asin, note: note });
-          } catch(e) {}
-        }
+        // Write to chrome.storage.local (replaces dead AU_UPDATE_NOTE sendMessage)
+        scheduleNoteWrite(asin, note);
       });
       // Prevent sort-header click from interfering
       ta.addEventListener('click', function(e) { e.stopPropagation(); });
@@ -1876,6 +1873,32 @@
 
     // Action bar buttons — wire once on page load, not per rerender
     // (buttons are in static HTML, not re-rendered)
+  }
+
+  // ── Notes: debounced write to chrome.storage.local ────────────
+  var _noteWriteTimers = {};
+  function scheduleNoteWrite(asin, note) {
+    if (!window.chrome || !chrome.storage || !chrome.storage.local) return;
+    clearTimeout(_noteWriteTimers[asin]);
+    _noteWriteTimers[asin] = setTimeout(function() {
+      chrome.storage.local.get('au_item_notes', function(r) {
+        var notes = r.au_item_notes || {};
+        notes[asin] = note;
+        chrome.storage.local.set({ au_item_notes: notes });
+      });
+    }, 300);
+  }
+
+  // ── Notes: storage-as-bus — listen for changes from search.js ─
+  if (window.chrome && chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener(function(changes, area) {
+      if (area !== 'local' || !changes.au_item_notes) return;
+      var localNotes = changes.au_item_notes.newValue || {};
+      currentItems.forEach(function(it) {
+        if (localNotes[it.asin] !== undefined) it.note = localNotes[it.asin];
+      });
+      rerenderTableOnly();
+    });
   }
 
   // ── Action bar button handlers — wired once at init ───────────
@@ -2364,7 +2387,13 @@
 
   // ── Supabase: save comparison ─────────────────────────────────
   async function saveComparison(items, searchTerm) {
-    const payload = JSON.stringify({ items, searchTerm });
+    // Strip notes unless user opted in via the include-notes checkbox
+    var includeNotesChk = document.getElementById('action-include-notes');
+    var includeNotes = !!(includeNotesChk && includeNotesChk.checked);
+    var itemsToSave = includeNotes ? items : items.map(function(it) {
+      return Object.assign({}, it, { note: '' });
+    });
+    const payload = JSON.stringify({ items: itemsToSave, searchTerm });
     const res = await fetch(`${SUPABASE_URL}/rest/v1/comparisons`, {
       method: 'POST',
       headers: {
@@ -2532,7 +2561,18 @@
         return;
       }
       if (!currentItems.length) { main.innerHTML = renderError('load-failed'); return; }
-      rerender();
+      // Patch in any locally-stored notes (viewer's own notes, not sharer's)
+      if (window.chrome && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get('au_item_notes', function(r) {
+          var localNotes = r.au_item_notes || {};
+          currentItems.forEach(function(it) {
+            if (localNotes[it.asin]) it.note = localNotes[it.asin];
+          });
+          rerender();
+        });
+      } else {
+        rerender();
+      }
       return;
     }
 

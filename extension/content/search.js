@@ -1425,7 +1425,7 @@ const ITEM_UNITS = [
   var selectedUnit     = null;
   var sortVal          = 'ppu-asc';
   var checkedAsins     = {};
-  var itemNotes        = {};   // asin → note string
+  var itemNotes        = {};   // asin → note string — loaded from chrome.storage.local (au_item_notes)
   var minPrice         = '';
   var maxPrice         = '';
   var allData          = [];
@@ -1435,6 +1435,7 @@ const ITEM_UNITS = [
   var srcFilter        = {};
   var logTimer         = null;
   var kwDebounceTimer  = null;
+  var noteWriteTimer   = null;  // debounce for auNotesSet on keystroke
   var minReviews       = 0;
   var minRating        = 0;
   var snapOnly         = false;
@@ -1938,6 +1939,7 @@ const ITEM_UNITS = [
             '</div>'+
           '</div>'+
           '<span id="ppu-compare-hint"><span id="ppu-compare-main">Check items below to send to the full comparison table</span><span id="ppu-compare-sub" style="display:block;font-size:10px;margin-top:1px;font-weight:400;">Filter, sort, share, save with Actually Useful\'s research workspace</span></span>'+
+          '<label id="ppu-include-notes-label" style="display:none;font-size:10px;color:#64748b;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;"><input type="checkbox" id="ppu-include-notes-chk" style="margin:0;cursor:pointer;"> Include my notes in the shared link</label>'+
           '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary disabled" title="Nothing checked yet">Compare (0)</button>'+
         '</div>'+
         '<div id="ppu-high-noise-banner" style="display:none"><span class="ppu-noise-msg"></span><button class="ppu-noise-dismiss" title="Dismiss">\u00d7</button></div>'+
@@ -2502,10 +2504,15 @@ const ITEM_UNITS = [
       ta.placeholder = 'Add a note…';
       ta.rows = 2;
       ta.value = itemNotes[asin] || '';
-      ta.addEventListener('input', function() { itemNotes[asin] = ta.value; });
+      ta.addEventListener('input', function() {
+        itemNotes[asin] = ta.value;
+        clearTimeout(noteWriteTimer);
+        noteWriteTimer = setTimeout(function() { auNotesSet(itemNotes); }, 300);
+      });
       ta.addEventListener('click', function(e) { e.stopPropagation(); });
       ta.addEventListener('blur', function() {
         itemNotes[asin] = ta.value;
+        auNotesSet(itemNotes);
         auRefreshNoteWidget(widget, asin);
       });
       widget.appendChild(ta);
@@ -2542,6 +2549,20 @@ const ITEM_UNITS = [
       row.querySelector('.ppu-row-content').appendChild(widget);
     }
 
+    // ── Notes storage-as-bus: listen for changes from compare.html ────────
+    if (!window.__ppuNotesStorageListenerAttached) {
+      window.__ppuNotesStorageListenerAttached = true;
+      chrome.storage.onChanged.addListener(function(changes, area) {
+        if (area !== 'local' || !changes.au_item_notes) return;
+        itemNotes = changes.au_item_notes.newValue || {};
+        document.querySelectorAll('.ppu-note-widget').forEach(function(w) {
+          var row = w.closest('.ppu-row');
+          var asin = row && row.getAttribute('data-asin');
+          if (asin) auRefreshNoteWidget(w, asin);
+        });
+      });
+    }
+
     // ── Render ────────────────────────────────────────────────────────────
     function render() {
       sortVal=sortEl.value;
@@ -2561,6 +2582,8 @@ const ITEM_UNITS = [
       if(compareBtn){ compareBtn.classList.toggle('disabled', cc===0); compareBtn.title = cc===0 ? 'Nothing checked yet' : ''; }
       if(compareHint){ compareHint.style.display='block'; }
       if(shortlistBar){ shortlistBar.classList.toggle('active',cc>0); }
+      var includeNotesLabel2=document.getElementById('ppu-include-notes-label');
+      if(includeNotesLabel2) includeNotesLabel2.style.display=cc>0?'flex':'none';
       // Update minimized header summary if panel is minimized
       if(panelMinimized) updateMinSummary();
       // Update compare bar copy based on checked item count (§10.4 / §10.1)
@@ -2945,7 +2968,7 @@ const ITEM_UNITS = [
           } else{
             // Preserve note before removing textarea
             var ta=row.querySelector('.ppu-item-note');
-            if(ta){itemNotes[asin]=ta.value;ta.parentNode.removeChild(ta);}
+            if(ta){itemNotes[asin]=ta.value;auNotesSet(itemNotes);ta.parentNode.removeChild(ta);}
             delete checkedAsins[asin];
             row.classList.remove('checked');
           }
@@ -2959,6 +2982,8 @@ const ITEM_UNITS = [
           if(compareBtn){ compareBtn.classList.toggle('disabled', cnt===0); compareBtn.title = cnt===0 ? 'Nothing checked yet' : ''; }
           if(compareHint){ compareHint.style.display='block'; }
           if(shortlistBar){ shortlistBar.classList.toggle('active',cnt>0); }
+          var includeNotesLabel3=document.getElementById('ppu-include-notes-label');
+          if(includeNotesLabel3) includeNotesLabel3.style.display=cnt>0?'flex':'none';
           var mainEl2=document.getElementById('ppu-compare-main');
           if(mainEl2){
             if(cnt>0){ mainEl2.textContent='Take '+cnt+' item'+(cnt===1?'':'s')+' to the full comparison table'; }
@@ -3433,6 +3458,8 @@ const ITEM_UNITS = [
         // Block click in JS instead when 0 items checked.
         if (compareBtn.classList.contains('disabled')) return;
         var asins=Object.keys(checkedAsins);
+        var includeNotesChk=document.getElementById('ppu-include-notes-chk');
+        var includeNotes=!!(includeNotesChk&&includeNotesChk.checked);
         var items=asins.map(function(asin){
           var r=allData.find(function(d){return d.asin===asin;});
           if(!r) return null;
@@ -3460,7 +3487,7 @@ const ITEM_UNITS = [
             retailerKey: r.retailer?r.retailer.key:'standard',
             rating:      r.rating||'',
             reviewCount: r.reviewCount||'',
-            note:        itemNotes[r.asin]||'',
+            note:        includeNotes?(itemNotes[r.asin]||''):'',
             ppuNote:     r.note||'',
             imgUrl:      r.imgUrl||'',
             isSnap:      !!r.isSnap,
@@ -4207,6 +4234,14 @@ const ITEM_UNITS = [
               '<div class="ppu-settings-hint">Helps Actually Useful improve \u2014 no personal info, no purchase history</div>'+
             '</div>'+
           '</div>'+
+
+          '<div class="ppu-settings-row">'+
+            '<div class="ppu-settings-row-label">Notes</div>'+
+            '<div class="ppu-settings-row-control">'+
+              '<button id="ppu-set-clear-notes-btn" class="ppu-set-reset-btn" style="margin:0;">Clear all notes</button>'+
+              '<div class="ppu-settings-hint">Permanently deletes all notes you\u2019ve added to items</div>'+
+            '</div>'+
+          '</div>'+
         '</div>'+
 
         // Reset to defaults
@@ -4350,6 +4385,31 @@ const ITEM_UNITS = [
 
       // Telemetry
       wireToggle('ppu-set-telemetry-toggle', 'telemetry', 'au_telemetry_enabled', null);
+
+      // Clear all notes — two-click confirmation (matches Reset pattern)
+      var clearNotesBtn = document.getElementById('ppu-set-clear-notes-btn');
+      var clearNotesTimer = null;
+      if (clearNotesBtn) {
+        clearNotesBtn.addEventListener('click', function() {
+          if (clearNotesBtn.dataset.confirm === '1') {
+            clearTimeout(clearNotesTimer);
+            clearNotesBtn.dataset.confirm = '0';
+            clearNotesBtn.textContent = 'Clear all notes';
+            auNotesClearAll();
+            itemNotes = {};
+            render();
+          } else {
+            clearNotesBtn.dataset.confirm = '1';
+            clearNotesBtn.textContent = 'Click again to confirm';
+            clearNotesTimer = setTimeout(function() {
+              if (clearNotesBtn) {
+                clearNotesBtn.dataset.confirm = '0';
+                clearNotesBtn.textContent = 'Clear all notes';
+              }
+            }, 3000);
+          }
+        });
+      }
 
       // Reset to defaults — two-click confirmation
       var resetBtn = document.getElementById('ppu-set-reset-btn');
@@ -4908,6 +4968,7 @@ const ITEM_UNITS = [
                   loadHasSeenCloseToast(function(){
                     loadPhase6Flags(function(){
                       loadUserDefaults(function(){
+                        auNotesGet(function(loaded){ itemNotes=loaded; });
                         setTimeout(function(){tryBuild(15);},1500);
                       });
                     });

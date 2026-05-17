@@ -22,6 +22,23 @@ function auShortlistSet(items, callback) {
   chrome.storage.local.set({ [AU_SHORTLIST_KEY]: items }, callback || function () {});
 }
 
+// ── Notes Storage ────────────────────────────────────────────────────────────
+const AU_ITEM_NOTES_KEY = 'au_item_notes';
+
+function auNotesGet(callback) {
+  chrome.storage.local.get(AU_ITEM_NOTES_KEY, function (result) {
+    callback(result[AU_ITEM_NOTES_KEY] || {});
+  });
+}
+
+function auNotesSet(notes, callback) {
+  chrome.storage.local.set({ [AU_ITEM_NOTES_KEY]: notes }, callback || function () {});
+}
+
+function auNotesClearAll(callback) {
+  chrome.storage.local.remove(AU_ITEM_NOTES_KEY, callback || function () {});
+}
+
 // ── Nudge State (Monetization/Tips) ────────────────────────────────────────
 function auNudgeShouldShow(callback) {
   chrome.storage.local.get([AU_NUDGE_DISMISSED, AU_NUDGE_LAST_SHOWN], function (result) {
