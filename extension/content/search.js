@@ -1939,7 +1939,7 @@ const ITEM_UNITS = [
             '</div>'+
           '</div>'+
           '<span id="ppu-compare-hint"><span id="ppu-compare-main">Check items below to send to the full comparison table</span><span id="ppu-compare-sub" style="display:block;font-size:10px;margin-top:1px;font-weight:400;">Filter, sort, share, save with Actually Useful\'s research workspace</span></span>'+
-          '<label id="ppu-include-notes-label" style="display:none;font-size:10px;color:#64748b;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;"><input type="checkbox" id="ppu-include-notes-chk" style="margin:0;cursor:pointer;"> Include my notes in the shared link</label>'+
+          '<label id="ppu-include-notes-label" style="display:none;font-size:11px;color:#877891;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;user-select:none;"><input type="checkbox" id="ppu-include-notes-chk" style="margin:0;cursor:pointer;accent-color:#CF6DFC;"> Include my notes in the shared link</label>'+
           '<button id="ppu-btn-compare" class="ppu-btn ppu-btn-primary disabled" title="Nothing checked yet">Compare (0)</button>'+
         '</div>'+
         '<div id="ppu-high-noise-banner" style="display:none"><span class="ppu-noise-msg"></span><button class="ppu-noise-dismiss" title="Dismiss">\u00d7</button></div>'+
@@ -2504,6 +2504,12 @@ const ITEM_UNITS = [
       ta.placeholder = 'Add a note…';
       ta.rows = 2;
       ta.value = itemNotes[asin] || '';
+      var _suppressBlur = false;
+      // mousedown on the widget itself (not the textarea) sets a flag so blur
+      // doesn't collapse the textarea when the user clicks the border/scrollbar
+      widget.addEventListener('mousedown', function(e) {
+        if (e.target !== ta) { _suppressBlur = true; setTimeout(function(){ _suppressBlur = false; }, 0); }
+      });
       ta.addEventListener('input', function() {
         itemNotes[asin] = ta.value;
         clearTimeout(noteWriteTimer);
@@ -2511,6 +2517,7 @@ const ITEM_UNITS = [
       });
       ta.addEventListener('click', function(e) { e.stopPropagation(); });
       ta.addEventListener('blur', function() {
+        if (_suppressBlur) { ta.focus(); return; }
         itemNotes[asin] = ta.value;
         auNotesSet(itemNotes);
         auRefreshNoteWidget(widget, asin);
@@ -4968,7 +4975,7 @@ const ITEM_UNITS = [
                   loadHasSeenCloseToast(function(){
                     loadPhase6Flags(function(){
                       loadUserDefaults(function(){
-                        auNotesGet(function(loaded){ itemNotes=loaded; });
+                        auNotesGet(function(loaded){ itemNotes=loaded; render(); });
                         setTimeout(function(){tryBuild(15);},1500);
                       });
                     });

@@ -1732,6 +1732,7 @@
   let currentItems = [];
   let checkedAsins = {}; // asin → item object
   let showCheckedOnly = false;
+  let localNotes = {}; // asin → note string, loaded from chrome.storage.local and kept in sync
 
   // Updates action bar label and buttons in-place without re-sorting the table
   function refreshActionBarInPlace() {
@@ -1782,6 +1783,12 @@
 
   // Central re-render: replaces entire main-content (filter bar + table)
   function rerender() {
+    // Merge any locally-stored notes into currentItems before rendering
+    if (Object.keys(localNotes).length) {
+      currentItems.forEach(function(it) {
+        if (localNotes[it.asin] !== undefined) it.note = localNotes[it.asin];
+      });
+    }
     const filtered = applyFilters(currentItems);
     const sorted = (sortCol && filtered.length) ? sortItems(filtered, sortCol) : filtered;
     document.getElementById('main-content').innerHTML = renderTable(sorted, currentSearchTerm);
@@ -1879,6 +1886,7 @@
   var _noteWriteTimers = {};
   function scheduleNoteWrite(asin, note) {
     if (!window.chrome || !chrome.storage || !chrome.storage.local) return;
+    localNotes[asin] = note; // keep module-level var in sync immediately
     clearTimeout(_noteWriteTimers[asin]);
     _noteWriteTimers[asin] = setTimeout(function() {
       chrome.storage.local.get('au_item_notes', function(r) {
@@ -1887,18 +1895,6 @@
         chrome.storage.local.set({ au_item_notes: notes });
       });
     }, 300);
-  }
-
-  // ── Notes: storage-as-bus — listen for changes from search.js ─
-  if (window.chrome && chrome.storage && chrome.storage.onChanged) {
-    chrome.storage.onChanged.addListener(function(changes, area) {
-      if (area !== 'local' || !changes.au_item_notes) return;
-      var localNotes = changes.au_item_notes.newValue || {};
-      currentItems.forEach(function(it) {
-        if (localNotes[it.asin] !== undefined) it.note = localNotes[it.asin];
-      });
-      rerenderTableOnly();
-    });
   }
 
   // ── Action bar button handlers — wired once at init ───────────
@@ -2561,14 +2557,17 @@
         return;
       }
       if (!currentItems.length) { main.innerHTML = renderError('load-failed'); return; }
-      // Patch in any locally-stored notes (viewer's own notes, not sharer's)
+      // Load local notes and patch into currentItems; keep localNotes in sync for future rerenders
       if (window.chrome && chrome.storage && chrome.storage.local) {
         chrome.storage.local.get('au_item_notes', function(r) {
-          var localNotes = r.au_item_notes || {};
-          currentItems.forEach(function(it) {
-            if (localNotes[it.asin]) it.note = localNotes[it.asin];
-          });
+          localNotes = r.au_item_notes || {};
           rerender();
+          // Wire storage-as-bus listener after init so currentItems is populated
+          chrome.storage.onChanged.addListener(function(changes, area) {
+            if (area !== 'local' || !changes.au_item_notes) return;
+            localNotes = changes.au_item_notes.newValue || {};
+            rerenderTableOnly();
+          });
         });
       } else {
         rerender();
