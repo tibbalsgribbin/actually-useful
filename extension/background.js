@@ -1,4 +1,4 @@
-// Actually Useful — background.js v0.6.1.18
+// Actually Useful — background.js v0.6.1.19
 // Manages cross-page state: passes search context from search results to product pages.
 // Uses chrome.storage.session so context clears when the browser closes.
 
@@ -7,6 +7,13 @@ const SESSION_KEY = 'au_search_context';
 // Logging endpoint — receives log payloads from content scripts and forwards them.
 // Running fetch() here avoids Amazon's CSP blocking outbound requests from injected scripts.
 const AU_LOG_URL = 'https://script.google.com/macros/s/AKfycby0y2gsDtOKxNLXXsOoSVVx_82QYb8wKESx847_ExIBNW6_XW72CfBR4-bQnCx9V1bn/exec';
+
+// Error reporting endpoint — separate from AU_LOG_URL.
+// Errors are reported regardless of telemetry opt-out (errors are about
+// whether the extension is broken; telemetry is about usage). Payloads
+// contain only diagnostic context — no URLs, search terms, ASINs, or
+// user content. See auReportError in core.js for payload shape.
+const AU_ERROR_URL = 'https://script.google.com/macros/s/AKfycbwG2xxSp_L1kBQLZ1Zgz94Fldn8k1_2tytmDW5hIIDpeQNrcNLrg1VSvELYBUqYqNXPCg/exec';
 
 
 
@@ -52,6 +59,19 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       }).catch(function () {});
     });
     // no sendResponse needed — fire and forget
+    return false;
+  }
+
+  // core.js auReportError calls this. Separate endpoint from AU_LOG.
+  // Fires regardless of telemetry opt-out (errors are diagnostic, not usage).
+  // Payload is diagnostic-only — no URLs, search terms, ASINs, or user content.
+  if (msg.type === 'AU_ERROR') {
+    fetch(AU_ERROR_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(msg.payload),
+      mode: 'no-cors'
+    }).catch(function () {});
     return false;
   }
 

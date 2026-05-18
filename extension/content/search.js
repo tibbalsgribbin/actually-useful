@@ -1,6 +1,6 @@
 // Actually Useful — search.js
 // Content script for Amazon search results pages (/s*)
-// Part of the Actually Useful Chrome/Edge extension (v0.6.2.0)
+// Part of the Actually Useful Chrome/Edge extension (v0.6.2.1)
 'use strict';
 
 function auFeedbackUrl() {
@@ -51,16 +51,10 @@ const ITEM_UNITS = [
   // ── Search Context Persistence ────────────────────────────────────────────
   function saveSearchContext(term, searchUrl, items) {
     if (!term) return;
-    try {
-      chrome.runtime.sendMessage({
-        type: 'AU_SAVE_SEARCH_CONTEXT',
-        payload: { term: term, searchUrl: searchUrl, items: items || [] }
-      }, function() {
-        // Drain chrome.runtime.lastError to prevent unhandled rejection.
-        // Service worker may be asleep or extension may be reloading.
-        if (chrome.runtime.lastError) { /* intentional no-op */ }
-      });
-    } catch(e) {}
+    auSendMessage({
+      type: 'AU_SAVE_SEARCH_CONTEXT',
+      payload: { term: term, searchUrl: searchUrl, items: items || [] }
+    }, 'saveSearchContext');
   }
 
   function sendLog(data) {
@@ -71,12 +65,10 @@ const ITEM_UNITS = [
         searchUrl:     window.location.href,
         searchTerm:    (new URLSearchParams(window.location.search).get('k')||'').trim(),
       }, data);
-      chrome.runtime.sendMessage({ type: 'AU_LOG', payload: payload }, function() {
-        // Drain chrome.runtime.lastError to prevent unhandled rejection.
-        // Service worker may be asleep or extension may be reloading.
-        if (chrome.runtime.lastError) { /* intentional no-op */ }
-      });
-    } catch(e) {}
+      auSendMessage({ type: 'AU_LOG', payload: payload }, 'sendLog');
+    } catch (e) {
+      auReportError('sendLog.buildPayload', e);
+    }
   }
 
   // ── Filter persistence (session-scoped per search term) ───────────────────

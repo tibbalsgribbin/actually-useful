@@ -3,7 +3,7 @@
 'use strict';
 
 // ── Version ───────────────────────────────────────────────────────────────
-const AU_VERSION = '0.6.1.53';
+const AU_VERSION = '0.6.1.54';
 
 // ── Storage keys ──────────────────────────────────────────────────────────
 const AU_SHORTLIST_KEY      = 'au_shortlist';
@@ -53,6 +53,54 @@ function auNudgeShouldShow(callback) {
 
 function auNudgeDismissPermanently() {
   chrome.storage.local.set({ [AU_NUDGE_DISMISSED]: true });
+}
+
+// ── Error Reporting ──────────────────────────────────────────────────────
+// Errors are reported regardless of telemetry opt-out (option 3 in design).
+// Payloads contain only diagnostic context — no URLs, search terms, ASINs,
+// or user content. The privacy rationale: errors are about whether the
+// extension is broken, which is in the user's interest to know about,
+// separate from "how is this used" telemetry.
+//
+// auReportError(context, error) — log an error and POST to error endpoint.
+//   context: short string naming the call site (e.g. 'sendLog', 'panelInit').
+//   error: an Error object, a string, or anything stringifiable.
+//
+// auSendMessage(msg, context) — sendMessage wrapper that auto-handles both
+// synchronous throws and chrome.runtime.lastError. Replaces the
+// try/catch + manual lastError-drain pattern at every call site.
+function auReportError(context, error) {
+  var message = (error && error.message) ? error.message : String(error);
+  var browser = navigator.userAgent.indexOf('Edg/') > -1 ? 'edge' : 'chrome';
+  try { console.warn('[AU error]', context, message); } catch (e) {}
+  try {
+    chrome.runtime.sendMessage({
+      type: 'AU_ERROR',
+      payload: {
+        timestamp: new Date().toISOString(),
+        version: AU_VERSION,
+        browser: browser,
+        context: context,
+        message: message
+      }
+    }, function () {
+      // Drain lastError. If reporting itself fails we can't report that —
+      // would recurse. The console.warn above is the fallback.
+      if (chrome.runtime.lastError) { /* intentional no-op */ }
+    });
+  } catch (e) { /* console.warn above is the fallback */ }
+}
+
+function auSendMessage(msg, context) {
+  try {
+    chrome.runtime.sendMessage(msg, function () {
+      if (chrome.runtime.lastError) {
+        auReportError(context, chrome.runtime.lastError.message);
+      }
+    });
+  } catch (e) {
+    auReportError(context, e);
+  }
 }
 
 // ── Shared Stub: injectStyles ─────────────────────────────────────────────
