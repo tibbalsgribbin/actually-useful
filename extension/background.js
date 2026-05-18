@@ -47,7 +47,12 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
 
   // search.js calls this to log usage data; fetch runs here to avoid Amazon CSP
   // Only fires if the user has telemetry enabled (default: on)
+  // Respond synchronously before async work — the caller (auSendMessage) passes
+  // a callback, so the runtime expects a response. Without this, the worker
+  // can idle out before sendResponse fires and "message port closed" errors
+  // surface.
   if (msg.type === 'AU_LOG') {
+    sendResponse({ ok: true });
     chrome.storage.local.get('au_telemetry_enabled', function(result) {
       var enabled = result['au_telemetry_enabled'];
       if (enabled === false) return; // explicitly opted out
@@ -58,14 +63,15 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         mode: 'no-cors'
       }).catch(function () {});
     });
-    // no sendResponse needed — fire and forget
     return false;
   }
 
   // core.js auReportError calls this. Separate endpoint from AU_LOG.
   // Fires regardless of telemetry opt-out (errors are diagnostic, not usage).
   // Payload is diagnostic-only — no URLs, search terms, ASINs, or user content.
+  // Respond synchronously before async work (see AU_LOG comment).
   if (msg.type === 'AU_ERROR') {
+    sendResponse({ ok: true });
     fetch(AU_ERROR_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -75,12 +81,14 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     return false;
   }
 
-  // search.js calls this when it finishes scraping a results page
+  // search.js calls this when it finishes scraping a results page.
+  // Respond synchronously before the async storage write — the caller does
+  // not consume the response, and keeping the port open across a storage
+  // round-trip exposes us to worker idle-out (see AU_LOG comment).
   if (msg.type === 'AU_SAVE_SEARCH_CONTEXT') {
-    chrome.storage.session.set({ [SESSION_KEY]: msg.payload }, function () {
-      sendResponse({ ok: true });
-    });
-    return true; // keep channel open for async response
+    sendResponse({ ok: true });
+    chrome.storage.session.set({ [SESSION_KEY]: msg.payload });
+    return false;
   }
 
   // product.js calls this on load to find out if we arrived from a search
@@ -92,12 +100,12 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   }
 
   // product.js calls this when the user clicks "Start a search" or navigates
-  // away, so stale context doesn't bleed into unrelated product pages
+  // away, so stale context doesn't bleed into unrelated product pages.
+  // Respond synchronously (see AU_SAVE_SEARCH_CONTEXT comment).
   if (msg.type === 'AU_CLEAR_SEARCH_CONTEXT') {
-    chrome.storage.session.remove(SESSION_KEY, function () {
-      sendResponse({ ok: true });
-    });
-    return true;
+    sendResponse({ ok: true });
+    chrome.storage.session.remove(SESSION_KEY);
+    return false;
   }
 
   // compare.html calls this when "Send to extension" is clicked.
