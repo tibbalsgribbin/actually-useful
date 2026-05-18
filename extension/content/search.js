@@ -55,6 +55,10 @@ const ITEM_UNITS = [
       chrome.runtime.sendMessage({
         type: 'AU_SAVE_SEARCH_CONTEXT',
         payload: { term: term, searchUrl: searchUrl, items: items || [] }
+      }, function() {
+        // Drain chrome.runtime.lastError to prevent unhandled rejection.
+        // Service worker may be asleep or extension may be reloading.
+        if (chrome.runtime.lastError) { /* intentional no-op */ }
       });
     } catch(e) {}
   }
@@ -67,7 +71,11 @@ const ITEM_UNITS = [
         searchUrl:     window.location.href,
         searchTerm:    (new URLSearchParams(window.location.search).get('k')||'').trim(),
       }, data);
-      chrome.runtime.sendMessage({ type: 'AU_LOG', payload: payload });
+      chrome.runtime.sendMessage({ type: 'AU_LOG', payload: payload }, function() {
+        // Drain chrome.runtime.lastError to prevent unhandled rejection.
+        // Service worker may be asleep or extension may be reloading.
+        if (chrome.runtime.lastError) { /* intentional no-op */ }
+      });
     } catch(e) {}
   }
 
