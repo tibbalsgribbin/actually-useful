@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Actually Useful",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Shop on your terms instead of Amazon's.",
   "author": "Melissa (ko-fi.com/butactuallyuseful)",
   "icons": {
@@ -34,6 +34,11 @@
       "matches": ["https://actuallyuseful.net/welcome*"],
       "js": ["content/welcome-bridge.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://actuallyuseful.net/compare.html*"],
+      "js": ["content/page/compare-bridge.js"],
+      "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [

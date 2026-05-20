@@ -765,7 +765,7 @@
   const SUPABASE_KEY = 'sb_publishable_h70-MNvomO4EpJrpXgcdjw__motBOdi';
 
   // ── Compare version (for bug report payload) ──────────────────
-  const COMPARE_VERSION = 'compare-v1.0.0';
+  const COMPARE_VERSION = 'compare-v1.1.0';
 
   // ── Bug report session ID (new UUID per page load) ────────────
   var COMPARE_BUG_SESSION_ID = (function() {
@@ -1491,6 +1491,7 @@
         this.style.color      = active ? '#ffffff' : '#64748b';
         this.style.border     = active ? '1px solid #f25d4e' : '1px solid #e2e8f0';
         applyColVisibility();
+        saveColumns();
       });
     });
   }
@@ -1733,6 +1734,76 @@
   let checkedAsins = {}; // asin → item object
   let showCheckedOnly = false;
   let localNotes = {}; // asin → note string, loaded from chrome.storage.local and kept in sync
+  let localColVisibility = {};  // overlay loaded from storage; merged onto colVisible at init
+  let currentShareId = '';      // Supabase id from URL — set once in init
+
+  // ── Bridge client: talks to compare-bridge.js via window.postMessage ──────
+  var BRIDGE_MARKER = '__au_bridge';
+  var BRIDGE_ORIGIN = window.location.origin;
+  var BRIDGE_PING_TIMEOUT_MS = 1000;
+  var BRIDGE_REQUEST_TIMEOUT_MS = 5000;
+
+  var _bridgeAvailable = null;       // null = unknown, true/false = decided
+  var _bridgeReqNextId = 1;
+  var _bridgePending   = {};         // id → {resolve, reject, timer}
+  var _bridgePushHandler = null;
+
+  window.addEventListener('message', function(event) {
+    if (event.source !== window) return;
+    if (event.origin !== BRIDGE_ORIGIN) return;
+    var msg = event.data;
+    if (!msg || msg[BRIDGE_MARKER] !== true) return;
+
+    if (msg.kind === 'response') {
+      var p = _bridgePending[msg.id];
+      if (!p) return;
+      clearTimeout(p.timer);
+      delete _bridgePending[msg.id];
+      if (msg.ok) p.resolve(msg.data);
+      else        p.reject(new Error(msg.error || 'bridge error'));
+      return;
+    }
+
+    if (msg.kind === 'push' && msg.event === 'storageChanged') {
+      if (_bridgePushHandler) _bridgePushHandler(msg.changes);
+      return;
+    }
+  });
+
+  function bridgeRequest(method, args, timeoutMs) {
+    return new Promise(function(resolve, reject) {
+      var id = _bridgeReqNextId++;
+      var t = setTimeout(function() {
+        if (_bridgePending[id]) {
+          delete _bridgePending[id];
+          reject(new Error('bridge timeout: ' + method));
+        }
+      }, timeoutMs || BRIDGE_REQUEST_TIMEOUT_MS);
+      _bridgePending[id] = { resolve: resolve, reject: reject, timer: t };
+      window.postMessage({
+        __au_bridge: true,
+        kind: 'request',
+        id: id,
+        method: method,
+        args: args || []
+      }, BRIDGE_ORIGIN);
+    });
+  }
+
+  function detectBridge() {
+    if (_bridgeAvailable !== null) return Promise.resolve(_bridgeAvailable);
+    return bridgeRequest('ping', [], BRIDGE_PING_TIMEOUT_MS)
+      .then(function() { _bridgeAvailable = true;  return true; })
+      .catch(function() { _bridgeAvailable = false; return false; });
+  }
+
+  function bridgeGetState()                   { return bridgeRequest('getState'); }
+  function bridgeSetNote(asin, text)          { return bridgeRequest('setNote',        [asin, text]); }
+  function bridgeSetColumns(visibility)       { return bridgeRequest('setColumns',     [visibility]); }
+  function bridgeSetSearchState(searchId, s)  { return bridgeRequest('setSearchState', [searchId, s]); }
+
+  function bridgeOnPush(handler) { _bridgePushHandler = handler; }
+  // ── End bridge client ─────────────────────────────────────────────────────
 
   // Updates action bar label and buttons in-place without re-sorting the table
   function refreshActionBarInPlace() {
@@ -1765,6 +1836,108 @@
       + '</div>';
   }
 
+  // ── Bridge state helpers ──────────────────────────────────────────────────
+
+  function overlayColVisibility(stored) {
+    if (!stored) return;
+    Object.keys(stored).forEach(function(key) {
+      if (colVisible.hasOwnProperty(key)) colVisible[key] = stored[key];
+    });
+  }
+
+  function serializeCurrentFilters() {
+    return {
+      include:                filterInclude,
+      exclude:                filterExclude,
+      minReviews:             filterMinReviews,
+      minRating:              filterMinRating,
+      retailer:               filterRetailer,
+      hideSponsored:          filterHideSponsored,
+      minPrice:               filterMinPrice,
+      maxPrice:               filterMaxPrice,
+      requirePrime:           filterRequirePrime,
+      requireSnap:            filterRequireSnap,
+      requireFsaHsa:          filterRequireFsaHsa,
+      requireClimatePledge:   filterRequireClimatePledge,
+      requireSmallBusiness:   filterRequireSmallBusiness,
+      hideUnrecognizedBrands: filterHideUnrecognizedBrands,
+      hideAmazonBrands:       filterHideAmazonBrands,
+      hideSlowShipping:       filterHideSlowShipping,
+      deliveryDays:           filterDeliveryDays
+    };
+  }
+
+  function applyFiltersFromStorage(f) {
+    if (!f) return;
+    if (f.include                !== undefined) filterInclude                = f.include;
+    if (f.exclude                !== undefined) filterExclude                = f.exclude;
+    if (f.minReviews             !== undefined) filterMinReviews             = f.minReviews;
+    if (f.minRating              !== undefined) filterMinRating              = f.minRating;
+    if (f.retailer               !== undefined) filterRetailer               = f.retailer;
+    if (f.hideSponsored          !== undefined) filterHideSponsored          = f.hideSponsored;
+    if (f.minPrice               !== undefined) filterMinPrice               = f.minPrice;
+    if (f.maxPrice               !== undefined) filterMaxPrice               = f.maxPrice;
+    if (f.requirePrime           !== undefined) filterRequirePrime           = f.requirePrime;
+    if (f.requireSnap            !== undefined) filterRequireSnap            = f.requireSnap;
+    if (f.requireFsaHsa          !== undefined) filterRequireFsaHsa          = f.requireFsaHsa;
+    if (f.requireClimatePledge   !== undefined) filterRequireClimatePledge   = f.requireClimatePledge;
+    if (f.requireSmallBusiness   !== undefined) filterRequireSmallBusiness   = f.requireSmallBusiness;
+    if (f.hideUnrecognizedBrands !== undefined) filterHideUnrecognizedBrands = f.hideUnrecognizedBrands;
+    if (f.hideAmazonBrands       !== undefined) filterHideAmazonBrands       = f.hideAmazonBrands;
+    if (f.hideSlowShipping       !== undefined) filterHideSlowShipping       = f.hideSlowShipping;
+    if (f.deliveryDays           !== undefined) filterDeliveryDays           = f.deliveryDays;
+  }
+
+  function applySortFromStorage(s) {
+    if (!s) return;
+    if (s.col) sortCol = s.col;
+    if (s.dir) sortDir = s.dir;
+  }
+
+  var _searchStateWriteTimer = null;
+  function scheduleSearchStateWrite() {
+    if (!_bridgeAvailable || !currentShareId) return;
+    clearTimeout(_searchStateWriteTimer);
+    _searchStateWriteTimer = setTimeout(function() {
+      bridgeSetSearchState(currentShareId, {
+        filters: serializeCurrentFilters(),
+        sort:    { col: sortCol, dir: sortDir }
+      }).catch(function() { /* swallow bridge errors; not fatal */ });
+    }, 250);
+  }
+
+  function saveColumns() {
+    if (!_bridgeAvailable) return;
+    bridgeSetColumns(colVisible).catch(function() {});
+  }
+
+  function handleStoragePush(changes) {
+    var needsTableRerender = false;
+    var needsFullRerender = false;
+
+    if (changes.au_item_notes) {
+      localNotes = changes.au_item_notes;
+      needsTableRerender = true;
+    }
+    if (changes.au_col_visibility) {
+      overlayColVisibility(changes.au_col_visibility);
+      needsFullRerender = true;
+    }
+    if (changes.au_search_state) {
+      var entry = changes.au_search_state[currentShareId];
+      if (entry) {
+        applyFiltersFromStorage(entry.filters);
+        applySortFromStorage(entry.sort);
+        needsFullRerender = true;
+      }
+    }
+
+    if (needsFullRerender) rerender();
+    else if (needsTableRerender) rerenderTableOnly();
+  }
+
+  // ── End bridge state helpers ──────────────────────────────────────────────
+
   function attachSortHandlers() {
     document.querySelectorAll('#compare-table thead th').forEach(th => {
       th.addEventListener('click', () => {
@@ -1777,6 +1950,7 @@
           sortDir = 'asc';
         }
         rerender();
+        scheduleSearchStateWrite();
       });
     });
   }
@@ -1882,18 +2056,14 @@
     // (buttons are in static HTML, not re-rendered)
   }
 
-  // ── Notes: debounced write to chrome.storage.local ────────────
+  // ── Notes: debounced write via bridge ─────────────────────────
   var _noteWriteTimers = {};
   function scheduleNoteWrite(asin, note) {
-    if (!window.chrome || !chrome.storage || !chrome.storage.local) return;
+    if (!_bridgeAvailable) return;
     localNotes[asin] = note; // keep module-level var in sync immediately
     clearTimeout(_noteWriteTimers[asin]);
     _noteWriteTimers[asin] = setTimeout(function() {
-      chrome.storage.local.get('au_item_notes', function(r) {
-        var notes = r.au_item_notes || {};
-        notes[asin] = note;
-        chrome.storage.local.set({ au_item_notes: notes });
-      });
+      bridgeSetNote(asin, note).catch(function() {});
     }, 300);
   }
 
@@ -1964,6 +2134,12 @@
   function attachActionBarHandlers() {}
   // Used by the keyword input to avoid destroying the input and dropping focus.
   function rerenderTableOnly() {
+    // Merge locally-stored notes into currentItems before rendering (mirrors rerender())
+    if (Object.keys(localNotes).length) {
+      currentItems.forEach(function(it) {
+        if (localNotes[it.asin] !== undefined) it.note = localNotes[it.asin];
+      });
+    }
     const filtered = applyFilters(currentItems);
     const sorted = (sortCol && filtered.length) ? sortItems(filtered, sortCol) : filtered;
 
@@ -2205,6 +2381,7 @@
         kwTimer = setTimeout(() => {
           filterInclude = inclInput.value;
           rerenderTableOnly();
+          scheduleSearchStateWrite();
         }, 250);
       });
     }
@@ -2215,6 +2392,7 @@
         kwTimer = setTimeout(() => {
           filterExclude = exclInput.value;
           rerenderTableOnly();
+          scheduleSearchStateWrite();
         }, 250);
       });
     }
@@ -2225,6 +2403,7 @@
       mrInput.addEventListener('change', () => {
         filterMinReviews = parseInt(mrInput.value, 10) || 0;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2234,6 +2413,7 @@
       ratingInput.addEventListener('change', () => {
         filterMinRating = parseFloat(ratingInput.value) || 0;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2243,6 +2423,7 @@
       minPriceInput.addEventListener('change', () => {
         filterMinPrice = minPriceInput.value.trim();
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2252,6 +2433,7 @@
       maxPriceInput.addEventListener('change', () => {
         filterMaxPrice = maxPriceInput.value.trim();
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2261,6 +2443,7 @@
       retSel.addEventListener('change', () => {
         filterRetailer = retSel.value;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2270,6 +2453,7 @@
       sponChk.addEventListener('change', () => {
         filterHideSponsored = sponChk.checked;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2279,6 +2463,7 @@
       primeChk.addEventListener('change', () => {
         filterRequirePrime = primeChk.checked;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2288,6 +2473,7 @@
       snapChk.addEventListener('change', () => {
         filterRequireSnap = snapChk.checked;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2297,6 +2483,7 @@
       fsaChk.addEventListener('change', () => {
         filterRequireFsaHsa = fsaChk.checked;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2306,6 +2493,7 @@
       climateChk.addEventListener('change', () => {
         filterRequireClimatePledge = climateChk.checked;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2315,6 +2503,7 @@
       sbChk.addEventListener('change', () => {
         filterRequireSmallBusiness = sbChk.checked;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
     // Hide unrecognized brands
@@ -2323,6 +2512,7 @@
       unrecoChkEl.addEventListener('change', () => {
         filterHideUnrecognizedBrands = unrecoChkEl.checked;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2332,6 +2522,7 @@
       amazonBrandChkEl.addEventListener('change', () => {
         filterHideAmazonBrands = amazonBrandChkEl.checked;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2341,6 +2532,7 @@
       slowShipChkEl.addEventListener('change', () => {
         filterHideSlowShipping = slowShipChkEl.checked;
         rerender();
+        scheduleSearchStateWrite();
       });
     }
 
@@ -2349,6 +2541,7 @@
       btn.addEventListener('click', function() {
         filterDeliveryDays = parseInt(this.getAttribute('data-days'), 10);
         rerender();
+        scheduleSearchStateWrite();
       });
     });
 
@@ -2375,6 +2568,7 @@
         sortCol = 'ppu';
         sortDir = 'asc';
         rerender();
+        scheduleSearchStateWrite();
       });
     }
   }
@@ -2546,6 +2740,7 @@
 
     // Load from Supabase if ?id= is present
     if (shareId) {
+      currentShareId = shareId;
       main.innerHTML = '<p style="text-align:center;padding:3rem;color:#64748b;">Loading comparison…</p>';
       try {
         const parsed = await loadComparison(shareId);
@@ -2557,21 +2752,27 @@
         return;
       }
       if (!currentItems.length) { main.innerHTML = renderError('load-failed'); return; }
-      // Load local notes and patch into currentItems; keep localNotes in sync for future rerenders
-      if (window.chrome && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get('au_item_notes', function(r) {
-          localNotes = r.au_item_notes || {};
-          rerender();
-          // Wire storage-as-bus listener after init so currentItems is populated
-          chrome.storage.onChanged.addListener(function(changes, area) {
-            if (area !== 'local' || !changes.au_item_notes) return;
-            localNotes = changes.au_item_notes.newValue || {};
-            rerenderTableOnly();
-          });
-        });
-      } else {
-        rerender();
+
+      // Detect bridge; hydrate state if present
+      const bridgeUp = await detectBridge();
+      if (bridgeUp) {
+        // Wire push handler FIRST so we don't drop notifications that arrive
+        // during the getState round-trip.
+        bridgeOnPush(handleStoragePush);
+        try {
+          const state = await bridgeGetState();
+          localNotes = state.notes || {};
+          overlayColVisibility(state.columns);
+          const entry = state.allSearch && state.allSearch[currentShareId];
+          if (entry) {
+            applyFiltersFromStorage(entry.filters);
+            applySortFromStorage(entry.sort);
+          }
+        } catch (e) {
+          // Bridge present but getState failed; render with defaults
+        }
       }
+      rerender();
       return;
     }
 
