@@ -1917,7 +1917,10 @@
 
     if (changes.au_item_notes) {
       localNotes = changes.au_item_notes;
-      needsTableRerender = true;
+      // Don't rerender if the user is currently typing in a note field —
+      // the push came from this tab's own write and would destroy focus.
+      var focusedNote = document.activeElement && document.activeElement.classList.contains('note-textarea');
+      if (!focusedNote) needsTableRerender = true;
     }
     if (changes.au_col_visibility) {
       overlayColVisibility(changes.au_col_visibility);
