@@ -87,6 +87,13 @@ The diagnostic: no useful replacement unit lives in the title. A 14-count Aida c
 
 **Open question.** How wide should each detector's keyword list be? Erring narrow risks misses; erring wide risks false suppressions. Phase 3 work.
 
+**Verification findings (Chat 99, May 21 2026).** Two SPECULATIVE Shape A entries verified, both disconfirmed the predicted Override-suppress failure mode:
+
+- **Fishing sinkers (oz spec).** Search: "fishing sinkers", 60 listings. Amazon omitted PPU on every listing in the natural sort. Predicted $/oz collision did not occur.
+- **Fishing line (lb test spec).** Search: "braided fishing line", ~57 listings. Amazon computed $/foot from the spool length on most listings. Predicted $/lb collision did not occur.
+
+Two-for-two on "predicted failure mode absent." See "Cross-shape patterns" below for the two non-failure outcome classes this surfaced (N1, N2). Catalog entries remain SPECULATIVE pending broader confirmation, but Phase 3 detector design for these specific sub-patterns is downgraded in priority. The VERIFIED Shape A entries (paper grade `lb`, dumbbells `lb`) are unaffected — they remain confirmed.
+
 ---
 
 ## Shape B — Set composition
@@ -262,6 +269,15 @@ A few observations worth carrying into Phase 3.
 
 **Phase 3 detector count.** Eight shapes; many more than eight detectors. Shape A alone has seven sub-patterns each needing their own keyword list and proximity rules. A rough estimate: Phase 3 designs ~12-15 detectors across the in-scope shapes, plus whatever the verification queue adds.
 
+**Non-failure outcome patterns (surfaced Chat 99 verification).** When verifying whether a predicted collision actually occurs, Amazon may already handle the case acceptably. Two distinct "non-failure" outcomes observed so far:
+
+- **N1 — Amazon omits PPU.** No PPU appears at all for the category. Sinkers example: Amazon's parser appears to recognize that no extractable buyable unit is in the title and declines to compute. No collision because there's nothing to override.
+- **N2 — Amazon recategorizes from title.** Amazon ignores the candidate spec unit and computes PPU from a different, meaningful unit also present in the title. Fishing line example: Amazon ignores `lb test` and computes `$/foot` from spool length. No collision because Amazon's chosen unit is the buyable.
+
+These aren't postures — AU does nothing in either case. They're outcome classes that the verification queue may keep surfacing. Implication for Phase 3: detector design should not assume "speculative Shape A entry = needs detector." Some sub-patterns won't need detectors at all because Amazon already handles them. The verification queue's job is partly to distinguish "needs a detector" from "Amazon already handles it."
+
+This pattern is observational, not framework-level. If a third or fourth verification keeps surfacing N1/N2 outcomes, these may warrant a more formal status tag in the catalog (e.g. "VERIFIED non-collision — Amazon handles via N1" or "via N2"). For now, kept as a working note here.
+
 ---
 
 ## Adjacent — not shapes
@@ -286,7 +302,7 @@ The catalog's SPECULATIVE entries not covered by the `Override_Principle.md` cas
 
 **Likely to populate existing shapes:**
 
-- **Shape A candidates** (spec-rating-as-quantity): glove weight class oz, fishing weights/sinkers oz, body weight ranges (kg, lb), kg load capacity, empty product weight kg, focal length mm, screen size variants (wheels, garment length, hardware tool spec).
+- **Shape A candidates** (spec-rating-as-quantity): ~~fishing weights/sinkers oz~~ (verified Chat 99 — N1, no PPU), ~~fishing line lb test~~ (verified Chat 99 — N2, $/foot from spool length), glove weight class oz, body weight ranges (kg, lb), kg load capacity, empty product weight kg, focal length mm, screen size variants (wheels, garment length, hardware tool spec).
 - **Shape B candidates** (set composition): puzzle pieces, Lego pieces, dinnerware set, luggage set, sheet set, bed sheet set.
 - **Shape C candidates** (container capacity + count): empty Mason jar capacity + pack count, ml-pipette capacity + count, cosmetics jar ml + pack count, mug oz capacity + count, water bottle oz + count.
 - **Shape D candidates** (per-serving / per-use): coffee dosage g, pre-workout dosage g, jewelry weight g (different sub-case).
