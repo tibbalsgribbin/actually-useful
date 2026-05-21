@@ -46,7 +46,7 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** weight (avoirdupois ounce, ~28g). Sortable in weight family. Convertible to/from g, kg, lb.
 
 **Collisions:**
-- **VERIFIED — Toothpaste treated as liquid.** Amazon reports toothpaste oz as fl oz; AU inherits it. Logged in bug-test.md. Needs solid override.
+- **VERIFIED — Toothpaste treated as liquid.** Amazon reports toothpaste oz as fl oz; AU inherits it. Logged in bug-test.md. **Posture: Defer.** Page-internal consistency holds (every listing shows $/fl oz the same way) and densities are close enough that the comparison still works. Reversal of earlier "needs solid override" verdict; see `Override_Principle.md` case table. `bug-test.md` annotated accordingly.
 - **SPECULATIVE — Container capacity (mugs, tumblers, water bottles).** "16 oz mug" — number is container volume, not contents. Likely fl oz under the hood but commonly written "oz" in titles.
 - **SPECULATIVE — Spray-can coverage.** "8 oz spray can covers 50 sq ft." Weight refers to product but buyable quantity may be the can.
 - **SPECULATIVE — Boxing/MMA glove weight class.** "16 oz gloves." Spec of the glove, not quantity.
@@ -58,9 +58,9 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** weight (~454g). Sortable in weight family.
 
 **Collisions:**
-- **VERIFIED — Paper grade.** "65 lb cover," "90 lb index," "110 lb cardstock." Handled by `isPaperWeightLb()`.
-- **VERIFIED — Dumbbells/kettlebells partial guard.** `isMultiPackWeight()` blocks pack-multiplication but doesn't suppress per-pound calculation. "10 lb dumbbell" still gets $/lb.
-- **SPECULATIVE — Fishing line test strength.** "20 lb test braided line." Spec.
+- **VERIFIED — Paper grade.** "65 lb cover," "90 lb index," "110 lb cardstock." Handled by `isPaperWeightLb()`. **Posture: Override (suppress).** The lb is a paper grade, not the weight of the buyable item; no useful replacement unit in title.
+- **VERIFIED — Dumbbells/kettlebells partial guard.** `isMultiPackWeight()` blocks pack-multiplication but doesn't suppress per-pound calculation. "10 lb dumbbell" still gets $/lb. **Posture: Override (suppress).** Weight is the spec of the equipment, not buyable quantity. Current handler is partial; `Override_Principle.md` notes `isMultiPackWeight` may need recasting in Phase 3 as a constraint on weight computation rather than a separate handler.
+- **SPECULATIVE — Fishing line test strength.** "20 lb test braided line." Spec. **Posture-hypothesis: Override (suppress).** Per `Override_Principle.md` case table — spec masquerading as weight.
 - **SPECULATIVE — Load/tow/capacity ratings.** "500 lb capacity dolly," "1000 lb winch." Spec.
 - **SPECULATIVE — Body weight ranges.** "for dogs 25-50 lbs," "harness for cats 5-15 lb." Intended-user spec.
 
@@ -69,8 +69,8 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** weight (~0.035oz). Sortable in weight family.
 
 **Collisions:**
-- **VERIFIED — Per-serving nutrition (supplements).** "30g protein per serving." Handled partially by `isServingWeight()` for supplement keywords.
-- **VERIFIED — Per-serving more broadly possible.** Coffee bean dosage, pre-workout doses. Current handler is supplement-keyword-gated; may miss other categories.
+- **VERIFIED — Per-serving nutrition (supplements).** "30g protein per serving." Handled partially by `isServingWeight()` for supplement keywords. **Posture: Override (suppress) at handler level; Defer + Add-pill at category level.** The handler is defensive against a parse failure (Amazon scrapes the per-serving gram value as if it were product weight); when it fires, AU suppresses the bad PPU. Separately, the category posture for supplements is Defer + Add-pill for $/serving — see `Servings_Design.md`. The two are different code paths.
+- **VERIFIED — Per-serving more broadly possible.** Coffee bean dosage, pre-workout doses. Current handler is supplement-keyword-gated; may miss other categories. **Posture: Defer + Add-pill (when generalized beyond supplements).** Speculative per `Override_Principle.md` case table for coffee ($/cup) and pet food ($/meal). Pre-workout is already covered by the supplement keyword list; coffee dosage is not. No handler fires for ungated categories currently.
 - **SPECULATIVE — Jewelry weight specs.** "5g gold ring." Spec, but for precious metals could be the buyable quantity.
 
 ### `kg`, `kilogram`, `kilograms`
@@ -91,7 +91,7 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** volume (~29.6 ml). Sortable in liquid family.
 
 **Collisions:**
-- **VERIFIED — Stray parenthesized numbers.** Contact lens solution: "Vista Clean 12 fl oz (12)" — the (12) was scraped as volume, breaking PPU. Logged in bug-test.md.
+- **VERIFIED — Stray parenthesized numbers.** Contact lens solution: "Vista Clean 12 fl oz (12)" — the (12) was scraped as volume, breaking PPU. Logged in bug-test.md. **Posture: N/A.** Parse bug (wrong number extracted from title), not a category-level collision. Fix is in the extraction logic, not in the posture framework.
 - **SPECULATIVE — Container capacity for empty-jar/bottle products.** "16 fl oz Mason jars (12 pack)" — capacity, not product.
 
 ### `ml`, `milliliter`, `milliliters`
@@ -108,7 +108,7 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 
 **Collisions:**
 - **SPECULATIVE — Container capacity.** "2 liter pitcher," "1L water bottle." Empty vessel capacity.
-- **SPECULATIVE — Aquarium size.** "20 liter fish tank." Spec.
+- **SPECULATIVE — Aquarium size.** "20 liter fish tank." Spec. **Posture-hypothesis: Override (suppress).** Per `Override_Principle.md` case table — capacity spec, not buyable volume.
 - **SPECULATIVE — Lung capacity / medical device spec.** "3L oxygen concentrator." Spec.
 
 ---
@@ -120,10 +120,10 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** discrete countable items. The most generic count unit.
 
 **Collisions:**
-- **VERIFIED — Pack count vs. item count confusion.** "500 per Pack - 2 Pack" yields 2 ct instead of 1000 ct. Logged in bug-test.md.
-- **VERIFIED — Whole-package $/ct.** Amazon reports "($0.23/ct)" for a 100-count item where ct = full package. Logged in bug-test.md.
-- **SPECULATIVE — Fabric mesh density (cross-stitch, needlepoint).** "14 count Aida cloth," "18 count linen," "Zweigart 25 count." Count = threads per linear inch, not items. This is the case Melissa flagged as the original motivation for this session. *Needs verification search.*
-- **SPECULATIVE — Bedding thread count.** "400 count Egyptian cotton sheets," "1000-count microfiber." Threads per square inch, not items.
+- **VERIFIED — Pack count vs. item count confusion.** "500 per Pack - 2 Pack" yields 2 ct instead of 1000 ct. Logged in bug-test.md. **Posture: N/A.** Arithmetic bug in count extraction (failure to multiply pack count × per-pack count), not a category-level collision. Fix is in the extraction logic.
+- **VERIFIED — Whole-package $/ct.** Amazon reports "($0.23/ct)" for a 100-count item where ct = full package. Logged in bug-test.md. **Posture: Override (recategorize).** Amazon's "ct" treats the whole package as one unit while the page convention treats each item as one ct. Recompute $/ct from price ÷ title count. If no count appears in the title, fallback is Override (suppress).
+- **SPECULATIVE — Fabric mesh density (cross-stitch, needlepoint).** "14 count Aida cloth," "18 count linen," "Zweigart 25 count." Count = threads per linear inch, not items. This is the case Melissa flagged as the original motivation for this session. *Needs verification search.* **Posture-hypothesis: Override (suppress).** Per `Override_Principle.md` case table — mesh density is a spec, not a quantity; count of buyable pieces is rarely in title.
+- **SPECULATIVE — Bedding thread count.** "400 count Egyptian cotton sheets," "1000-count microfiber." Threads per square inch, not items. **Posture-hypothesis: Override (suppress).** Per `Override_Principle.md` case table — same shape as cross-stitch mesh density.
 - **SPECULATIVE — Knife block "count."** "15 count knife block set." Buyable is the set.
 
 ### `bag`, `bags`
@@ -131,7 +131,7 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** multi-bag buyable count.
 
 **Collisions:**
-- **SPECULATIVE — Trash bag gallons.** "13 gallon trash bags 80 count" — gallon describes bag capacity, count describes bag quantity. Two-number title.
+- **SPECULATIVE — Trash bag gallons.** "13 gallon trash bags 80 count" — gallon describes bag capacity, count describes bag quantity. Two-number title. **Posture-hypothesis: Override (recategorize).** Per `Override_Principle.md` case table — gallon = bag capacity; bag count is in the title. Two-number title resolves cleanly to $/bag.
 - **SPECULATIVE — Sleeping bag temperature rating.** "0° sleeping bag." Spec.
 - **SPECULATIVE — Tea bag count ambiguity.** "tea (16 bags)" — usually correct but worth confirming.
 
@@ -140,7 +140,7 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** discrete items.
 
 **Collisions:**
-- **SPECULATIVE — Set-of-pieces.** "10 piece pots and pans set," "7 piece dinnerware set," "5 piece luggage set." Piece count is set composition; buyable is the set. Title-is-a-mess category in bug-test.md flags this for "pots and pans set 10 piece."
+- **SPECULATIVE — Set-of-pieces.** "10 piece pots and pans set," "7 piece dinnerware set," "5 piece luggage set." Piece count is set composition; buyable is the set. Title-is-a-mess category in bug-test.md flags this for "pots and pans set 10 piece." **Posture-hypothesis: Override (suppress).** Per `Override_Principle.md` case table — set composition; $/set is trivially price, no useful replacement.
 - **SPECULATIVE — Puzzle piece count.** "1000 piece jigsaw puzzle." Buyable is the puzzle.
 - **SPECULATIVE — Construction set piece count.** "Lego Star Wars 500 pieces." Buyable is the set.
 
@@ -191,7 +191,7 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** individual medication/supplement units.
 
 **Collisions:**
-- **VERIFIED — Sub-penny PPU on high-count items.** Cotton swabs, bandages, pills. Logged in bug-test.md as a formatting issue, not a collision per se, but related to count handling.
+- **VERIFIED — Sub-penny PPU on high-count items.** Cotton swabs, bandages, pills. Logged in bug-test.md as a formatting issue, not a collision per se, but related to count handling. **Posture: N/A.** Formatting issue (sub-penny values need 3+ decimal places), not a category-level collision.
 - **SPECULATIVE — "Tablet" as iPad/Android device.** "10 inch tablet" — completely different sense of the word. Risk is low because of the count regex requiring `\d.*tablet`, but worth scanning.
 - **SPECULATIVE — Pill organizer / pill case.** "weekly pill organizer 7 day." Holds pills; not a pill count.
 - **SPECULATIVE — Capsule wardrobe / capsule collection.** Marketing-jargon descriptor.
@@ -209,7 +209,7 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** items sold by the pair.
 
 **Collisions:**
-- **VERIFIED — Amazon $/pair vs. $/item ambiguity.** Already handled by `applyPairsNote()`. Note copy and detection scope have design problems documented in Phase 4 scope below.
+- **VERIFIED — Amazon $/pair vs. $/item ambiguity.** Already handled by `applyPairsNote()`. Note copy and detection scope have design problems documented in Phase 4 scope below. **Posture: Defer + Note.** The unit is contested in a way the user should be warned about, but AU lacks the data to decide unilaterally. Note stacks with defer.
 - **SPECULATIVE — "Pair of" as descriptive phrase.** "scissors with pair of replacement blades." No leading count.
 
 ### `strip`, `strips`
@@ -223,7 +223,7 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** laundry/dishwasher loads computed from product yield.
 
 **Collisions:**
-- **VERIFIED — Solid-product override gap.** "Pods/sheets showing $/load instead of $/lb. Should show $/load." Logged in bug-test.md.
+- **VERIFIED — Solid-product override gap.** "Pods/sheets showing $/load instead of $/lb. Should show $/load." Logged in bug-test.md. **Posture: Defer + Add-pill (consumption-unit equivalence).** Per `Override_Principle.md` case table: laundry detergent listings (sheets, pods, tabs, pacs, liquid-by-load) all share one consumption unit — the wash. Currently handled by the existing "per item" pill in search.js, which uses each listing's per-count value as the sort key regardless of title unit form.
 - **SPECULATIVE — Washer load capacity spec.** "8 lb load capacity." Spec, different context entirely.
 
 ---
@@ -235,7 +235,7 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** linear length (rope, cord, hose, lights).
 
 **Collisions:**
-- **VERIFIED — Min-5ft guard exists.** `extractCount` rejects short footage values. Doesn't help when a count regex matches first.
+- **VERIFIED — Min-5ft guard exists.** `extractCount` rejects short footage values. Doesn't help when a count regex matches first. **Posture: N/A.** Detection carve-out in `extractCount`; prevents short footage values from being treated as item count.
 - **SPECULATIVE — Sewing machine feet.** "embroidery foot," "walking foot," "12 piece sewing machine feet set." Original case Melissa flagged. Probably defeated by "12 piece" matching count first, but worth confirming.
 - **SPECULATIVE — Coverage spec.** "covers 200 sq ft." Coverage, not buyable length.
 - **SPECULATIVE — Tripod/camera "foot" replacement.** "rubber foot replacement."
@@ -247,11 +247,11 @@ From `LIQUID_UNITS`, `WEIGHT_UNITS`, `CONTAINER_UNITS`, `LENGTH_UNITS`, `ITEM_UN
 **PPU meaning:** rarely a PPU unit on its own. Usually a spec.
 
 **Collisions:**
-- **SPECULATIVE — Screen size.** "55 inch TV," "27 in monitor," "10 inch tablet." Spec.
+- **SPECULATIVE — Screen size.** "55 inch TV," "27 in monitor," "10 inch tablet." Spec. **Posture-hypothesis: Override (suppress).** Per `Override_Principle.md` case table — spec; no per-inch meaning.
 - **SPECULATIVE — Wheel/tire/bike size.** "16 inch wheels," "26 inch bike." Spec.
 - **SPECULATIVE — Garment length.** "30 inch inseam," "20 inch handbag strap." Spec.
 - **SPECULATIVE — Hardware tool spec.** "1/2 inch drill bit." Spec.
-- **VERIFIED — "in" as preposition risk.** Literal token `'in'` in `LENGTH_UNITS` is risky for false matches in titles like "best laptops in 2026." No specific bug logged but the risk is plain.
+- **VERIFIED — "in" as preposition risk.** Literal token `'in'` in `LENGTH_UNITS` is risky for false matches in titles like "best laptops in 2026." No specific bug logged but the risk is plain. **Posture: N/A.** Detection-risk note about the `'in'` token in `LENGTH_UNITS`, not a category collision.
 
 ### `yard`, `yards`
 
