@@ -87,12 +87,17 @@ The diagnostic: no useful replacement unit lives in the title. A 14-count Aida c
 
 **Open question.** How wide should each detector's keyword list be? Erring narrow risks misses; erring wide risks false suppressions. Phase 3 work.
 
-**Verification findings (Chat 99, May 21 2026).** Two SPECULATIVE Shape A entries verified, both disconfirmed the predicted Override-suppress failure mode:
+**Verification findings (Chat 99 + Chat 100, May 21 2026).** Three SPECULATIVE Shape A entries verified across two sessions. Headline result: Shape A collisions are real in all three cases, but the collision source is AU's own detectors rather than Amazon's PPU output.
 
-- **Fishing sinkers (oz spec).** Search: "fishing sinkers", 60 listings. Amazon omitted PPU on every listing in the natural sort. Predicted $/oz collision did not occur.
-- **Fishing line (lb test spec).** Search: "braided fishing line", ~57 listings. Amazon computed $/foot from the spool length on most listings. Predicted $/lb collision did not occur.
+- **Sinkers oz (Chat 99, re-verified Chat 100).** Amazon omits PPU (pattern N1). AU computes $/oz for 36 of 178 listings.
+- **Fishing line lb test (Chat 99, re-verified Chat 100).** Amazon computes $/foot from spool length (pattern N2). AU computes $/lb for 37 of 162 listings.
+- **Boxing gloves oz (Chat 100).** Amazon omits PPU (pattern N1, third instance). AU computes $/oz from title weight; affected listings sort to the top under lowest-PPU sort.
 
-Two-for-two on "predicted failure mode absent." See "Cross-shape patterns" below for the two non-failure outcome classes this surfaced (N1, N2). Catalog entries remain SPECULATIVE pending broader confirmation, but Phase 3 detector design for these specific sub-patterns is downgraded in priority. The VERIFIED Shape A entries (paper grade `lb`, dumbbells `lb`) are unaffected — they remain confirmed.
+**Framework implication.** Chat 99 read the early results as Amazon already handling Shape A and downgraded the Phase 3 detector priority for these entries. Chat 100 re-verification with AU extension on inverted this: the override decisions matter regardless of Amazon's behavior, because AU is generating the bad PPU on its own. The override question shifts from "should we override Amazon's PPU?" to "should we override AU's own detector output?" The trust posture framework still applies; the audience of the override is wider than originally framed.
+
+**N1 and N2 status.** N1 and N2 remain accurate descriptions of Amazon's behavior, but they do not by themselves indicate that an override is unnecessary. Promotion of N1/N2 to formal catalog status (Path B in the Chat 99 handover) is deferred — the more useful catalog-level distinction is now "does AU produce a bad PPU here?" not "does Amazon?" That distinction needs a different verification approach than the original queue assumed. Held pending a broader AU-accuracy review (added to roadmap).
+
+VERIFIED Shape A entries (paper grade `lb`, dumbbells `lb`) unaffected — those are confirmed direct collisions and remain so.
 
 ---
 
@@ -269,14 +274,18 @@ A few observations worth carrying into Phase 3.
 
 **Phase 3 detector count.** Eight shapes; many more than eight detectors. Shape A alone has seven sub-patterns each needing their own keyword list and proximity rules. A rough estimate: Phase 3 designs ~12-15 detectors across the in-scope shapes, plus whatever the verification queue adds.
 
-**Non-failure outcome patterns (surfaced Chat 99 verification).** When verifying whether a predicted collision actually occurs, Amazon may already handle the case acceptably. Two distinct "non-failure" outcomes observed so far:
+**Non-failure outcome patterns at the Amazon level (surfaced Chat 99, sharpened Chat 100).** When verifying whether a predicted collision actually occurs in Amazon's PPU output, two distinct outcomes have been observed where Amazon does not produce the predicted bad PPU:
 
-- **N1 — Amazon omits PPU.** No PPU appears at all for the category. Sinkers example: Amazon's parser appears to recognize that no extractable buyable unit is in the title and declines to compute. No collision because there's nothing to override.
-- **N2 — Amazon recategorizes from title.** Amazon ignores the candidate spec unit and computes PPU from a different, meaningful unit also present in the title. Fishing line example: Amazon ignores `lb test` and computes `$/foot` from spool length. No collision because Amazon's chosen unit is the buyable.
+- **N1 — Amazon omits PPU.** No PPU appears at all for the category. Sinkers and boxing gloves examples: Amazon's parser appears to recognize that no extractable buyable unit is in the title and declines to compute.
+- **N2 — Amazon recategorizes from title.** Amazon ignores the candidate spec unit and computes PPU from a different, meaningful unit also present in the title. Fishing line example: Amazon ignores `lb test` and computes `$/foot` from spool length.
 
-These aren't postures — AU does nothing in either case. They're outcome classes that the verification queue may keep surfacing. Implication for Phase 3: detector design should not assume "speculative Shape A entry = needs detector." Some sub-patterns won't need detectors at all because Amazon already handles them. The verification queue's job is partly to distinguish "needs a detector" from "Amazon already handles it."
+**What Chat 99 thought they meant.** When N1 and N2 were first observed, the working interpretation was that Amazon "already handles the case acceptably," and therefore no override / detector work was needed for affected entries. The implication drawn was that the verification queue's job is partly to distinguish "needs a detector" from "Amazon already handles it."
 
-This pattern is observational, not framework-level. If a third or fourth verification keeps surfacing N1/N2 outcomes, these may warrant a more formal status tag in the catalog (e.g. "VERIFIED non-collision — Amazon handles via N1" or "via N2"). For now, kept as a working note here.
+**What Chat 100 showed they actually mean.** N1 and N2 describe Amazon's behavior only. They do not describe AU's behavior. Chat 100 re-verification of the sinkers, fishing line, and boxing gloves searches with the AU extension on showed that AU produces the predicted Shape A collision in all three cases — even where Amazon does not. AU has its own weight/spec-extraction logic that runs independently of whether Amazon supplied a PPU. So N1 and N2 do not mean "no detector needed"; they mean "Amazon is not the source of this particular collision, AU is."
+
+**Status of the patterns.** N1 and N2 remain accurate observational categories of Amazon's behavior. Their value for Phase 3 is more limited than originally framed: they tell us where Amazon won't fight us on an override, but they don't tell us whether an override is needed at all. The override-need question depends on AU's behavior, which the original verification queue did not directly examine. See Shape A "Verification findings" above for the corrected framing.
+
+**Promotion to formal status — deferred.** The Chat 99 handover proposed promoting N1/N2 to formal catalog status tags (e.g. "VERIFIED non-collision — Amazon handles via N1") after a third verification surfaced the same pattern. Three N1/N2 instances have now been observed, so on the original criterion promotion is eligible. But because N1/N2 alone don't determine override-need, the more useful catalog distinction is now "does AU produce a bad PPU here?" — which N1/N2 don't answer. Promotion held pending a broader AU-accuracy review (roadmap item).
 
 ---
 
@@ -302,7 +311,7 @@ The catalog's SPECULATIVE entries not covered by the `Override_Principle.md` cas
 
 **Likely to populate existing shapes:**
 
-- **Shape A candidates** (spec-rating-as-quantity): ~~fishing weights/sinkers oz~~ (verified Chat 99 — N1, no PPU), ~~fishing line lb test~~ (verified Chat 99 — N2, $/foot from spool length), glove weight class oz, body weight ranges (kg, lb), kg load capacity, empty product weight kg, focal length mm, screen size variants (wheels, garment length, hardware tool spec).
+- **Shape A candidates** (spec-rating-as-quantity): ~~fishing weights/sinkers oz~~ (verified Chat 99, re-verified Chat 100 — Shape A confirmed, AU-sourced), ~~fishing line lb test~~ (verified Chat 99, re-verified Chat 100 — Shape A confirmed, AU-sourced), ~~glove weight class oz~~ (verified Chat 100 — Shape A confirmed, AU-sourced), body weight ranges (kg, lb), kg load capacity, empty product weight kg, focal length mm, screen size variants (wheels, garment length, hardware tool spec).
 - **Shape B candidates** (set composition): puzzle pieces, Lego pieces, dinnerware set, luggage set, sheet set, bed sheet set.
 - **Shape C candidates** (container capacity + count): empty Mason jar capacity + pack count, ml-pipette capacity + count, cosmetics jar ml + pack count, mug oz capacity + count, water bottle oz + count.
 - **Shape D candidates** (per-serving / per-use): coffee dosage g, pre-workout dosage g, jewelry weight g (different sub-case).
